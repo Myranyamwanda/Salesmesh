@@ -7,6 +7,10 @@ database health checks, consistent errors, JSON logging, and backend tests.
 Authentication endpoints and password hashing belong to Phase 3. No dataset,
 domain agent model, onboarding model, features, or scoring fields are defined.
 
+When using the Phase 3 code, follow [authentication setup](backend-authentication.md)
+as well: generate JWT_SECRET before starting the server. The sections below
+describe the Phase 2 foundation and its original verification scope.
+
 ## Windows Setup
 
 Run these PowerShell commands from the repository root. Docker Desktop must be
