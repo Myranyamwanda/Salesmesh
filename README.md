@@ -9,7 +9,9 @@ No dataset or domain data model has been selected; no scoring is implemented.
 - Phase 1: repository structure and PostgreSQL 16 development environment.
 - Phase 2: FastAPI foundation, authentication/audit-only storage, Alembic,
 	database health checks, structured logging, and PostgreSQL-backed tests.
-- Authentication flows, frontend, automation, and ML are reserved for later
+- Phase 3: secure authentication, refresh rotation/reuse detection, account
+	verification/recovery, admin controls, rate limiting, and audit logging.
+- Frontend, automation, and ML are reserved for later
 	approved phases.
 
 ## Setup
@@ -19,6 +21,11 @@ Use Windows PowerShell, Git, Docker Desktop with Linux containers, and Python
 
 - [Development environment](docs/development-environment.md)
 - [Backend setup and verification](docs/backend-foundation.md)
+- [Authentication setup and API](docs/backend-authentication.md)
+
+After installing dependencies, generate the local signing secret and apply
+migrations before startup. The authentication guide includes the first-admin
+command and explains Secure-cookie requirements.
 
 The backend exposes GET /health and interactive API documentation at /docs.
 It does not create tables at startup; apply Alembic migrations explicitly.

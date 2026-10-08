@@ -7,6 +7,8 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.admin import router as admin_router
+from app.api.auth import router as auth_router
 from app.api.health import router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
@@ -21,6 +23,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        settings.signing_key()
         configure_logging(settings.log_level)
         logger.info("application_started")
         yield
@@ -53,6 +56,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             )
 
     app.include_router(router)
+    app.include_router(auth_router)
+    app.include_router(admin_router)
     return app
 
 
