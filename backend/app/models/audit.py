@@ -20,6 +20,7 @@ class AuditLog(Base):
     action: Mapped[str] = mapped_column(String(100), index=True)
     outcome: Mapped[str] = mapped_column(String(20))
     request_id: Mapped[str | None] = mapped_column(String(36))
+    client_ip_hash: Mapped[str | None] = mapped_column(String(64), index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )
