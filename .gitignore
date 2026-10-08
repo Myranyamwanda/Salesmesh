@@ -1,0 +1,41 @@
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Node and build output
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+
+# Datasets and generated model artifacts
+/data/*
+!/data/.gitkeep
+/ml/artifacts/*
+!/ml/artifacts/.gitkeep
+
+# Local editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+*.log
