@@ -10,6 +10,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { AuthLayout } from "./layouts/AuthLayout";
+import { WorkspaceLayout } from "./layouts/WorkspaceLayout";
 import { useAuth } from "./hooks/useAuth";
 import {
   ChangePasswordPage,
@@ -21,11 +22,24 @@ import {
   ResetPasswordPage,
   VerifyEmailPage,
 } from "./pages/AuthPages";
-import { RoleHomePage } from "./pages/RoleHomePage";
+import { AdminAuditLogPage } from "./pages/AdminAuditLogPage";
+import { AdminUserManagementPage } from "./pages/AdminUserManagementPage";
+import {
+  AdminOverviewPage,
+  AgentDashboardPage,
+  AgentDetailPage,
+  AgentsListPage,
+  AgentTasksPage,
+  ClientDashboardPage,
+  ClientReportsPage,
+  ModelManagementPage,
+  ProfilePage,
+  ReviewQueuePage,
+  SystemSettingsPage,
+} from "./pages/WorkspacePages";
 import { ErrorPage, ForbiddenPage, NotFoundPage } from "./pages/StatusPages";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { RoleRoute } from "./routes/RoleRoute";
-import type { UserRole } from "./types/auth";
 import { roleHome } from "./utils/roleHome";
 
 function AuthFrame() {
@@ -46,6 +60,15 @@ function LoginRedirect() {
     );
   }
   return user ? <Navigate to={roleHome[user.role]} replace /> : <LoginPage />;
+}
+
+function CurrentWorkspaceLayout() {
+  const { user } = useAuth();
+  return user ? (
+    <WorkspaceLayout role={user.role} />
+  ) : (
+    <Navigate to="/login" replace />
+  );
 }
 
 function ErrorRecovery() {
@@ -82,24 +105,40 @@ function AppRoutes() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
         <Route element={<ProtectedRoute />}>
-          <Route element={<RoleRoute allowed={["admin", "agent", "client"]} />}>
-            <Route
-              path="/change-password"
-              element={
-                <AuthLayout>
-                  <ChangePasswordPage />
-                </AuthLayout>
-              }
-            />
+          <Route element={<CurrentWorkspaceLayout />}>
+            <Route path="/change-password" element={<ChangePasswordPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
           </Route>
-          {(["admin", "agent", "client"] as UserRole[]).map((role) => (
-            <Route key={role} element={<RoleRoute allowed={[role]} />}>
+          <Route element={<RoleRoute allowed={["admin"]} />}>
+            <Route element={<WorkspaceLayout role="admin" />}>
+              <Route path="/admin" element={<AdminOverviewPage />} />
+              <Route path="/admin/agents" element={<AgentsListPage />} />
               <Route
-                path={roleHome[role]}
-                element={<RoleHomePage role={role} />}
+                path="/admin/agents/:agentId"
+                element={<AgentDetailPage />}
               />
+              <Route path="/admin/review-queue" element={<ReviewQueuePage />} />
+              <Route path="/admin/models" element={<ModelManagementPage />} />
+              <Route
+                path="/admin/users"
+                element={<AdminUserManagementPage />}
+              />
+              <Route path="/admin/audit-log" element={<AdminAuditLogPage />} />
+              <Route path="/admin/settings" element={<SystemSettingsPage />} />
             </Route>
-          ))}
+          </Route>
+          <Route element={<RoleRoute allowed={["agent"]} />}>
+            <Route element={<WorkspaceLayout role="agent" />}>
+              <Route path="/agent" element={<AgentDashboardPage />} />
+              <Route path="/agent/tasks" element={<AgentTasksPage />} />
+            </Route>
+          </Route>
+          <Route element={<RoleRoute allowed={["client"]} />}>
+            <Route element={<WorkspaceLayout role="client" />}>
+              <Route path="/client" element={<ClientDashboardPage />} />
+              <Route path="/client/reports" element={<ClientReportsPage />} />
+            </Route>
+          </Route>
         </Route>
         <Route path="/403" element={<ForbiddenPage />} />
         <Route path="/404" element={<NotFoundPage />} />
