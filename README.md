@@ -11,7 +11,9 @@ No dataset or domain data model has been selected; no scoring is implemented.
 	database health checks, structured logging, and PostgreSQL-backed tests.
 - Phase 3: secure authentication, refresh rotation/reuse detection, account
 	verification/recovery, admin controls, rate limiting, and audit logging.
-- Frontend, automation, and ML are reserved for later
+ - Phase 4: responsive desktop-first React authentication UI and role-protected
+  frontend routes.
+ - Layout pages, automation, and ML remain for later approved phases.
 	approved phases.
 
 ## Setup
@@ -21,7 +23,7 @@ Use Windows PowerShell, Git, Docker Desktop with Linux containers, and Python
 
 - [Development environment](docs/development-environment.md)
 - [Backend setup and verification](docs/backend-foundation.md)
-- [Authentication setup and API](docs/backend-authentication.md)
+ - [Frontend setup and authentication flows](docs/frontend-authentication.md)
 
 After installing dependencies, generate the local signing secret and apply
 migrations before startup. The authentication guide includes the first-admin
