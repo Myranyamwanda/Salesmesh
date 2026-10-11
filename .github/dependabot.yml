@@ -2,13 +2,20 @@ version: 2
 updates:
   - package-ecosystem: pip
     directory: /backend
+    target-branch: develop
     schedule:
       interval: monthly
+    ignore:
+      # The approved stack is SQLAlchemy 2.0; accept 2.0.x patch releases only.
+      - dependency-name: sqlalchemy
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
   - package-ecosystem: npm
     directory: /frontend
+    target-branch: develop
     schedule:
       interval: monthly
   - package-ecosystem: github-actions
     directory: /
+    target-branch: develop
     schedule:
       interval: monthly
