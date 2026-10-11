@@ -91,37 +91,8 @@ in again after a password change/reset.
 
 ## API Summary
 
-All paths below are relative to the API host. Bodies are JSON. Errors use the
-Phase 2 error envelope; tokens are never echoed in error details.
-
-| Method and Path | Access | Body / Purpose |
-| --- | --- | --- |
-| POST /auth/register | Public | email, password; agent role and pending state are server-controlled |
-| POST /auth/login | Public | email, password; access-token response plus refresh cookie |
-| POST /auth/refresh | Cookie + trusted Origin | Rotate token and return a new access token |
-| POST /auth/logout | Cookie + trusted Origin | Revoke session and clear cookie; idempotent |
-| POST /auth/logout-all | Bearer | Revoke all sessions and clear cookie |
-| GET /auth/me | Bearer | Current authentication user, with no password/token fields |
-| POST /auth/verify-email | Public | token; single-use, expiring verification |
-| POST /auth/resend-verification | Public | email; replace the previous verification token |
-| POST /auth/forgot-password | Public | email; issue a single-use reset token |
-| POST /auth/reset-password | Public | token, password; replace password and revoke sessions |
-| POST /auth/change-password | Bearer | current_password, new_password |
-| GET /admin/users | Admin | Paginated authentication-user list |
-| GET /admin/users/{id} | Admin | Authentication-user detail |
-| POST /admin/users | Admin | email, password, role (admin or client) |
-| POST /admin/users/{id}/approve | Admin | Approve a pending agent account |
-| POST /admin/users/{id}/reject | Admin | Reject a pending agent account |
-| PATCH /admin/users/{id}/active | Admin | is_active boolean |
-| PATCH /admin/users/{id}/role | Admin | role (admin, agent, client) |
-| GET /admin/audit-logs | Admin | Paginated audit entries without client-IP hashes |
-
-List endpoints accept offset >= 0 and limit 1-100, default 25. They return items
-and total. Admins cannot deactivate themselves or change their own role; active,
-verified admin retention is also checked under a shared database lock.
-Duplicate registration or account creation returns HTTP 409. Public verification
-and reset errors return HTTP 400. Missing, invalid, revoked, or expired access
-tokens return HTTP 401 with WWW-Authenticate: Bearer. Wrong roles return HTTP 403.
+Endpoints, access rules, and status codes are listed in the
+[API summary](api-summary.md).
 
 ## Verification, Recovery, and Development Email
 
