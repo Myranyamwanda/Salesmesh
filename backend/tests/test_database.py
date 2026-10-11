@@ -3,13 +3,13 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
+from alembic import command
 from alembic.config import Config
 from conftest import validate_test_database
 from fastapi.testclient import TestClient
 from sqlalchemy import inspect, select
 from sqlalchemy.exc import IntegrityError
 
-from alembic import command
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.main import create_app

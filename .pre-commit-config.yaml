@@ -1,0 +1,27 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.10
+    hooks:
+      - id: ruff-check
+        args: [--config, backend/pyproject.toml]
+      - id: ruff-format
+        args: [--config, backend/pyproject.toml]
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files
+        args: [--maxkb=1024]
+      - id: detect-private-key
+  - repo: local
+    hooks:
+      - id: prettier
+        name: Prettier
+        entry: node frontend/node_modules/prettier/bin/prettier.cjs --check
+        language: system
+        files: ^frontend/.*\.(css|html|js|json|jsx|md|ts|tsx|yaml|yml)$
+      - id: eslint
+        name: ESLint
+        entry: npm --prefix frontend run lint
+        language: system
+        files: ^frontend/.*\.(js|jsx|ts|tsx)$
+        pass_filenames: false
