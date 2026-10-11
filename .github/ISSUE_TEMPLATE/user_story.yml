@@ -1,0 +1,27 @@
+name: User story
+description: Propose a user-facing change
+title: "[Story]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: story
+    attributes:
+      label: User story
+      description: Describe the user, need, and outcome.
+      placeholder: As a ..., I want ..., so that ...
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance criteria
+      description: List observable conditions for completion.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional context
+      description: Include relevant constraints, links, or screenshots.
+    validations:
+      required: false

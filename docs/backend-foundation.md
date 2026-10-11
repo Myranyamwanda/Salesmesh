@@ -56,30 +56,30 @@ SecretStr and SQLAlchemy URL construction, not string interpolation, so special
 characters do not break connection URLs. Never print resolved Compose settings
 or commit .env.
 
-| Setting | Purpose |
-| --- | --- |
-| POSTGRES_DB | Development database name |
-| POSTGRES_USER | Database username |
-| POSTGRES_PASSWORD | Local password; replace the template placeholder |
-| POSTGRES_PORT | Host port exposed by Compose; also used by the Windows backend |
-| POSTGRES_HOST | Backend database host; default 127.0.0.1 |
-| FRONTEND_URL | One permitted CORS origin; default http://localhost:5173 |
-| LOG_LEVEL | DEBUG, INFO, WARNING, ERROR, or CRITICAL; default INFO |
-| DB_CONNECT_TIMEOUT | Connection timeout in seconds; default 5 |
-| TEST_POSTGRES_DB | Separate disposable test database; default salesmesh_test |
+| Setting            | Purpose                                                        |
+| ------------------ | -------------------------------------------------------------- |
+| POSTGRES_DB        | Development database name                                      |
+| POSTGRES_USER      | Database username                                              |
+| POSTGRES_PASSWORD  | Local password; replace the template placeholder               |
+| POSTGRES_PORT      | Host port exposed by Compose; also used by the Windows backend |
+| POSTGRES_HOST      | Backend database host; default 127.0.0.1                       |
+| FRONTEND_URL       | One permitted CORS origin; default http://localhost:5173       |
+| LOG_LEVEL          | DEBUG, INFO, WARNING, ERROR, or CRITICAL; default INFO         |
+| DB_CONNECT_TIMEOUT | Connection timeout in seconds; default 5                       |
+| TEST_POSTGRES_DB   | Separate disposable test database; default salesmesh_test      |
 
 Host, port, reload mode, and worker count are Uvicorn command-line options rather
-than extra application settings. This phase runs the backend on Windows; Compose
-backend/frontend services are deferred to Phase 6.
+than extra application settings. Host-based backend setup remains supported;
+the full Compose stack is documented in the development workflow guide.
 
 ## Authentication-Only Storage
 
-| Table | Purpose |
-| --- | --- |
-| users | Login identity, role, approval/activity state, lockout state, verification state |
-| refresh_tokens | Hashed refresh tokens, expiry/revocation, and a shared session ID |
-| password_reset_tokens | Hashed single-use reset tokens, expiry, and consumption time |
-| audit_logs | Actor/target user references, action, outcome, request ID, and timestamp |
+| Table                 | Purpose                                                                          |
+| --------------------- | -------------------------------------------------------------------------------- |
+| users                 | Login identity, role, approval/activity state, lockout state, verification state |
+| refresh_tokens        | Hashed refresh tokens, expiry/revocation, and a shared session ID                |
+| password_reset_tokens | Hashed single-use reset tokens, expiry, and consumption time                     |
+| audit_logs            | Actor/target user references, action, outcome, request ID, and timestamp         |
 
 Alembic also maintains its own alembic_version bookkeeping table.
 
@@ -130,7 +130,13 @@ and migration upgrade/downgrade/model alignment.
 Application errors follow this shape:
 
 ```json
-{"error":{"code":"database_unavailable","message":"Database is unavailable","request_id":"uuid"}}
+{
+    "error": {
+        "code": "database_unavailable",
+        "message": "Database is unavailable",
+        "request_id": "uuid"
+    }
+}
 ```
 
 The server generates X-Request-ID values for correlation. Validation errors do

@@ -2,17 +2,16 @@
 
 ## Scope
 
-This phase prepares the folder structure and local PostgreSQL only. Backend,
-frontend, authentication, migrations, and ML implementation come in later
-approved phases. No domain data model or dataset has been selected.
+This guide covers the PostgreSQL setup. For the full API and frontend Compose
+stack and helper commands, see the [development workflow](development-workflow.md).
+No domain data model or dataset has been selected.
 
 ## Prerequisites
 
 - Git and PowerShell.
 - Docker Desktop with Docker Compose v2 and Linux containers enabled.
   Follow Docker Desktop's Windows requirements, including WSL 2 where needed.
-- Python and Node.js/npm for later phases. Dependency versions and supported
-  runtimes will be checked when the applications are added.
+- Python 3.14 and Node.js 22.13 or newer for the backend and frontend.
 
 Docker must be running before the database commands below will work.
 
@@ -27,8 +26,7 @@ notepad .env
 ```
 
 Replace POSTGRES_PASSWORD with a unique local password. POSTGRES_DB and
-POSTGRES_USER are non-secret development defaults; POSTGRES_PORT defaults to
-5432. If another database uses that port, choose an unused local port in .env.
+POSTGRES_USER are non-secret development defaults; POSTGRES_PORT defaults to 5432. If another database uses that port, choose an unused local port in .env.
 Use single quotes around values containing literal dollar signs or hash marks
 so Compose does not interpolate them. Never commit .env.
 
