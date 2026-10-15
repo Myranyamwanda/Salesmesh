@@ -28,6 +28,9 @@ services:
       FRONTEND_URL: http://localhost:5173
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      # Model files stay outside the image and Git; mounted read-only.
+      - ./backend/models:/app/models:ro
     depends_on:
       postgres:
         condition: service_healthy
