@@ -1,0 +1,402 @@
+[
+  {
+    "features": {
+      "name_email_similarity": 0.0407579939768889,
+      "prev_address_months_count": null,
+      "current_address_months_count": 160.0,
+      "date_of_birth_distinct_emails_4w": 8,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 4.818446216544526,
+      "device_os": "macintosh",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.054275,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.1948904185847245,
+      "prev_address_months_count": null,
+      "current_address_months_count": 122.0,
+      "date_of_birth_distinct_emails_4w": 1,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.13443163151735,
+      "device_os": "other",
+      "keep_alive_session": 1,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.016898,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.1839189096436266,
+      "prev_address_months_count": null,
+      "current_address_months_count": 63.0,
+      "date_of_birth_distinct_emails_4w": 11,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 8.669218281101646,
+      "device_os": "other",
+      "keep_alive_session": 1,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.001695,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.3931407986451546,
+      "prev_address_months_count": null,
+      "current_address_months_count": 22.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 13.6218426297347,
+      "device_os": "windows",
+      "keep_alive_session": 1,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.022656,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.2115296266111148,
+      "prev_address_months_count": null,
+      "current_address_months_count": 29.0,
+      "date_of_birth_distinct_emails_4w": 5,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 3.7752087434370174,
+      "device_os": "windows",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.087019,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.0784498659518454,
+      "prev_address_months_count": null,
+      "current_address_months_count": 109.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 1,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.355846856034041,
+      "device_os": "windows",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 2.0
+    },
+    "expected_probability": 0.092963,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.0669823719346107,
+      "prev_address_months_count": null,
+      "current_address_months_count": 229.0,
+      "date_of_birth_distinct_emails_4w": 3,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.639529541531961,
+      "device_os": "windows",
+      "keep_alive_session": 1,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.041948,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.5398242231558895,
+      "prev_address_months_count": null,
+      "current_address_months_count": 142.0,
+      "date_of_birth_distinct_emails_4w": 9,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 3.0075832519381067,
+      "device_os": "windows",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.053256,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.8907328567180122,
+      "prev_address_months_count": null,
+      "current_address_months_count": 81.0,
+      "date_of_birth_distinct_emails_4w": 9,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 3.6977228041244334,
+      "device_os": "windows",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.019454,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.5678276931567647,
+      "prev_address_months_count": null,
+      "current_address_months_count": 57.0,
+      "date_of_birth_distinct_emails_4w": 9,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 8.970417825679215,
+      "device_os": "other",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.007367,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.564128257141429,
+      "prev_address_months_count": null,
+      "current_address_months_count": 92.0,
+      "date_of_birth_distinct_emails_4w": 3,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 2.780425340022828,
+      "device_os": "other",
+      "keep_alive_session": 1,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.005317,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.8801976421410178,
+      "prev_address_months_count": null,
+      "current_address_months_count": 82.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 1,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 43.1915039215456,
+      "device_os": "windows",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 2.0
+    },
+    "expected_probability": 0.042019,
+    "expected_flag": true,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.8508003826150183,
+      "prev_address_months_count": null,
+      "current_address_months_count": 32.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 1,
+      "source": "INTERNET",
+      "session_length_in_minutes": 4.758084871893612,
+      "device_os": "linux",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.003648,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.4282626687312079,
+      "prev_address_months_count": 53.0,
+      "current_address_months_count": 8.0,
+      "date_of_birth_distinct_emails_4w": 3,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 1.6539667663065731,
+      "device_os": "other",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.000902,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.7786901844103933,
+      "prev_address_months_count": 24.0,
+      "current_address_months_count": 29.0,
+      "date_of_birth_distinct_emails_4w": 8,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.106165152965811,
+      "device_os": "other",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.000404,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.6012528927210748,
+      "prev_address_months_count": null,
+      "current_address_months_count": 155.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.608643163203468,
+      "device_os": "windows",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.068189,
+    "expected_flag": true,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.1958332556341254,
+      "prev_address_months_count": 10.0,
+      "current_address_months_count": 3.0,
+      "date_of_birth_distinct_emails_4w": 17,
+      "email_is_free": 1,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 1.5652225354074476,
+      "device_os": "linux",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.000594,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.7356012349522363,
+      "prev_address_months_count": null,
+      "current_address_months_count": 190.0,
+      "date_of_birth_distinct_emails_4w": 5,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 14.880148596731187,
+      "device_os": "other",
+      "keep_alive_session": 1,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.001494,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.8607621308579785,
+      "prev_address_months_count": null,
+      "current_address_months_count": 25.0,
+      "date_of_birth_distinct_emails_4w": 6,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 1.952567273455472,
+      "device_os": "other",
+      "keep_alive_session": 1,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.005068,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "name_email_similarity": 0.2822910870772927,
+      "prev_address_months_count": null,
+      "current_address_months_count": 53.0,
+      "date_of_birth_distinct_emails_4w": 5,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 0.8460936817763045,
+      "device_os": "macintosh",
+      "keep_alive_session": 0,
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.008723,
+    "expected_flag": false,
+    "true_label": 0
+  }
+]
