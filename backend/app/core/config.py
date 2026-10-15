@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     aws_region: str | None = None
     aws_access_key_id: str | None = None
     aws_secret_access_key: SecretStr | None = None
+    free_email_domains: str = (
+        "gmail.com,yahoo.com,outlook.com,hotmail.com,icloud.com,live.com,"
+        "aol.com,proton.me,protonmail.com,gmx.com,mail.com,yandex.com,zoho.com"
+    )
+    phone_default_region: str = Field(default="KE", pattern="^[A-Z]{2}$")
+    join_rate_limit: int = Field(default=10, ge=1)
+    join_rate_window_seconds: int = Field(default=3600, ge=1)
 
     @field_validator("jwt_secret")
     @classmethod
@@ -62,6 +69,14 @@ class Settings(BaseSettings):
     @classmethod
     def resolve_model_dir(cls, value: Path) -> Path:
         return value if value.is_absolute() else BACKEND_DIR / value
+
+    @property
+    def free_email_domain_set(self) -> frozenset[str]:
+        return frozenset(
+            domain.strip().lower()
+            for domain in self.free_email_domains.split(",")
+            if domain.strip()
+        )
 
     def signing_key(self) -> str:
         if self.jwt_secret is None:

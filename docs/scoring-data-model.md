@@ -58,6 +58,7 @@ erDiagram
         int min_users_for_band
         float high_risk_below
         float watch_below
+        int device_email_rule_min
     }
 ```
 
@@ -69,7 +70,7 @@ erDiagram
 | `customers` | People registered through a referral link. `email` is not unique, because a repeated email is a fraud signal. `date_of_birth` is stored only for a model feature. The request IP is stored as an HMAC-SHA256 hash, never in raw form. `status` is `pending_review`, `verified`, or `rejected`. |
 | `risk_assessments` | One model score: probability, threshold, flag, the top reasons, and a JSON snapshot of the 13 features that produced it. |
 | `reviews` | An admin's final decision (`confirmed_real` or `confirmed_fake`). Only one review is allowed per assessment, so the reputation rule always has a single answer. |
-| `scoring_config` | The reputation settings. A `CHECK (id = 1)` constraint keeps it to one row, created by the migration with p0 = 0.0539, k = 10, min_users_for_band = 30, high_risk_below = 90, watch_below = 92. |
+| `scoring_config` | The reputation and rule settings. A `CHECK (id = 1)` constraint keeps it to one row, created by the migration with p0 = 0.0539, k = 10, min_users_for_band = 30, high_risk_below = 90, watch_below = 92. Migration `0004` adds `device_email_rule_min` (default 3, CHECK >= 3), the threshold of the device email rule described in [ML model service](ml-scoring.md). |
 | `model_versions` | Each loaded model version and its test metrics. A partial unique index allows only one active row. The API records the version at startup after the model passes its checks. |
 
 ## Design Decisions

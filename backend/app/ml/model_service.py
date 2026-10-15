@@ -79,10 +79,10 @@ class ModelState:
 NOT_LOADED = ModelState(status="failed", source="none", error="Model is not loaded")
 
 
-def predict_probability(
-    model: Any, metadata: Mapping[str, Any], features: Mapping[str, Any]
-) -> float:
-    """Return the probability that one customer is fake.
+def feature_frame(
+    metadata: Mapping[str, Any], features: Mapping[str, Any]
+) -> pd.DataFrame:
+    """Return a one-row DataFrame in the model's column order.
 
     features must contain exactly the model's feature names; None means missing.
     """
@@ -97,7 +97,14 @@ def predict_probability(
     numeric = list(metadata["numeric_features"])
     # A one-row frame holding None has an object column; cast so None becomes NaN.
     row[numeric] = row[numeric].astype(float)
-    return float(model.predict_proba(row)[0, 1])
+    return row
+
+
+def predict_probability(
+    model: Any, metadata: Mapping[str, Any], features: Mapping[str, Any]
+) -> float:
+    """Return the probability that one customer is fake."""
+    return float(model.predict_proba(feature_frame(metadata, features))[0, 1])
 
 
 def run_golden_check(
@@ -218,10 +225,15 @@ class ModelService:
         self.state = load_model_state(settings)
         return self.state
 
-    def predict_probability(self, features: Mapping[str, Any]) -> float:
+    def ready_state(self) -> ModelState:
+        """Return the current state, or raise if predictions are not allowed."""
         state = self.state
         if state.status != "ok":
             raise ModelUnavailableError(state.error or "Model is not available")
+        return state
+
+    def predict_probability(self, features: Mapping[str, Any]) -> float:
+        state = self.ready_state()
         return predict_probability(state.model, state.metadata, features)
 
 

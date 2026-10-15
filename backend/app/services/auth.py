@@ -56,11 +56,19 @@ def active_user(user: User) -> bool:
     )
 
 
-def check_login_rate(session: Session, request: Request, settings: Settings) -> str:
-    address = request.client.host if request.client else "unknown"
-    hashed = hmac.new(
+def client_address(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def hash_ip(address: str, settings: Settings) -> str:
+    """HMAC-SHA256 of an IP address, so raw addresses are never stored."""
+    return hmac.new(
         settings.signing_key().encode(), address.encode(), hashlib.sha256
     ).hexdigest()
+
+
+def check_login_rate(session: Session, request: Request, settings: Settings) -> str:
+    hashed = hash_ip(client_address(request), settings)
     lock_key = int(hashed[:15], 16)
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
     since = datetime.now(UTC) - timedelta(seconds=settings.login_rate_window_seconds)

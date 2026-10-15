@@ -105,6 +105,8 @@ class ScoringConfig(Base):
             "AND watch_below <= 100",
             name="band_order",
         ),
+        # Must stay above the training max of device_distinct_emails_8w (2.0).
+        CheckConstraint("device_email_rule_min >= 3", name="device_email_rule_min"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
@@ -113,6 +115,9 @@ class ScoringConfig(Base):
     min_users_for_band: Mapped[int] = mapped_column(Integer, server_default="30")
     high_risk_below: Mapped[float] = mapped_column(Float, server_default="90")
     watch_below: Mapped[float] = mapped_column(Float, server_default="92")
+    # Rule: flag when one device registered at least this many distinct emails
+    # in 8 weeks, a level the model never saw in training.
+    device_email_rule_min: Mapped[int] = mapped_column(Integer, server_default="3")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

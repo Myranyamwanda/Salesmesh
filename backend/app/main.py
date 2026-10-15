@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.health import router
+from app.api.join import router as join_router
 from app.api.model import router as model_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
@@ -64,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth_router)
     app.include_router(admin_router)
     app.include_router(model_router)
+    app.include_router(join_router)
     return app
 
 
