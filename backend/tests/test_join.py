@@ -5,10 +5,11 @@ import pytest
 from model_fixtures import tiny_state
 from sqlalchemy import func, select
 from test_auth import add_user, auth_context, bearer_headers, sign_in  # noqa: F401
+from test_model_service import REAL_MODEL_DIR
 
 from app.core.config import get_settings
 from app.ml.features import ASSISTED_UNKNOWN, FEATURE_NAMES
-from app.ml.model_service import ModelService
+from app.ml.model_service import ModelService, load_folder
 from app.models import Customer, RiskAssessment
 from app.services.agents import create_agent_profile
 
@@ -252,3 +253,45 @@ def test_registration_response_never_contains_scores(join):
     response = client.post(f"/join/{code}/register", json=form())
     for word in ("probability", "flag", "reason", "pending", "score"):
         assert word not in response.text.lower()
+
+
+def test_third_email_on_one_device_is_flagged_by_rule(join):
+    client, session, _, _, code = join
+    device = str(uuid4())
+    for i in range(3):
+        response = client.post(
+            f"/join/{code}/register",
+            json=form(email=f"person{i}@gmail.com", device_id=device),
+        )
+        assert response.json() == {"message": "Registration received"}
+
+    assessments = session.scalars(
+        select(RiskAssessment).order_by(RiskAssessment.created_at)
+    ).all()
+    assert [a.features["device_distinct_emails_8w"] for a in assessments] == [1, 2, 3]
+    assert [a.flagged for a in assessments] == [False, False, True]
+    assert assessments[2].reasons[0] == {
+        "source": "rule",
+        "code": "rule__device_distinct_emails_8w",
+        "text": "This device was used for 3 different email addresses in 8 weeks",
+    }
+
+
+@pytest.mark.skipif(
+    not (REAL_MODEL_DIR / "model.joblib").is_file(),
+    reason="Model files are not in Git; download them to backend/models/v1",
+)
+def test_registration_with_the_real_model(join):
+    client, session, _, _, code = join
+    client.app.state.model_service = ModelService(load_folder(REAL_MODEL_DIR, "local"))
+
+    response = client.post(f"/join/{code}/register", json=form())
+
+    assert response.status_code == 201
+    assessment = session.scalar(select(RiskAssessment))
+    assert assessment.model_version == "v1"
+    assert assessment.threshold == 0.035
+    assert 0 < assessment.probability < 1
+    assert assessment.flagged == (assessment.probability >= 0.035)
+    assert len(assessment.reasons) <= 3
+    assert all(reason["text"] for reason in assessment.reasons)

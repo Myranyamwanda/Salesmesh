@@ -216,9 +216,51 @@ def test_assisted_registration_hides_device_features(db_session):
     assert features["phone_mobile_valid"] == 1
 
 
+RANGES = {
+    "prev_address_months_count": {"min": 5.0, "max": 377.0},
+    "device_distinct_emails_8w": {"min": 0.0, "max": 2.0},
+}
+
+
+def snapshot(**overrides):
+    return {name: 1 for name in f.FEATURE_NAMES} | {"source": "INTERNET"} | overrides
+
+
 def test_model_input_hides_date_of_birth_count_but_keeps_snapshot():
-    snapshot = {name: 1 for name in f.FEATURE_NAMES}
-    prepared = f.model_input(snapshot)
+    raw = snapshot(date_of_birth_distinct_emails_4w=0)
+    prepared = f.model_input(raw, RANGES)
     assert prepared["date_of_birth_distinct_emails_4w"] is None
-    assert snapshot["date_of_birth_distinct_emails_4w"] == 1
+    assert raw["date_of_birth_distinct_emails_4w"] == 0
     assert prepared["email_is_free"] == 1
+
+
+@pytest.mark.parametrize(
+    ("value", "low", "high", "expected"),
+    [(None, 0, 2, None), (-1, 0, 2, 0.0), (1, 0, 2, 1.0), (7, 0, 2, 2.0)],
+)
+def test_clip_to_range(value, low, high, expected):
+    assert f.clip_to_range(value, low, high) == expected
+
+
+def test_model_input_clips_numeric_values_to_training_range():
+    raw = snapshot(prev_address_months_count=2, device_distinct_emails_8w=6)
+    prepared = f.model_input(raw, RANGES)
+    assert prepared["prev_address_months_count"] == 5.0
+    assert prepared["device_distinct_emails_8w"] == 2.0
+    # The stored snapshot keeps the raw values.
+    assert raw["prev_address_months_count"] == 2
+    assert raw["device_distinct_emails_8w"] == 6
+    assert prepared["source"] == "INTERNET"
+
+
+def test_model_input_keeps_missing_values_missing():
+    prepared = f.model_input(snapshot(device_distinct_emails_8w=None), RANGES)
+    assert prepared["device_distinct_emails_8w"] is None
+
+
+def test_real_ranges_cover_every_numeric_feature():
+    contract = json.loads(
+        (ROOT_DIR / "ml" / "model_contract" / "metadata.json").read_text("utf-8")
+    )
+    assert set(contract["numeric_ranges"]) == set(contract["numeric_features"])
+    assert contract["numeric_ranges"]["device_distinct_emails_8w"]["max"] == 2.0
