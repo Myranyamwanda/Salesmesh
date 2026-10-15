@@ -31,6 +31,9 @@ services:
     volumes:
       # Model files stay outside the image and Git; mounted read-only.
       - ./backend/models:/app/models:ro
+      # Tracked model contract, read by the tests only. The repository root is
+      # "/" inside the container, so it is mounted at /ml/model_contract.
+      - ./ml/model_contract:/ml/model_contract:ro
     depends_on:
       postgres:
         condition: service_healthy
