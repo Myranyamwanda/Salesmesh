@@ -19,7 +19,7 @@ and response bodies are JSON.
 
 | Method and Path | Access | Purpose |
 | --- | --- | --- |
-| GET /health | Public | Returns `{"status": "ok", "database": "ok"}`, or 503 if PostgreSQL is unreachable |
+| GET /health | Public | Returns `status` (`ok` or `degraded`), `database`, `model` (`ok` or `failed`), and `model_error`; 503 only if PostgreSQL is unreachable |
 
 ### Authentication (`/auth`)
 
@@ -37,6 +37,19 @@ and response bodies are JSON.
 | POST /auth/reset-password | Public | token, password; sets the password and revokes all sessions |
 | POST /auth/change-password | Bearer | current_password, new_password; revokes all sessions |
 
+### Public Registration (`/join`)
+
+| Method and Path | Access | Body / Purpose |
+| --- | --- | --- |
+| GET /join/{code} | Public | The agent's `display_name` only |
+| POST /join/{code}/register | Public (agent token for assisted mode) | Registration form plus `consent: true`, `session_length_minutes`, `device_id`, `user_agent`, and `assisted`; scores the customer and returns only `{"message": "Registration received"}` |
+
+Both endpoints return the same 404 "This link is not active" for an unknown
+code and for an agent who is not approved, active, and verified, or no longer
+has the agent role. `assisted: true` requires the owning agent's access token
+(otherwise 403). Non-assisted registrations are limited per IP address (429);
+if the model is unavailable the endpoint returns 503 and saves nothing.
+
 ### Administration (`/admin`)
 
 | Method and Path | Access | Body / Purpose |
@@ -49,13 +62,13 @@ and response bodies are JSON.
 | PATCH /admin/users/{id}/active | Admin | is_active boolean |
 | PATCH /admin/users/{id}/role | Admin | role (`admin`, `agent`, or `client`) |
 | GET /admin/audit-logs | Admin | Paginated audit entries (client-IP hashes are not returned) |
+| GET /admin/model | Admin | Model status, version, metrics, threshold, and golden-check result |
 
 List endpoints accept `offset` (>= 0) and `limit` (1-100, default 25) and
 return `items` and `total`. Admins cannot deactivate themselves or change their
 own role, and the last active, verified admin cannot be removed.
 
-There are no agent, onboarding, or scoring endpoints yet. They will be added
-once the dataset is chosen and the scoring model is connected.
+Agent, review, reputation, and client endpoints are added in the next phase.
 
 ## Responses
 
