@@ -46,7 +46,7 @@ def test_admin_reads_model_status(auth_context):  # noqa: F811
         "checked": 20,
         "failed": 0,
         "max_difference": 4.9e-7,
-        "tolerance": 1e-6,
+        "tolerance": 1e-5,
     }
 
 

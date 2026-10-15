@@ -11,6 +11,7 @@ import sklearn
 from app.core.config import BACKEND_DIR, Settings
 from app.ml import model_source
 from app.ml.model_service import (
+    GOLDEN_TOLERANCE,
     ModelService,
     ModelUnavailableError,
     load_folder,
@@ -70,7 +71,7 @@ def test_real_model_passes_golden_examples():
     state = load_folder(REAL_MODEL_DIR, "local")
     assert state.status == "ok", state.error
     assert state.golden.checked == 20
-    assert state.golden.max_difference <= 1e-6
+    assert state.golden.max_difference <= GOLDEN_TOLERANCE
 
     service = ModelService(state)
     threshold = state.metadata["threshold"]
@@ -79,7 +80,7 @@ def test_real_model_passes_golden_examples():
     )
     for example in golden:
         probability = service.predict_probability(example["features"])
-        assert abs(probability - example["expected_probability"]) <= 1e-6
+        assert abs(probability - example["expected_probability"]) <= GOLDEN_TOLERANCE
         assert (probability >= threshold) == example["expected_flag"]
 
 

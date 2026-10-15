@@ -33,7 +33,7 @@ flowchart TD
     folder --> version{metadata sklearn_version<br/>== installed version?}
     version -- no --> failed[status: failed<br/>model not unpickled]
     version -- yes --> load[Unpickle model.joblib]
-    load --> golden{All 20 golden examples<br/>within 1e-6?}
+    load --> golden{All 20 golden examples<br/>within 1e-5?}
     golden -- no --> failed
     golden -- yes --> ok[status: ok<br/>predictions allowed]
 ```
@@ -44,6 +44,10 @@ flowchart TD
   also numpy, pandas, and joblib at the versions the golden check passed with.
 - **Golden check.** Each example is scored one row at a time through
   `predict_probability`, the same function that will score real customers.
+  The tolerance is 1e-5. The expected values are rounded to 6 decimals, so the
+  observed difference (about 5e-7) is mostly rounding; 1e-5 leaves room for
+  normal floating-point differences between machines while still catching a
+  wrong model or a wrong feature order.
 - **Failure is safe.** A failed load never crashes the API. The state becomes
   `failed`, the reason is kept, and `ModelService.predict_probability` raises
   `ModelUnavailableError`.

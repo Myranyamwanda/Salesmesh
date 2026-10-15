@@ -34,7 +34,7 @@ from app.ml.model_source import ModelSourceError, download_from_s3
 
 logger = logging.getLogger(__name__)
 
-GOLDEN_TOLERANCE = 1e-6
+GOLDEN_TOLERANCE = 1e-5
 REQUIRED_METADATA = (
     "model_version",
     "sklearn_version",
