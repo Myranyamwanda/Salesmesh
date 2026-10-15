@@ -14,10 +14,15 @@ export async function getMe() {
   return data;
 }
 
-export async function registerAgent(email: string, password: string) {
+export async function registerAgent(
+  email: string,
+  password: string,
+  displayName: string,
+) {
   const { data } = await api.post<AuthUser>("/auth/register", {
     email,
     password,
+    display_name: displayName,
   });
   return data;
 }

@@ -7,6 +7,7 @@ type Props = {
   autoComplete: string;
   registration: UseFormRegisterReturn;
   error?: string;
+  hint?: string;
   autoFocus?: boolean;
 };
 
@@ -16,6 +17,7 @@ export function FormTextField({
   autoComplete,
   registration,
   error,
+  hint,
   autoFocus,
 }: Props) {
   return (
@@ -25,7 +27,7 @@ export function FormTextField({
       type={type}
       autoComplete={autoComplete}
       error={Boolean(error)}
-      helperText={error}
+      helperText={error ?? hint}
       autoFocus={autoFocus}
       slotProps={{ htmlInput: { maxLength: 320 } }}
     />
