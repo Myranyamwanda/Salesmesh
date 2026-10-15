@@ -128,6 +128,7 @@ salesmesh/
 | [Backend authentication](docs/backend-authentication.md) | Security design and settings |
 | [Frontend authentication](docs/frontend-authentication.md) | Session handling and auth pages |
 | [Workspace pages](docs/workspace-pages.md) | Role layouts and empty-state pages |
+| [Scoring data model](docs/scoring-data-model.md) | Customer, assessment, review, config, and model version tables |
 
 ## Branches
 
