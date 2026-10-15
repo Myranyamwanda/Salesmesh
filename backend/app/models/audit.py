@@ -17,6 +17,8 @@ class AuditLog(Base):
     target_user_id: Mapped[UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
+    # What a non-user action was about, e.g. "assessment:<uuid>" or "model_version:v1".
+    subject: Mapped[str | None] = mapped_column(String(100))
     action: Mapped[str] = mapped_column(String(100), index=True)
     outcome: Mapped[str] = mapped_column(String(20))
     request_id: Mapped[str | None] = mapped_column(String(36))

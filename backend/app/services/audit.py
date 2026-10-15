@@ -12,6 +12,7 @@ def audit(
     actor: User | None = None,
     target: User | None = None,
     client_ip_hash: str | None = None,
+    subject: str | None = None,
 ) -> None:
     session.add(
         AuditLog(
@@ -21,5 +22,6 @@ def audit(
             outcome=outcome,
             request_id=request.state.request_id,
             client_ip_hash=client_ip_hash,
+            subject=subject,
         )
     )

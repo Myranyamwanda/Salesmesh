@@ -25,7 +25,7 @@ and response bodies are JSON.
 
 | Method and Path | Access | Body / Purpose |
 | --- | --- | --- |
-| POST /auth/register | Public | email, password; creates a pending agent and sends a verification link |
+| POST /auth/register | Public | email, password, display_name; creates a pending agent with a referral code and sends a verification link |
 | POST /auth/login | Public | email, password; returns an access token and sets the refresh cookie |
 | POST /auth/refresh | Cookie + Origin | Rotates the refresh token and returns a new access token |
 | POST /auth/logout | Cookie + Origin | Revokes the current session and clears the cookie; idempotent |

@@ -107,7 +107,12 @@ def test_login_refresh_reuse_and_logout(auth_context):
 def test_registration_verification_and_pending(auth_context):
     client, session, sender, _ = auth_context
     response = client.post(
-        "/auth/register", json={"email": "Agent@EXAMPLE.com", "password": PASSWORD}
+        "/auth/register",
+        json={
+            "email": "Agent@EXAMPLE.com",
+            "password": PASSWORD,
+            "display_name": "Amina",
+        },
     )
     assert response.status_code == 201
     assert response.json()["role"] == "agent"
@@ -470,6 +475,7 @@ def test_registration_policy_duplicates_and_role_injection(auth_context):
     payload = {
         "email": "agent@example.com",
         "password": PASSWORD,
+        "display_name": "Amina",
         "role": "admin",
         "status": "approved",
     }

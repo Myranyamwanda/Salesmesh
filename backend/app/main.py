@@ -16,6 +16,7 @@ from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
 from app.db.session import get_engine
 from app.ml.model_service import ModelService
+from app.services.model_versions import save_active_model
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.signing_key()
         configure_logging(settings.log_level)
-        app.state.model_service.load(settings)
+        save_active_model(app.state.model_service.load(settings))
         logger.info("application_started")
         yield
         get_engine().dispose()

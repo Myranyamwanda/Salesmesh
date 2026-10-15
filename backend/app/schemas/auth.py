@@ -2,7 +2,15 @@ from datetime import datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, EmailStr, Field, SecretStr
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    SecretStr,
+    StringConstraints,
+)
 
 from app.core.security import validate_password
 
@@ -16,14 +24,22 @@ type NewPassword = Annotated[
     SecretStr, Field(min_length=12, max_length=128), AfterValidator(check_new_password)
 ]
 type Role = Literal["admin", "agent", "client"]
+# Shown to customers on the public /join page, so keep it short and trimmed.
+type DisplayName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)
+]
 
 
 class EmailInput(BaseModel):
     email: EmailStr
 
 
-class RegistrationInput(EmailInput):
+class CredentialsInput(EmailInput):
     password: NewPassword
+
+
+class RegistrationInput(CredentialsInput):
+    display_name: DisplayName
 
 
 class LoginInput(EmailInput):
@@ -64,7 +80,7 @@ class MessageResponse(BaseModel):
     message: str
 
 
-class CreateUserInput(RegistrationInput):
+class CreateUserInput(CredentialsInput):
     role: Literal["admin", "client"]
 
 
