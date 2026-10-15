@@ -7,6 +7,7 @@
 
 # Local assistant instructions
 CLAUDE.md
+.claude/
 
 # Python
 __pycache__/
@@ -35,6 +36,8 @@ coverage/
 !/data/.gitkeep
 /ml/artifacts/*
 !/ml/artifacts/.gitkeep
+/backend/models/*
+!/backend/models/.gitkeep
 
 # Local editor and operating-system files
 .idea/
