@@ -19,6 +19,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models import AuditLog, PasswordResetToken, RefreshToken, User
+from app.services.agents import create_agent_profile
 from app.services.audit import audit
 from app.services.email import EmailSender, send_token_email
 
@@ -205,6 +206,7 @@ def register(
     request: Request,
     email: str,
     password: str,
+    display_name: str,
     settings: Settings,
     sender: EmailSender,
 ) -> User:
@@ -223,6 +225,7 @@ def register(
         raise HTTPException(
             409, "Registration cannot be completed for this email"
         ) from None
+    create_agent_profile(session, user, display_name)
     audit(session, request, "agent_registered", actor=user)
     session.commit()
     send_token_email(sender, settings, user.email, "verification", raw)

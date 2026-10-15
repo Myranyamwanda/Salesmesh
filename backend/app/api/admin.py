@@ -9,8 +9,9 @@ from sqlalchemy.exc import IntegrityError
 
 from app.auth import Configuration, Database, require_roles
 from app.core.security import hash_password
-from app.models import AuditLog, User
+from app.models import AgentProfile, AuditLog, User
 from app.schemas.auth import ActiveInput, CreateUserInput, RoleInput, UserRead
+from app.services.agents import create_agent_profile
 from app.services.audit import audit
 from app.services.auth import issue_verification, revoke_sessions
 from app.services.email import EmailSender, get_email_sender, send_token_email
@@ -198,6 +199,9 @@ def set_user_role(
         target.role = payload.role
         if target.role != "agent":
             target.status = "approved"
+        elif session.get(AgentProfile, target.id) is None:
+            # A former agent keeps their profile and referral code.
+            create_agent_profile(session, target)
 
     return change_user(session, request, actor, user_id, "user_role_changed", apply)
 

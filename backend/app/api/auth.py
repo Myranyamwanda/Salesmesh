@@ -55,6 +55,7 @@ def register(
         request,
         str(payload.email),
         payload.password.get_secret_value(),
+        payload.display_name,
         settings,
         sender,
     )
