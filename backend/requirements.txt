@@ -8,3 +8,11 @@ argon2-cffi==25.1.0
 PyJWT==2.15.1
 email-validator==2.3.0
 python-dotenv==1.2.4
+
+# Fraud model. scikit-learn must match metadata.json "sklearn_version" exactly;
+# numpy, pandas, and joblib are pinned to the versions the golden test passed with.
+scikit-learn==1.7.2
+numpy==2.5.4
+pandas==3.0.6
+joblib==1.6.0
+boto3==1.43.114
