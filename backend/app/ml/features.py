@@ -244,8 +244,23 @@ def build_features(
     return features
 
 
-def model_input(features: dict[str, Any]) -> dict[str, Any]:
-    """Prepare raw feature values for the model, leaving the snapshot as it is."""
+def clip_to_range(value: float | None, low: float, high: float) -> float | None:
+    """Limit a value to [low, high]; missing values stay missing."""
+    return None if value is None else min(max(float(value), low), high)
+
+
+def model_input(
+    features: dict[str, Any], numeric_ranges: dict[str, dict[str, float]]
+) -> dict[str, Any]:
+    """Prepare raw feature values for the model, leaving the snapshot as it is.
+
+    Numeric values are clipped to the training min and max from metadata.json
+    "numeric_ranges": a linear model extrapolates without limit, so a value it
+    never saw (for example 10 emails on one device) would dominate the score.
+    Extreme values are handled by transparent rules instead (services/scoring.py).
+    """
     prepared = dict(features)
+    for name, limits in numeric_ranges.items():
+        prepared[name] = clip_to_range(prepared[name], limits["min"], limits["max"])
     prepared.update(dict.fromkeys(NOT_SENT_TO_MODEL))
     return prepared
