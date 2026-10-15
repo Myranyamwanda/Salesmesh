@@ -33,7 +33,14 @@ def raw_features(**overrides):
 
 @pytest.mark.parametrize(
     ("emails", "rule_min", "fires"),
-    [(None, 3, False), (1, 3, False), (2, 3, False), (3, 3, True), (4, 5, False)],
+    [
+        (None, 3, False),
+        (1, 3, False),
+        (2, 3, False),
+        (3, 3, True),
+        (4, 3, True),
+        (4, 5, False),
+    ],
 )
 def test_device_email_rule(emails, rule_min, fires):
     reason = device_email_rule(raw_features(device_distinct_emails_8w=emails), rule_min)
