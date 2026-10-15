@@ -81,7 +81,10 @@ def test_model_status_requires_token(auth_context):  # noqa: F811
     not (REAL_MODEL_DIR / "model.joblib").is_file(),
     reason="Model files are not in Git; download them to backend/models/v1",
 )
-def test_startup_loads_real_model_and_health_reports_it():
+def test_startup_loads_real_model_and_health_reports_it(monkeypatch):
+    saved = []
+    # Keep the startup test away from the development database.
+    monkeypatch.setattr("app.main.save_active_model", saved.append)
     application = create_app()
     application.dependency_overrides[get_db] = lambda: Mock()
     with TestClient(application) as client:
@@ -91,3 +94,4 @@ def test_startup_loads_real_model_and_health_reports_it():
             "model": "ok",
             "model_error": None,
         }
+    assert saved[0].metadata["model_version"] == "v1"
