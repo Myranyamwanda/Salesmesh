@@ -8,10 +8,13 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin import router as admin_router
+from app.api.agent import router as agent_router
 from app.api.auth import router as auth_router
+from app.api.client import router as client_router
 from app.api.health import router
 from app.api.join import router as join_router
 from app.api.model import router as model_router
+from app.api.scoring_admin import router as scoring_admin_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
@@ -66,6 +69,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_router)
     app.include_router(model_router)
     app.include_router(join_router)
+    app.include_router(scoring_admin_router)
+    app.include_router(agent_router)
+    app.include_router(client_router)
     return app
 
 
@@ -74,7 +80,7 @@ app = CORSMiddleware(
     api,
     allow_origins=[get_settings().frontend_url],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
     expose_headers=["X-Request-ID"],
 )

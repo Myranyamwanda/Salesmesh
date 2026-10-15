@@ -129,6 +129,7 @@ salesmesh/
 | [Frontend authentication](docs/frontend-authentication.md) | Session handling and auth pages |
 | [Workspace pages](docs/workspace-pages.md) | Role layouts and empty-state pages |
 | [Scoring data model](docs/scoring-data-model.md) | Customer, assessment, review, config, and model version tables |
+| [Reputation and review](docs/reputation-and-review.md) | Review workflow, reputation formula, and who sees what |
 
 ## Branches
 

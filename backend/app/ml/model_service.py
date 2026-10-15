@@ -225,6 +225,13 @@ class ModelService:
         self.state = load_model_state(settings)
         return self.state
 
+    def reload(self, settings: Settings) -> ModelState:
+        """Load again; keep the current model if the new one fails its checks."""
+        candidate = load_model_state(settings)
+        if candidate.status == "ok":
+            self.state = candidate
+        return candidate
+
     def ready_state(self) -> ModelState:
         """Return the current state, or raise if predictions are not allowed."""
         state = self.state

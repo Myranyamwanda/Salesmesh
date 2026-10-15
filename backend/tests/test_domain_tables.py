@@ -31,6 +31,12 @@ from app.services.agents import (
 )
 from app.services.model_versions import record_active_model
 
+REASON = {
+    "source": "model",
+    "code": "num__missingindicator_prev_address_months_count",
+    "text": "No previous address provided",
+    "contribution": 0.45,
+}
 CODE_PATTERN = re.compile(r"^AGT-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$")
 
 
@@ -69,7 +75,7 @@ def make_assessment(session, customer, **overrides):
         "probability": 0.05,
         "threshold": 0.035,
         "flagged": True,
-        "reasons": ["No previous address provided"],
+        "reasons": [REASON],
         "features": {"source": "INTERNET"},
     }
     assessment = RiskAssessment(**(values | overrides))
@@ -212,7 +218,7 @@ def test_assessment_stores_json(db_session):
     db_session.expire_all()
     stored = db_session.get(RiskAssessment, assessment.id)
     assert stored.features == features
-    assert stored.reasons == ["No previous address provided"]
+    assert stored.reasons == [REASON]
 
 
 def test_only_one_review_per_assessment(db_session):

@@ -265,8 +265,12 @@ def test_third_email_on_one_device_is_flagged_by_rule(join):
         )
         assert response.json() == {"message": "Registration received"}
 
+    # Customers get their created_at from Python, so they order reliably even
+    # inside one test transaction.
     assessments = session.scalars(
-        select(RiskAssessment).order_by(RiskAssessment.created_at)
+        select(RiskAssessment)
+        .join(Customer, Customer.id == RiskAssessment.customer_id)
+        .order_by(Customer.created_at)
     ).all()
     assert [a.features["device_distinct_emails_8w"] for a in assessments] == [1, 2, 3]
     assert [a.flagged for a in assessments] == [False, False, True]

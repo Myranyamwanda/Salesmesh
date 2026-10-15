@@ -63,12 +63,41 @@ if the model is unavailable the endpoint returns 503 and saves nothing.
 | PATCH /admin/users/{id}/role | Admin | role (`admin`, `agent`, or `client`) |
 | GET /admin/audit-logs | Admin | Paginated audit entries (client-IP hashes are not returned) |
 | GET /admin/model | Admin | Model status, version, metrics, threshold, and golden-check result |
+| POST /admin/model/reload | Admin | Reload and re-check the model; on failure the current model stays (409) |
+| GET /admin/review-queue | Admin | Paginated flagged, unreviewed assessments, oldest first |
+| GET /admin/assessments/{id} | Admin | Probability, threshold, flag, reasons, features, customer, agent, review |
+| POST /admin/assessments/{id}/review | Admin | decision (`confirmed_real` or `confirmed_fake`), notes; once per assessment (409 after) |
+| GET /admin/agents | Admin | Every agent with n_users, flags, assisted share, reputation, risk score, band; worst first |
+| GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with scores |
+| PATCH /admin/agents/{id} | Admin | display_name and/or client_id (a client account, or null to unassign) |
+| GET /admin/scoring-config | Admin | Reputation and rule settings |
+| PUT /admin/scoring-config | Admin | p0, k, min_users_for_band, high_risk_below, watch_below, device_email_rule_min |
 
 List endpoints accept `offset` (>= 0) and `limit` (1-100, default 25) and
 return `items` and `total`. Admins cannot deactivate themselves or change their
 own role, and the last active, verified admin cannot be removed.
 
-Agent, review, reputation, and client endpoints are added in the next phase.
+Reviews, scoring-config changes, agent profile changes, and model reloads are
+written to the audit log.
+
+### Agent (`/me`)
+
+| Method and Path | Access | Purpose |
+| --- | --- | --- |
+| GET /me/referral | Agent | referral_code, display_name, and the full `/join/<code>` link |
+| GET /me/customers | Agent | Paginated customers: full_name, registered_at, assisted only |
+
+Agents can see only their referral link and the list of customers they
+onboarded. Reputation is an admin-only decision-support tool. A future
+commission module may show payout status to agents.
+
+### Client (`/client`)
+
+| Method and Path | Access | Purpose |
+| --- | --- | --- |
+| GET /client/quality | Client | For the client's agents only: registrations, flagged and confirmed-fake counts and percentages, pending reviews, and a 12-month trend |
+
+See [Reputation and review](reputation-and-review.md) for the rules.
 
 ## Responses
 
