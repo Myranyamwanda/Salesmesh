@@ -10,10 +10,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.admin import router as admin_router
 from app.api.auth import router as auth_router
 from app.api.health import router
+from app.api.model import router as model_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
 from app.db.session import get_engine
+from app.ml.model_service import ModelService
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.signing_key()
         configure_logging(settings.log_level)
+        app.state.model_service.load(settings)
         logger.info("application_started")
         yield
         get_engine().dispose()
@@ -32,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         logger.info("application_stopped")
 
     app = FastAPI(title="SalesMesh API", version="0.1.0", lifespan=lifespan)
+    app.state.model_service = ModelService()
     register_error_handlers(app)
 
     @app.middleware("http")
@@ -58,6 +62,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(router)
     app.include_router(auth_router)
     app.include_router(admin_router)
+    app.include_router(model_router)
     return app
 
 
