@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.logging import JsonFormatter
 from app.db.session import get_db
 from app.main import create_app
+from app.ml.model_service import ModelService, ModelState
 
 
 @pytest.fixture
@@ -37,11 +38,34 @@ def client_for(application):
 
 def test_health_checks_database(api):
     application, session = api
+    application.state.model_service = ModelService(
+        ModelState(status="ok", source="local")
+    )
     response = client_for(application).get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "database": "ok"}
+    assert response.json() == {
+        "status": "ok",
+        "database": "ok",
+        "model": "ok",
+        "model_error": None,
+    }
     assert str(session.execute.call_args.args[0]) == "SELECT 1"
     assert response.headers["X-Request-ID"]
+
+
+def test_health_reports_failed_model_as_degraded(api):
+    application, _ = api
+    application.state.model_service = ModelService(
+        ModelState(status="failed", source="local", error="Golden check failed")
+    )
+    response = client_for(application).get("/health")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "degraded",
+        "database": "ok",
+        "model": "failed",
+        "model_error": "Golden check failed",
+    }
 
 
 def test_health_database_failure_is_safe(api):

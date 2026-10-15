@@ -90,7 +90,9 @@ def predict_probability(
     if set(features) != set(names):
         missing = sorted(set(names) - set(features))
         unexpected = sorted(set(features) - set(names))
-        raise ValueError(f"Wrong features. Missing: {missing}. Unexpected: {unexpected}")
+        raise ValueError(
+            f"Wrong features. Missing: {missing}. Unexpected: {unexpected}"
+        )
     row = pd.DataFrame([{name: features[name] for name in names}], columns=names)
     numeric = list(metadata["numeric_features"])
     # A one-row frame holding None has an object column; cast so None becomes NaN.
@@ -151,7 +153,8 @@ def load_folder(folder: Path, source: str) -> ModelState:
     if not model_path.is_file():
         raise ModelLoadError("Model file not found: model.joblib")
     model = joblib.load(model_path)
-    golden = run_golden_check(model, metadata, read_json(folder / "golden_examples.json"))
+    examples = read_json(folder / "golden_examples.json")
+    golden = run_golden_check(model, metadata, examples)
     if not golden.passed:
         return failed(
             f"Golden check failed: {golden.failed} of {golden.checked} examples "
