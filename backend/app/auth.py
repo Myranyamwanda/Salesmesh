@@ -57,6 +57,23 @@ def current_user(
 type AuthenticatedUser = Annotated[User, Depends(current_user)]
 
 
+def optional_user(
+    session: Database,
+    settings: Configuration,
+    credentials: Annotated[HTTPAuthorizationCredentials | None, Depends(bearer)],
+) -> User | None:
+    """The signed-in user on a public endpoint, or None when no token is sent.
+
+    A token that is sent but invalid still gives 401.
+    """
+    if credentials is None:
+        return None
+    return current_user(session, settings, credentials)
+
+
+type OptionalUser = Annotated[User | None, Depends(optional_user)]
+
+
 def require_roles(*roles: str):
     def check_role(user: AuthenticatedUser) -> User:
         if user.role not in roles:
