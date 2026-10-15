@@ -81,7 +81,7 @@ def test_agent_reputations_count_flags_from_status(db_session):
         2,
     )
     assert stats.assisted_share == 0.2
-    # 100 * (1 - (4 + 0.539) / 40) = 88.65
+    # 100 * (1 - (4 + 0.539) / 40) = 88.6525
     assert stats.reputation == reputation_score(30, 4, config.k, config.p0) == 88.7
     assert stats.risk_score == 11.3
     assert stats.band == "High risk"
