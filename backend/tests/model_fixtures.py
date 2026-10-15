@@ -67,7 +67,7 @@ def tiny_model() -> CalibratedClassifierCV:
 
 
 def tiny_state(threshold: float = 0.5) -> ModelState:
-    """A ready model state; threshold 0 flags everyone, above 1 flags no one."""
+    """A ready model state; threshold 0 flags everyone, 1 flags no one."""
     return ModelState(
         status="ok",
         source="local",
