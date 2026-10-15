@@ -122,7 +122,7 @@ salesmesh/
 | [Architecture](docs/architecture.md) | Components, layers, and design decisions |
 | [Authentication overview](docs/authentication.md) | Login, refresh, verification, and role diagrams |
 | [API summary](docs/api-summary.md) | Endpoints, access rules, and error format |
-| [ML scoring placeholder](docs/ml-scoring.md) | Scoring interface and model output contract |
+| [ML model service](docs/ml-scoring.md) | Model loading, version and golden checks, model status |
 | [Development workflow](docs/development-workflow.md) | Compose, hooks, CI, and branch protection |
 | [Backend foundation](docs/backend-foundation.md) | Settings, database, logging, and tests |
 | [Backend authentication](docs/backend-authentication.md) | Security design and settings |
