@@ -1,12 +1,14 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 
-from app.auth import require_roles
-from app.ml.model_service import ModelService, get_model_service
+from app.auth import Configuration, Database, require_roles
+from app.ml.model_service import ModelService, ModelState, get_model_service
 from app.models import User
+from app.services.audit import audit
+from app.services.model_versions import record_active_model
 
 router = APIRouter(prefix="/admin", tags=["Model"])
 type Admin = Annotated[User, Depends(require_roles("admin"))]
@@ -35,9 +37,7 @@ class ModelRead(BaseModel):
     golden_check: GoldenCheckRead | None
 
 
-@router.get("/model", response_model=ModelRead)
-def read_model(_: Admin, model_service: Models) -> ModelRead:
-    state = model_service.state
+def model_read(state: ModelState) -> ModelRead:
     metadata = state.metadata
     golden = state.golden
     return ModelRead(
@@ -61,3 +61,40 @@ def read_model(_: Admin, model_service: Models) -> ModelRead:
             tolerance=golden.tolerance,
         ),
     )
+
+
+@router.get("/model", response_model=ModelRead)
+def read_model(_: Admin, model_service: Models) -> ModelRead:
+    return model_read(model_service.state)
+
+
+@router.post("/model/reload", response_model=ModelRead)
+def reload_model(
+    request: Request,
+    session: Database,
+    settings: Configuration,
+    actor: Admin,
+    model_service: Models,
+) -> ModelRead:
+    """Reload the model files and run the checks again.
+
+    On failure the current model stays in use, so registrations keep working.
+    """
+    candidate = model_service.reload(settings)
+    version = candidate.metadata.get("model_version", "unknown")
+    if candidate.status == "ok":
+        record_active_model(session, candidate)
+    audit(
+        session,
+        request,
+        "model_reloaded",
+        "success" if candidate.status == "ok" else "failure",
+        actor,
+        subject=f"model_version:{version}",
+    )
+    session.commit()
+    if candidate.status != "ok":
+        raise HTTPException(
+            409, f"Reload failed; the current model is still in use. {candidate.error}"
+        )
+    return model_read(candidate)
