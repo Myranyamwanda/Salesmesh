@@ -11,6 +11,15 @@ from sqlalchemy.orm import Session
 from app.core.config import ROOT_DIR, get_settings
 from app.core.security import hash_password, new_token, validate_password
 from app.db.session import get_engine
+from app.demo import (
+    ADMIN_EMAIL,
+    DemoPlan,
+    agent_email,
+    client_email,
+    reset_demo,
+    seed_demo,
+)
+from app.ml.model_service import ModelService
 from app.models import AuditLog, User
 
 
@@ -56,6 +65,53 @@ def create_first_admin(session: Session, email: str, password: str) -> User:
     return user
 
 
+def print_demo_logins(plan: DemoPlan) -> None:
+    honest = next(
+        n
+        for n in range(1, plan.agents + 1)
+        if n not in plan.fraudulent_agents and n not in plan.small_agents
+    )
+    print()
+    print("Demo logins (password: DEMO_PASSWORD from your .env):")
+    print(f"  Admin              {ADMIN_EMAIL}")
+    print(f"  Agent (honest)     {agent_email(honest)}")
+    print(f"  Agent (fraudulent) {agent_email(plan.fraudulent_agents[0])}")
+    for number in range(1, plan.clients + 1):
+        print(f"  Client {number}           {client_email(number)}")
+    print("Open http://localhost:5173 to sign in.")
+
+
+def run_seed_demo() -> None:
+    settings = get_settings()
+    if settings.demo_password is None:
+        raise ValueError("Set DEMO_PASSWORD in .env first (see .env.example)")
+    model_service = ModelService()
+    state = model_service.load(settings)
+    if state.status != "ok":
+        raise RuntimeError(f"The model is not ready: {state.error}")
+    plan = DemoPlan()
+    with Session(get_engine()) as session:
+        summary = seed_demo(
+            session, model_service, settings.demo_password.get_secret_value(), plan=plan
+        )
+    if not summary.created:
+        print("Demo data already exists; nothing was added.")
+    else:
+        print(
+            f"Created {plan.agents} agents, {plan.clients} clients, and "
+            f"{summary.customers} scored customers."
+        )
+        print(
+            f"Flagged: {summary.flagged} | reviewed automatically: "
+            f"{summary.reviewed['confirmed_fake']} confirmed fake, "
+            f"{summary.reviewed['confirmed_real']} confirmed real | "
+            f"pending review: {summary.pending}"
+        )
+        bands = sorted(summary.bands.items())
+        print("Agent bands: " + ", ".join(f"{band} {count}" for band, count in bands))
+    print_demo_logins(plan)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="SalesMesh authentication administration"
@@ -69,6 +125,10 @@ def main() -> None:
         "create-admin", help="Create the first verified administrator"
     )
     create.add_argument("--email", required=True)
+    commands.add_parser(
+        "seed-demo", help="Create demo users and scored customers (safe to rerun)"
+    )
+    commands.add_parser("reset-demo", help="Delete only the demo data")
     args = parser.parse_args()
     try:
         if args.command == "init-secret":
@@ -77,6 +137,17 @@ def main() -> None:
                 "JWT_SECRET created in local .env"
                 if changed
                 else "JWT_SECRET already exists; unchanged"
+            )
+            return
+        if args.command == "seed-demo":
+            run_seed_demo()
+            return
+        if args.command == "reset-demo":
+            with Session(get_engine()) as session:
+                removed = reset_demo(session)
+            print(
+                f"Removed {removed['users']} demo users and "
+                f"{removed['customers']} demo customers."
             )
             return
         get_settings().signing_key()

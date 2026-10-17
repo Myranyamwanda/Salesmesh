@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "test", "lint")]
+    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "seed-demo", "reset-demo", "test", "lint")]
     [string]$Command,
     [string]$Email
 )
@@ -52,6 +52,16 @@ try {
                 throw "Pass -Email with the new administrator's email address."
             }
             docker compose exec backend python manage.py create-admin --email $Email
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        "seed-demo" {
+            # Demo accounts use @demo.salesmesh.test and DEMO_PASSWORD from .env.
+            docker compose exec backend python manage.py seed-demo
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        "reset-demo" {
+            # Deletes only demo users and the customers of demo agents.
+            docker compose exec backend python manage.py reset-demo
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
         "test" {
