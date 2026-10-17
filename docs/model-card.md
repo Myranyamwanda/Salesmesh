@@ -125,6 +125,7 @@ reputation = 100 * (1 - (flags + k * p0) / (n_users + k))    p0 = 0.0539, k = 10
   values 90 and 92, editable in Settings. In the simulation all 10 fraudulent
   agents were High risk, and of 190 honest agents 4 were High risk and 15
   Watch.
+
 In the seeded demo (3,328 customers), 5.8% of registrations were flagged,
 close to the expected platform rate of 5.39%. After human review of flags
 older than 60 days, the four fraudulent agents had the four lowest reputations
