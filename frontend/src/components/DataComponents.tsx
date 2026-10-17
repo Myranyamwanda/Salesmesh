@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import type { Band, CustomerStatus, ReasonSource } from "../types/scoring";
 import {
   Alert,
@@ -234,6 +234,8 @@ export function PageFilters({
   filterOptions?: { value: string; label: string }[];
   onFilter?: (value: string) => void;
 }) {
+  // Links the visible label to the select, so screen readers announce it.
+  const filterLabelId = useId();
   return (
     <div className="page-filters">
       {onSearch && (
@@ -247,8 +249,9 @@ export function PageFilters({
       )}
       {onFilter && filterLabel && (
         <FormControl size="small" className="page-filter-select">
-          <InputLabel>{filterLabel}</InputLabel>
+          <InputLabel id={filterLabelId}>{filterLabel}</InputLabel>
           <Select
+            labelId={filterLabelId}
             label={filterLabel}
             value={filterValue ?? ""}
             onChange={(event) => onFilter(event.target.value)}
