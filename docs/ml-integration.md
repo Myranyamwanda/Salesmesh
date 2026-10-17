@@ -92,7 +92,7 @@ sequenceDiagram
 ## Demo Data
 
 `.\scripts\dev.ps1 seed-demo` creates a demo admin, 3 clients, and 40 agents
-(4 fraudulent) on `@demo.salesmesh.test`, all verified, approved, and active,
+(4 fraudulent) on `@demo.example.com`, all verified, approved, and active,
 with `DEMO_PASSWORD` from `.env`. About 3,300 rows of
 `ml/model_contract/demo_sample.csv` become customers spread over the last 12
 months.

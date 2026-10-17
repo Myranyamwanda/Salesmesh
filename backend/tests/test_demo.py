@@ -5,6 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from model_fixtures import tiny_state
 from sqlalchemy import func, select
+from test_auth import auth_context  # noqa: F401
 from test_domain_tables import make_customer, make_user
 
 from app.demo import (
@@ -12,7 +13,9 @@ from app.demo import (
     REVIEW_NOTE,
     DemoPlan,
     DemoRow,
+    agent_email,
     assign_rows,
+    client_email,
     is_demo_email,
     read_sample,
     reset_demo,
@@ -196,7 +199,7 @@ def test_reset_removes_only_demo_data(db_session, sample):
     db_session.commit()
     seed(db_session, sample)
     demo_client = db_session.scalar(
-        select(User).where(User.email == "client1@demo.salesmesh.test")
+        select(User).where(User.email == "client1@demo.example.com")
     )
     real_profile = AgentProfile(
         user_id=real_agent.id,
@@ -212,7 +215,7 @@ def test_reset_removes_only_demo_data(db_session, sample):
     assert removed["users"] == 1 + 3 + 6
     assert removed["customers"] > 0
     db_session.expire_all()
-    assert count(db_session, User, User.email.like("%@demo.salesmesh.test")) == 0
+    assert count(db_session, User, User.email.like("%@demo.example.com")) == 0
     assert count(db_session, Review) == 0
     assert db_session.get(User, real_agent.id) is not None
     assert db_session.get(Customer, real_customer.id) is not None
@@ -220,3 +223,15 @@ def test_reset_removes_only_demo_data(db_session, sample):
     assert db_session.get(AgentProfile, real_agent.id).client_id is None
     # A reset can be followed by a fresh seed.
     assert seed(db_session, sample).created
+
+
+def test_demo_accounts_can_sign_in(auth_context, sample):  # noqa: F811
+    # Regression: an address on a domain that email validation rejects (such
+    # as .test) can be created in the database but can never sign in.
+    client, session, _, _ = auth_context
+    seed(session, sample)
+    for email in (ADMIN_EMAIL, agent_email(1), client_email(1)):
+        response = client.post(
+            "/auth/login", json={"email": email, "password": PASSWORD}
+        )
+        assert response.status_code == 200, email

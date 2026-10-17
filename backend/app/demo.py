@@ -35,7 +35,9 @@ from app.services.reputation import agent_reputations
 from app.services.reviews import apply_review
 from app.services.scoring import score_customer
 
-DEMO_DOMAIN = "demo.salesmesh.test"  # .test is reserved and can never receive mail
+# example.com is reserved for examples (RFC 2606) and can never receive mail.
+# (.test is reserved too, but email validation rejects it, so logins fail.)
+DEMO_DOMAIN = "demo.example.com"
 DEMO_SAMPLE = ROOT_DIR / "ml" / "model_contract" / "demo_sample.csv"
 REVIEW_NOTE = "Demo review based on dataset label"
 DEMO_LOCK = 71024

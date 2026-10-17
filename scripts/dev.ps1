@@ -55,7 +55,7 @@ try {
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
         "seed-demo" {
-            # Demo accounts use @demo.salesmesh.test and DEMO_PASSWORD from .env.
+            # Demo accounts use @demo.example.com and DEMO_PASSWORD from .env.
             docker compose exec backend python manage.py seed-demo
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
