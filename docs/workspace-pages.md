@@ -77,9 +77,9 @@ commission module may show payout status to agents.
 
 ## Client Area
 
-The quality dashboard shows registrations, flagged %, confirmed fake %, and
-reviews waiting for the client's own agents, with a 12-month chart (Recharts)
-and the same figures in a table.
+The quality dashboard shows registrations, confirmed fake %, and the number
+of registrations under review for the client's own agents, with a 12-month
+chart (Recharts) and the same figures in a table. Clients see only outcomes a person has confirmed, never model flags or scores. At the model's precision about 9 in 10 flagged registrations are genuine, so a "flagged %" would overstate fraud and could unfairly harm an agent's standing with their client.
 
 ## Accessibility
 

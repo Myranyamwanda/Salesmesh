@@ -95,7 +95,7 @@ commission module may show payout status to agents.
 
 | Method and Path | Access | Purpose |
 | --- | --- | --- |
-| GET /client/quality | Client | For the client's agents only: registrations, flagged and confirmed-fake counts and percentages, pending reviews, and a 12-month trend |
+| GET /client/quality | Client | For the client's agents only: registrations, confirmed-fake count and percentage, registrations under review, and a 12-month trend of registrations and confirmed fakes. No model flags or scores. |
 
 See [Reputation and review](reputation-and-review.md) for the rules.
 
