@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("up", "down", "migrate", "create-admin", "test", "lint")]
+    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "test", "lint")]
     [string]$Command,
     [string]$Email
 )
@@ -19,6 +19,25 @@ try {
             docker compose up --build --detach --wait
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             Write-Host "SalesMesh is running at http://localhost:5173 (API: http://localhost:8000)."
+        }
+        "up-lan" {
+            # Development only: let a phone on the same Wi-Fi open the app.
+            $LanIp = Get-NetIPConfiguration |
+                Where-Object { $_.IPv4DefaultGateway -and $_.NetAdapter.Status -eq "Up" } |
+                Select-Object -First 1 -ExpandProperty IPv4Address |
+                Select-Object -First 1 -ExpandProperty IPAddress
+            if (-not $LanIp) {
+                throw "No network connection found. Connect this computer to Wi-Fi first."
+            }
+            $env:LAN_IP = $LanIp
+            docker compose -f docker-compose.yml -f docker-compose.lan.yml up --build --detach --wait
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+            Write-Host "SalesMesh is on your network at http://${LanIp}:5173 (API: http://${LanIp}:8000)."
+            Write-Host "Open that address on this computer too; localhost will not work in this mode."
+            Write-Host "Your phone must be on the same Wi-Fi. Run '.\scripts\dev.ps1 up' to return to localhost."
+            if ((Get-NetConnectionProfile | Select-Object -First 1).NetworkCategory -eq "Public") {
+                Write-Warning "Windows marks this network as Public, so the firewall may block your phone. See README: 'Testing on a phone'."
+            }
         }
         "down" {
             docker compose down

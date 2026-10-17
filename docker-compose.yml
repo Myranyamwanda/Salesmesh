@@ -58,6 +58,7 @@ services:
       context: ./frontend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+      VITE_PRIVACY_CONTACT_EMAIL: ${VITE_PRIVACY_CONTACT_EMAIL:-privacy@example.com}
     ports:
       - "127.0.0.1:5173:5173"
     depends_on:
