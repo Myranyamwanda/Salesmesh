@@ -1,4 +1,10 @@
-"""Client endpoints: the quality of registrations made by the client's agents."""
+"""Client endpoints: the quality of registrations made by the client's agents.
+
+Clients see only outcomes a person has confirmed. Model flags are not shown:
+at the model's precision about 9 in 10 flagged registrations are genuine, so a
+"flagged %" would overstate fraud and could unfairly harm an agent's standing.
+Registrations still waiting for a decision are shown as a plain count.
+"""
 
 from datetime import UTC, date, datetime
 from typing import Annotated
@@ -18,17 +24,14 @@ TREND_MONTHS = 12
 class MonthQuality(BaseModel):
     month: str
     registrations: int
-    flagged: int
     confirmed_fake: int
 
 
 class QualityRead(BaseModel):
     registrations: int
-    flagged: int
-    flagged_percent: float
     confirmed_fake: int
     confirmed_fake_percent: float
-    pending_review: int
+    under_review: int
     trend: list[MonthQuality]
 
 
@@ -57,7 +60,6 @@ def quality(session: Database, client: Client) -> QualityRead:
         select(
             month,
             func.count(Customer.id),
-            func.count(Customer.id).filter(RiskAssessment.flagged),
             func.count(Customer.id).filter(Review.decision == "confirmed_fake"),
             func.count(Customer.id).filter(Customer.status == "pending_review"),
         )
@@ -68,23 +70,20 @@ def quality(session: Database, client: Client) -> QualityRead:
         .group_by(month)
     ).all()
     by_month = {start.date(): values for start, *values in rows}
-    totals = [sum(values[i] for values in by_month.values()) for i in range(4)]
-    registrations, flagged, fake, pending = totals
+    totals = [sum(values[i] for values in by_month.values()) for i in range(3)]
+    registrations, fake, under_review = totals
     trend = [
         MonthQuality(
             month=start.strftime("%Y-%m"),
-            registrations=by_month.get(start, (0, 0, 0, 0))[0],
-            flagged=by_month.get(start, (0, 0, 0, 0))[1],
-            confirmed_fake=by_month.get(start, (0, 0, 0, 0))[2],
+            registrations=by_month.get(start, (0, 0, 0))[0],
+            confirmed_fake=by_month.get(start, (0, 0, 0))[1],
         )
         for start in recent_months(datetime.now(UTC).date(), TREND_MONTHS)
     ]
     return QualityRead(
         registrations=registrations,
-        flagged=flagged,
-        flagged_percent=percent(flagged, registrations),
         confirmed_fake=fake,
         confirmed_fake_percent=percent(fake, registrations),
-        pending_review=pending,
+        under_review=under_review,
         trend=trend,
     )

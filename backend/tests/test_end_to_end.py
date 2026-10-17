@@ -111,16 +111,9 @@ def test_registration_to_reputation(auth_context):  # noqa: F811
     assert after["reputation"] == reputation_score(2, 1, 10, 0.0539)
     assert after["reputation"] > before["reputation"]
 
-    # 7. The client sees the quality of their agent's registrations.
+    # 7. The client sees only the human-confirmed outcome, not the model flags.
     quality = client.get("/client/quality", headers=client_headers).json()
-    assert (
-        quality["registrations"],
-        quality["flagged"],
-        quality["confirmed_fake"],
-    ) == (
-        2,
-        2,
-        1,
-    )
-    assert quality["pending_review"] == 0
+    assert (quality["registrations"], quality["confirmed_fake"]) == (2, 1)
+    assert quality["under_review"] == 0
+    assert "flag" not in str(quality).lower()
     assert session.scalar(select(AgentProfile.client_id)) == client_user.id

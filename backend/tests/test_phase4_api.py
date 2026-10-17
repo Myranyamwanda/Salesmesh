@@ -480,19 +480,20 @@ def test_client_sees_only_their_agents_customers(api):
 
     body = client.get("/client/quality", headers=headers["client"]).json()
 
-    assert (body["registrations"], body["flagged"], body["confirmed_fake"]) == (4, 2, 1)
-    assert (body["flagged_percent"], body["confirmed_fake_percent"]) == (50.0, 25.0)
-    assert body["pending_review"] == 1
+    assert (body["registrations"], body["confirmed_fake"]) == (4, 1)
+    assert body["confirmed_fake_percent"] == 25.0
+    # One flagged registration is still waiting for a decision.
+    assert body["under_review"] == 1
     assert len(body["trend"]) == 12
     this_month = datetime.now(UTC).strftime("%Y-%m")
     assert body["trend"][-1] == {
         "month": this_month,
         "registrations": 4,
-        "flagged": 2,
         "confirmed_fake": 1,
     }
     assert sum(month["registrations"] for month in body["trend"]) == 4
-    for word in ("probability", "reason", "feature", "reputation"):
+    # Only human-confirmed outcomes: no model flags, scores, or reasons.
+    for word in ("flag", "probability", "reason", "feature", "reputation"):
         assert word not in str(body).lower()
 
 
@@ -500,7 +501,8 @@ def test_client_without_agents_sees_zeros(api):
     client, _, _, headers = api
     body = client.get("/client/quality", headers=headers["other_client"]).json()
     assert body["registrations"] == 0
-    assert body["flagged_percent"] == 0.0
+    assert body["confirmed_fake_percent"] == 0.0
+    assert body["under_review"] == 0
     assert all(month["registrations"] == 0 for month in body["trend"])
 
 
