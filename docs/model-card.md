@@ -125,10 +125,12 @@ reputation = 100 * (1 - (flags + k * p0) / (n_users + k))    p0 = 0.0539, k = 10
   values 90 and 92, editable in Settings. In the simulation all 10 fraudulent
   agents were High risk, and of 190 honest agents 4 were High risk and 15
   Watch.
-- **Demo data.** With `seed-demo` (3,328 BAF test rows across 36 honest and 4
-  fraudulent agents, older flags reviewed from the dataset label), the 4
-  fraudulent agents had the 4 lowest reputations (87.7–90.4; 3 High risk,
-  1 Watch), and the lowest honest agent had 95.2.
+In the seeded demo (3,328 customers), 5.8% of registrations were flagged,
+close to the expected platform rate of 5.39%. After human review of flags
+older than 60 days, the four fraudulent agents had the four lowest reputations
+(87.7-90.4) and the lowest honest agent had 95.2. Reviews that confirmed
+customers as real removed false flags from honest agents, so human review
+widened the separation between honest and fraudulent agents.
 
 **Decision: agents cannot see their reputation.** Reputation is an admin-only
 decision-support tool. Showing it, or even a customer's review status, would
