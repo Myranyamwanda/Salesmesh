@@ -31,6 +31,7 @@ class AuditRead(BaseModel):
     id: UUID
     actor_user_id: UUID | None
     target_user_id: UUID | None
+    subject: str | None
     action: str
     outcome: str
     request_id: str | None

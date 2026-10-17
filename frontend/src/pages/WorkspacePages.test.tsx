@@ -2,7 +2,6 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AuthContext } from "../auth/context";
-import { RiskBadge } from "../components/DataComponents";
 import { WorkspaceLayout } from "../layouts/WorkspaceLayout";
 import type { AuthContextValue } from "../auth/context";
 import type { AuthUser } from "../types/auth";
@@ -124,10 +123,4 @@ describe("workspace navigation", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("renders supplied risk scores without assigning invented severity bands", () => {
-    render(<RiskBadge value={52} />);
-    const badge = screen.getByText("Risk score: 52");
-    expect(badge).toHaveClass("risk-badge", "risk-value");
-    expect(badge).not.toHaveClass("risk-high", "risk-medium", "risk-low");
-  });
 });

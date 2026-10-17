@@ -548,3 +548,11 @@ def test_wrong_roles_get_403(api, method, path, owner):
 def test_missing_token_gets_401(api, method, path, owner):
     client, _, _, _ = api
     assert call(client, method, path).status_code == 401
+
+
+def test_audit_log_returns_the_subject(api):
+    client, _, _, headers = api
+    client.put("/admin/scoring-config", headers=headers["admin"], json=CONFIG)
+    items = client.get("/admin/audit-logs", headers=headers["admin"]).json()["items"]
+    entry = next(item for item in items if item["action"] == "scoring_config_updated")
+    assert entry["subject"] == "scoring_config:1"

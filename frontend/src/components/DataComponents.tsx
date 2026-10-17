@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
+import type { Band, CustomerStatus, ReasonSource } from "../types/scoring";
 import {
   Alert,
   Box,
+  Chip,
   FormControl,
   InputLabel,
   MenuItem,
@@ -46,8 +48,8 @@ export function PageHeader({
 }
 
 export function EmptyState({
-  title = "No data yet",
-  description = "No data yet - the scoring model is not connected.",
+  title = "Nothing to show yet",
+  description,
 }: {
   title?: string;
   description?: string;
@@ -58,7 +60,9 @@ export function EmptyState({
       <Typography component="h3" variant="h6">
         {title}
       </Typography>
-      <Typography color="text.secondary">{description}</Typography>
+      {description && (
+        <Typography color="text.secondary">{description}</Typography>
+      )}
     </div>
   );
 }
@@ -106,16 +110,50 @@ export function ChartCard({
           <Typography color="text.secondary">{description}</Typography>
         )}
       </div>
-      {children ?? <EmptyState />}
+      {children}
     </Paper>
   );
 }
 
-export function RiskBadge({ value }: { value?: number | null }) {
-  if (value === undefined || value === null) {
-    return <span className="risk-badge risk-unknown">Not connected</span>;
-  }
-  return <span className="risk-badge risk-value">Risk score: {value}</span>;
+// Badges always show a text label, so meaning never depends on colour alone.
+const bandColors = {
+  "High risk": "error",
+  Watch: "warning",
+  "Low risk": "success",
+  "Insufficient data": "default",
+} as const;
+
+export function BandBadge({ band }: { band: Band }) {
+  return (
+    <Chip
+      size="small"
+      label={band}
+      color={bandColors[band]}
+      variant={band === "Insufficient data" ? "outlined" : "filled"}
+    />
+  );
+}
+
+export function SourceChip({ source }: { source: ReasonSource }) {
+  return (
+    <Chip
+      size="small"
+      variant="outlined"
+      color={source === "rule" ? "secondary" : "primary"}
+      label={source === "rule" ? "Rule" : "Model"}
+    />
+  );
+}
+
+const statusLabels = {
+  pending_review: { label: "Pending review", color: "warning" },
+  verified: { label: "Verified", color: "success" },
+  rejected: { label: "Rejected", color: "error" },
+} as const;
+
+export function StatusChip({ status }: { status: CustomerStatus }) {
+  const { label, color } = statusLabels[status];
+  return <Chip size="small" variant="outlined" color={color} label={label} />;
 }
 
 export type DataColumn<Row> = {
