@@ -82,6 +82,8 @@ through each step, registering and approving an agent, and troubleshooting.
 | `.\scripts\dev.ps1 down` | Stop all services (the database volume is kept) |
 | `.\scripts\dev.ps1 migrate` | Apply Alembic migrations |
 | `.\scripts\dev.ps1 create-admin -Email <address>` | Create the first admin account |
+| `.\scripts\dev.ps1 seed-demo` | Create demo users and about 3,300 scored demo customers (needs `DEMO_PASSWORD` in `.env`; safe to rerun) |
+| `.\scripts\dev.ps1 reset-demo` | Delete only the demo data |
 | `.\scripts\dev.ps1 test` | Run backend tests against the separate test database |
 | `.\scripts\dev.ps1 lint` | Run Ruff and ESLint |
 | `npm test` / `npm run build` (in `frontend/`) | Run frontend tests / production build |
@@ -165,6 +167,8 @@ salesmesh/
 | [Workspace pages](docs/workspace-pages.md) | Public join page and the admin, agent, and client pages |
 | [Scoring data model](docs/scoring-data-model.md) | Customer, assessment, review, config, and model version tables |
 | [Reputation and review](docs/reputation-and-review.md) | Review workflow, reputation formula, and who sees what |
+| [Model card](docs/model-card.md) | Data, model comparison, fairness, metrics, simulation, limitations |
+| [ML integration](docs/ml-integration.md) | Architecture, registration flow, demo data |
 
 ## Branches
 
