@@ -19,7 +19,6 @@ import {
 } from "@mui/material";
 import AdminPanelSettingsOutlined from "@mui/icons-material/AdminPanelSettingsOutlined";
 import AssessmentOutlined from "@mui/icons-material/AssessmentOutlined";
-import AssignmentOutlined from "@mui/icons-material/AssignmentOutlined";
 import BusinessCenterOutlined from "@mui/icons-material/BusinessCenterOutlined";
 import ChevronLeft from "@mui/icons-material/ChevronLeft";
 import DashboardOutlined from "@mui/icons-material/DashboardOutlined";
@@ -29,6 +28,7 @@ import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
 import ModelTrainingOutlined from "@mui/icons-material/ModelTrainingOutlined";
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
+import QrCode2 from "@mui/icons-material/QrCode2";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import ShieldOutlined from "@mui/icons-material/ShieldOutlined";
 import {
@@ -63,7 +63,7 @@ const navItems: Record<
       icon: FactCheckOutlined,
     },
     {
-      label: "Model management",
+      label: "Model",
       path: "/admin/models",
       icon: ModelTrainingOutlined,
     },
@@ -74,24 +74,20 @@ const navItems: Record<
     },
     { label: "Audit log", path: "/admin/audit-log", icon: HistoryOutlined },
     {
-      label: "System settings",
+      label: "Settings",
       path: "/admin/settings",
       icon: SettingsOutlined,
     },
   ],
+  // Agents see only their link and who they onboarded (no scores).
   agent: [
-    { label: "My dashboard", path: "/agent", icon: DashboardOutlined },
-    {
-      label: "Onboarding tasks",
-      path: "/agent/tasks",
-      icon: AssignmentOutlined,
-    },
+    { label: "Referral link", path: "/agent", icon: QrCode2 },
+    { label: "My customers", path: "/agent/customers", icon: GroupOutlined },
   ],
   client: [
-    { label: "Client dashboard", path: "/client", icon: DashboardOutlined },
     {
-      label: "Onboarding reports",
-      path: "/client/reports",
+      label: "Registration quality",
+      path: "/client",
       icon: AssessmentOutlined,
     },
   ],

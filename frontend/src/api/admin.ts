@@ -7,6 +7,7 @@ export type AuditRecord = {
   id: string;
   actor_user_id: string | null;
   target_user_id: string | null;
+  subject: string | null;
   action: string;
   outcome: string;
   request_id: string | null;

@@ -24,19 +24,18 @@ import {
 } from "./pages/AuthPages";
 import { AdminAuditLogPage } from "./pages/AdminAuditLogPage";
 import { AdminUserManagementPage } from "./pages/AdminUserManagementPage";
-import {
-  AdminOverviewPage,
-  AgentDashboardPage,
-  AgentDetailPage,
-  AgentsListPage,
-  AgentTasksPage,
-  ClientDashboardPage,
-  ClientReportsPage,
-  ModelManagementPage,
-  ProfilePage,
-  ReviewQueuePage,
-  SystemSettingsPage,
-} from "./pages/WorkspacePages";
+import { AgentDetailPage } from "./pages/admin/AgentDetailPage";
+import { AgentsPage } from "./pages/admin/AgentsPage";
+import { ModelPage } from "./pages/admin/ModelPage";
+import { OverviewPage } from "./pages/admin/OverviewPage";
+import { ReviewQueuePage } from "./pages/admin/ReviewQueuePage";
+import { SettingsPage } from "./pages/admin/SettingsPage";
+import { MyCustomersPage } from "./pages/agent/MyCustomersPage";
+import { ReferralPage } from "./pages/agent/ReferralPage";
+import { QualityDashboardPage } from "./pages/client/QualityDashboardPage";
+import { JoinPage } from "./pages/JoinPage";
+import { ProfilePage } from "./pages/ProfilePage";
+import { PublicLayout } from "./layouts/PublicLayout";
 import { ErrorPage, ForbiddenPage, NotFoundPage } from "./pages/StatusPages";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 import { RoleRoute } from "./routes/RoleRoute";
@@ -104,6 +103,10 @@ function AppRoutes() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
         </Route>
+        {/* Public: customers register without signing in. */}
+        <Route element={<PublicLayout />}>
+          <Route path="/join/:code" element={<JoinPage />} />
+        </Route>
         <Route element={<ProtectedRoute />}>
           <Route element={<CurrentWorkspaceLayout />}>
             <Route path="/change-password" element={<ChangePasswordPage />} />
@@ -111,32 +114,31 @@ function AppRoutes() {
           </Route>
           <Route element={<RoleRoute allowed={["admin"]} />}>
             <Route element={<WorkspaceLayout role="admin" />}>
-              <Route path="/admin" element={<AdminOverviewPage />} />
-              <Route path="/admin/agents" element={<AgentsListPage />} />
+              <Route path="/admin" element={<OverviewPage />} />
+              <Route path="/admin/agents" element={<AgentsPage />} />
               <Route
                 path="/admin/agents/:agentId"
                 element={<AgentDetailPage />}
               />
               <Route path="/admin/review-queue" element={<ReviewQueuePage />} />
-              <Route path="/admin/models" element={<ModelManagementPage />} />
+              <Route path="/admin/models" element={<ModelPage />} />
               <Route
                 path="/admin/users"
                 element={<AdminUserManagementPage />}
               />
               <Route path="/admin/audit-log" element={<AdminAuditLogPage />} />
-              <Route path="/admin/settings" element={<SystemSettingsPage />} />
+              <Route path="/admin/settings" element={<SettingsPage />} />
             </Route>
           </Route>
           <Route element={<RoleRoute allowed={["agent"]} />}>
             <Route element={<WorkspaceLayout role="agent" />}>
-              <Route path="/agent" element={<AgentDashboardPage />} />
-              <Route path="/agent/tasks" element={<AgentTasksPage />} />
+              <Route path="/agent" element={<ReferralPage />} />
+              <Route path="/agent/customers" element={<MyCustomersPage />} />
             </Route>
           </Route>
           <Route element={<RoleRoute allowed={["client"]} />}>
             <Route element={<WorkspaceLayout role="client" />}>
-              <Route path="/client" element={<ClientDashboardPage />} />
-              <Route path="/client/reports" element={<ClientReportsPage />} />
+              <Route path="/client" element={<QualityDashboardPage />} />
             </Route>
           </Route>
         </Route>

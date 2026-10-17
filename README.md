@@ -6,11 +6,12 @@ work through onboarding, and clients follow onboarding reports. The project's
 AI engine will detect fraudulent agent behaviour and assign risk and reputation
 scores from 0 to 100.
 
-**Current status:** authentication, role-based workspaces, development
-automation, and the scoring interface are complete. No dataset has been
-selected yet, so there is no domain data model and no trained model. Pages that
-depend on that data show clear empty states, and the scoring interface refuses
-to return scores until a real model is connected.
+**Current status:** the trained fraud model (calibrated logistic regression on
+the BAF dataset) is integrated. Customers register through an agent's referral
+link, every registration is scored by the model plus transparent rules,
+flagged registrations wait for admin review, and agents get an admin-only
+reputation score. Agents see only their referral link and customer list;
+clients see registration quality for their agents.
 
 ## Features
 
@@ -77,12 +78,46 @@ through each step, registering and approving an agent, and troubleshooting.
 | Command | Purpose |
 | --- | --- |
 | `.\scripts\dev.ps1 up` | Build and start PostgreSQL, the API, and the frontend; apply migrations |
+| `.\scripts\dev.ps1 up-lan` | Same, but reachable from a phone on the same Wi-Fi (development only; see below) |
 | `.\scripts\dev.ps1 down` | Stop all services (the database volume is kept) |
 | `.\scripts\dev.ps1 migrate` | Apply Alembic migrations |
 | `.\scripts\dev.ps1 create-admin -Email <address>` | Create the first admin account |
 | `.\scripts\dev.ps1 test` | Run backend tests against the separate test database |
 | `.\scripts\dev.ps1 lint` | Run Ruff and ESLint |
 | `npm test` / `npm run build` (in `frontend/`) | Run frontend tests / production build |
+
+### Testing on a Phone
+
+Use this to scan a referral QR code and open the `/join` page on a real phone
+during development or a demonstration.
+
+1. Connect the computer and the phone to the same Wi-Fi.
+2. Run `.\scripts\dev.ps1 up-lan`. It finds this computer's LAN IP address
+   (for example `192.168.100.41`) and prints the address to use.
+3. Open `http://<LAN-IP>:5173` on the computer too, and sign in there.
+   Referral links and QR codes now use the LAN address, so the phone can open
+   them.
+4. Run `.\scripts\dev.ps1 up` to return to normal `localhost` mode.
+
+How it works: `docker-compose.lan.yml` publishes ports 5173 and 8000 on all
+network interfaces and sets `FRONTEND_URL=http://<LAN-IP>:5173` (the only
+browser origin the API's CORS allows, and the base of every referral link)
+and `VITE_API_URL=http://<LAN-IP>:8000`. To do the same by hand, set those two
+values in `.env` and change the two `127.0.0.1:` port bindings in
+`docker-compose.yml`.
+
+Notes:
+
+- If the phone cannot connect, Windows Firewall is probably blocking it. In
+  **Settings > Network & internet > Wi-Fi > (your network)**, set the network
+  profile to **Private**, or allow Docker Desktop through the firewall when
+  Windows asks. `up-lan` warns when the network is marked Public.
+- The public `/join` page needs no sign-in, so it works fully on the phone.
+  Signing in on the phone also works, but the refresh cookie is `Secure` and
+  browsers keep it only on `https` or `localhost`, so reloading the page on the
+  phone signs you out.
+- LAN mode exposes the development servers to everyone on that Wi-Fi. Use it
+  only on a trusted network, and switch back with `up` afterwards.
 
 ## Project Structure
 
@@ -127,7 +162,7 @@ salesmesh/
 | [Backend foundation](docs/backend-foundation.md) | Settings, database, logging, and tests |
 | [Backend authentication](docs/backend-authentication.md) | Security design and settings |
 | [Frontend authentication](docs/frontend-authentication.md) | Session handling and auth pages |
-| [Workspace pages](docs/workspace-pages.md) | Role layouts and empty-state pages |
+| [Workspace pages](docs/workspace-pages.md) | Public join page and the admin, agent, and client pages |
 | [Scoring data model](docs/scoring-data-model.md) | Customer, assessment, review, config, and model version tables |
 | [Reputation and review](docs/reputation-and-review.md) | Review workflow, reputation formula, and who sees what |
 
