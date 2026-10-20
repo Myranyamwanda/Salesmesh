@@ -412,45 +412,6 @@ a:hover {
   font-size: clamp(32px, 4vw, 48px);
 }
 
-.workspace-placeholder {
-  min-height: 100vh;
-  background: #f7f8f5;
-}
-
-.workspace-header {
-  display: flex;
-  height: 68px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 clamp(20px, 5vw, 72px);
-  background: #fff;
-  border-bottom: 1px solid var(--line);
-}
-
-.dark-lockup {
-  color: var(--ink);
-}
-
-.dark-lockup .brand-mark {
-  color: #fff;
-  background: var(--forest);
-}
-
-.workspace-body {
-  display: grid;
-  max-width: 900px;
-  align-content: start;
-  justify-items: start;
-  gap: 20px;
-  margin: 0 auto;
-  padding: clamp(56px, 10vh, 120px) 28px;
-}
-
-.workspace-body h1 {
-  max-width: 800px;
-  font-size: clamp(36px, 5vw, 58px);
-}
-
 .workspace-app {
   min-height: 100vh;
   color: var(--ink);
