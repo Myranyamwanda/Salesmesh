@@ -24,6 +24,7 @@ import {
   PageError,
   PageHeader,
 } from "../../components/DataComponents";
+import { MonitoringCard } from "../../components/MonitoringCard";
 import { apiErrorMessage } from "../../utils/errors";
 import { formatDateTime, formatPercent } from "../../utils/format";
 
@@ -164,6 +165,7 @@ export function ModelPage() {
           </Paper>
         </>
       )}
+      <MonitoringCard />
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>Reload the model?</DialogTitle>
         <DialogContent>

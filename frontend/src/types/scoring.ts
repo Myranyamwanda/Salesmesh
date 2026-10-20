@@ -178,3 +178,12 @@ export type JoinRegistration = {
   user_agent: string;
   assisted: boolean;
 };
+
+export type MonitoringMonth = {
+  month: string;
+  assessments: number;
+  flag_rate: number | null;
+  mean_probability: number | null;
+};
+
+export type Monitoring = { p0: number; months: MonitoringMonth[] };

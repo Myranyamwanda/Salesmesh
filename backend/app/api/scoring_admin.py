@@ -25,6 +25,7 @@ from app.schemas.scoring import (
     AssessmentDetail,
     ClientSummary,
     CustomerDetail,
+    EraseInput,
     QueueItem,
     QueuePage,
     ReviewInput,
@@ -33,6 +34,7 @@ from app.schemas.scoring import (
     ScoringConfigRead,
 )
 from app.services.audit import audit
+from app.services.erasure import erase_customer
 from app.services.reputation import AgentReputation, agent_reputations
 from app.services.reviews import review_assessment
 
@@ -258,3 +260,15 @@ def update_scoring_config(
     session.commit()
     session.refresh(config)
     return config
+
+
+@router.post("/customers/{customer_id}/erase", status_code=204)
+def erase(
+    customer_id: UUID,
+    payload: EraseInput,
+    request: Request,
+    session: Database,
+    actor: Admin,
+) -> None:
+    """Delete a customer's personal data, assessments, and reviews (audited)."""
+    erase_customer(session, request, actor, customer_id, payload.confirm_email)
