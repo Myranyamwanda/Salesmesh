@@ -1,14 +1,11 @@
-"""Turn raw records into model features.
+"""Select and prepare the model features.
 
-Placeholder: features depend on the dataset's fields, which are unknown. The
-chosen feature names will be saved in the model metadata so the backend can
-check that scoring requests supply the same inputs.
+Implemented in ml/notebooks/02_preprocessing.ipynb (the 13 features and the
+time-based split). The preprocessing itself (median imputation with missing-value
+indicators, scaling, one-hot encoding) is part of the exported scikit-learn
+pipeline. In the running system, backend/app/ml/features.py builds the same 13
+features from a customer registration.
+
+This module contains no code: the notebooks are the record of how model v1
+was built, and the backend loads only the exported files.
 """
-
-
-def build_features(raw_data):
-    """Clean the raw data and return a feature table and its feature names.
-
-    TODO: Define features after the dataset has been reviewed and approved.
-    """
-    raise NotImplementedError("Features are not defined until the dataset is known")

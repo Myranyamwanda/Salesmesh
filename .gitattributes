@@ -1,0 +1,21 @@
+# Keep LF line endings for every text file, on Windows too, so Prettier, Ruff,
+# and CI see the same bytes as a Windows working copy. This overrides a local
+# core.autocrlf=true setting.
+* text=auto eol=lf
+
+# Binary files: never convert line endings or show text diffs.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.zip binary
+*.joblib binary
+*.pkl binary
+*.parquet binary
+*.npy binary

@@ -1,84 +1,16 @@
-# Setup Guide (Windows)
+# Setup Walkthrough (Windows)
 
-This guide starts from a fresh clone and ends with the full stack running, the
-first admin signed in, and an agent registered and approved. Run every command
-in PowerShell from the repository root unless a step says otherwise.
+The complete clean-clone setup (prerequisites, `.env`, the JWT secret,
+`fetch-model`, `up`, `migrate`, `create-admin`, `seed-demo`, checks, and
+troubleshooting) is in the [README](../README.md#setup-from-a-clean-clone-windows).
+This page continues from there: it walks through the main flows by hand.
+Run commands in Windows PowerShell from the repository root.
 
-## 1. Prerequisites
-
-| Tool | Version | Check |
-| --- | --- | --- |
-| Git | any recent | `git --version` |
-| Docker Desktop (Linux containers, Compose v2) | any recent | `docker compose version` |
-| Python | 3.14 | `python --version` |
-| Node.js and npm | 22.13 or newer | `node --version` |
-
-Start Docker Desktop and wait until it reports that the engine is running.
-Python is used on the host only to generate the JWT secret and run backend
-tools; Node.js is needed only to run frontend checks outside Docker.
-
-## 2. Clone
-
-```powershell
-git clone https://github.com/Myranyamwanda/Salesmesh.git
-Set-Location Salesmesh
-git switch develop
-```
-
-`main` holds released work and `develop` holds the latest integrated work.
-
-## 3. Configure the Environment
-
-```powershell
-Copy-Item .env.example .env
-notepad .env
-```
-
-In `.env`, replace `POSTGRES_PASSWORD` with a unique local password. If port
-5432 is already used by another PostgreSQL install, set `POSTGRES_PORT` to a
-free port such as `5433`. Every other value has a working development default
-and is explained in `.env.example`. Never commit `.env`.
-
-Create the backend virtual environment and generate the JWT signing secret:
-
-```powershell
-python -m venv backend/.venv
-backend/.venv/Scripts/python.exe -m pip install -r backend/requirements-dev.txt
-backend/.venv/Scripts/python.exe backend/manage.py init-secret
-```
-
-`init-secret` writes a random `JWT_SECRET` into `.env` without printing it.
-
-## 4. Start the Stack
-
-```powershell
-.\scripts\dev.ps1 up
-```
-
-This builds and starts PostgreSQL, the API, and the frontend, waits for their
-health checks, and applies database migrations. When it finishes:
-
-- Frontend: <http://localhost:5173>
-- API documentation: <http://localhost:8000/docs>
-- Health check: `Invoke-RestMethod http://localhost:8000/health`
-
-## 5. Create the First Admin
-
-```powershell
-.\scripts\dev.ps1 create-admin -Email admin@example.com
-```
-
-Enter the password twice when prompted; it is not shown. It must be 12-128
-characters with an uppercase letter, a lowercase letter, a digit, and a symbol.
-This command works only while no admin exists. Further admins and clients are
-created from **User Management** in the admin workspace.
-
-Open <http://localhost:5173>, sign in, and you land on the admin overview.
-
-## 6. Register and Approve an Agent
+## 1. Register and Approve an Agent
 
 1. In a private browser window, open <http://localhost:5173/register> and
-   register an agent. You are taken to the "registration pending" page.
+   register an agent with a display name. You are taken to the "registration
+   pending" page.
 2. Development emails are written to the API log instead of being sent. Find
    the verification link:
 
@@ -87,55 +19,69 @@ Open <http://localhost:5173>, sign in, and you land on the admin overview.
    ```
 
    Open the `link=` URL in the same private window to verify the email.
-3. As the admin, open **User Management**, find the pending agent, and approve
+3. As the admin, open **User management**, find the pending agent, and approve
    it.
-4. Sign in as the agent. You land on the agent workspace. Visiting an admin
-   page such as <http://localhost:5173/admin/users> shows the 403 page.
+4. Sign in as the agent. The agent sees only **Referral link** and **My
+   customers**. Visiting an admin page such as
+   <http://localhost:5173/admin/users> shows the 403 page.
 
-Clients are created by an admin in **User Management** and verify their email
-the same way before signing in.
+Clients are created by an admin in **User management** and verify their email
+the same way. An admin assigns an agent to a client on the agent's detail page.
 
-## 7. Run the Checks
+## 2. Register a Customer
 
-```powershell
-.\scripts\dev.ps1 test
-.\scripts\dev.ps1 lint
-Push-Location frontend
-npm ci
-npm test
-npm run build
-Pop-Location
-```
+1. As the agent, open **Referral link** and copy the link (or show the QR
+   code).
+2. In another private window, open the link. The page shows "Registering with
+   <agent name>".
+3. Fill in the form, tick the consent box (the "How we use your data" link
+   explains the processing), and submit. The customer always sees
+   "Registration received".
+4. As the agent, **My customers** now lists the customer by name, date, and
+   assisted flag only.
 
-`test` creates the separate `salesmesh_test` database on first use and runs the
-backend tests against it, never against development data.
+To register a customer on the agent's own device, open the link while signed
+in as that agent and tick "I am registering this customer on my device".
 
-## 8. Day-to-Day Commands
+## 3. Show the Device Rule
+
+Register three different email addresses from the same browser on one `/join`
+link. The third registration is flagged with a **Rule** reason ("This device
+was used for 3 different email addresses in 8 weeks"). The rate limit allows
+10 non-assisted registrations per network per hour.
+
+## 4. Review a Flagged Registration
+
+1. As the admin, open **Review queue** and click **Review** on a row. The
+   dialog shows the probability, the reasons with their **Model** or **Rule**
+   label, and the raw feature values.
+2. Click **Confirm real** or **Confirm fake**, optionally with notes.
+3. Open **Agents**: the agent's flags and reputation have changed at once, and
+   **Audit log** shows the review.
+
+**Erase customer data** in the same dialog deletes a customer on request after
+the admin types the customer's email (see
+[erasure requests](reputation-and-review.md#erasure-requests)).
+
+## 5. Model and Client Views
+
+- **Model** shows the version, test metrics, the golden check, monthly
+  monitoring against p0, and **Reload model** (a failed reload keeps the
+  current model).
+- **Settings** edits the reputation and rule settings; reputations update at
+  once.
+- A client (for example `client1@demo.example.com` after `seed-demo`) sees
+  registrations, confirmed fakes, and a 12-month trend for their own agents.
+
+## 6. Day-to-Day Commands
 
 | Command | Purpose |
 | --- | --- |
-| `.\scripts\dev.ps1 up` | Build and start all services |
-| `.\scripts\dev.ps1 down` | Stop services; the database volume is kept |
-| `.\scripts\dev.ps1 migrate` | Apply Alembic migrations in the running API container |
-| `.\scripts\dev.ps1 create-admin -Email <address>` | Create the first admin |
-| `.\scripts\dev.ps1 test` | Run backend tests |
-| `.\scripts\dev.ps1 lint` | Run Ruff and ESLint |
+| `.\scripts\dev.ps1 up` / `down` | Start or stop all services; the database volume is kept |
 | `docker compose logs -f backend` | Follow API logs, including development emails |
-
-To delete all local data and start again, run `docker compose down -v`. This
-removes the database volume permanently.
-
-## Troubleshooting
-
-| Symptom | Fix |
-| --- | --- |
-| `Missing .env` from `dev.ps1` | Run step 3 |
-| `docker` is not recognised, or cannot connect to the engine | Start Docker Desktop and wait for it to finish starting |
-| Port 5432 already allocated | Set `POSTGRES_PORT` in `.env` to a free port and run `up` again |
-| API exits with a `JWT_SECRET` error | Run `backend/manage.py init-secret` (step 3), then `up` again |
-| Sign-in fails for a new account | The account must be both approved and email-verified |
-| Scripts are blocked by execution policy | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once |
+| `.\scripts\dev.ps1 reset-demo` | Remove only the demo data |
+| `docker compose down -v` | Delete all local data, including the database volume |
 
 For more detail see the [development workflow](development-workflow.md),
 [backend authentication](backend-authentication.md), and
-[frontend authentication](frontend-authentication.md) guides.
+[workspace pages](workspace-pages.md).

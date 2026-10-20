@@ -1,5 +1,10 @@
 # Phase 4 Frontend Foundation and Authentication
 
+> Historical record of this phase as it was built. Statements such as "no
+> dataset has been selected" describe the project at that time; for the
+> current system see [architecture](architecture.md) and
+> [ML integration](ml-integration.md).
+
 ## Scope
 
 The frontend is a responsive React/Vite/TypeScript application. It is designed
