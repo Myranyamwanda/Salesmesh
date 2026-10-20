@@ -2,10 +2,16 @@ repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.10
     hooks:
+      # Python files only: the Jupyter notebooks in ml/notebooks are a research
+      # record and must not be linted or reformatted.
       - id: ruff-check
         args: [--config, backend/pyproject.toml]
+        types_or: [python, pyi]
+        exclude: ^ml/notebooks/
       - id: ruff-format
         args: [--config, backend/pyproject.toml]
+        types_or: [python, pyi]
+        exclude: ^ml/notebooks/
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
