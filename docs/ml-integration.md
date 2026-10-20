@@ -75,7 +75,7 @@ sequenceDiagram
 | --- | --- | --- |
 | Customer | "Registration received" | Probability, flag, status, reasons |
 | Agent | Own referral link; names, dates, and assisted flag of own customers | Customer status, probability, reasons, own reputation |
-| Client | Registrations, flagged %, confirmed fake %, monthly trend for their agents | Individual probabilities, reasons, features |
+| Client | Registrations, confirmed fake % (decided by a reviewer), count under review, monthly trend for their agents | Model flags, probabilities, reasons, features |
 | Admin | Everything above, plus probabilities, reasons, raw features, reputations, settings, model status | — |
 
 ## Startup and Safety Checks

@@ -28,7 +28,6 @@ const columns: DataColumn<MonthQuality>[] = [
     label: "Registrations",
     render: (row) => row.registrations,
   },
-  { key: "flagged", label: "Flagged", render: (row) => row.flagged },
   {
     key: "fake",
     label: "Confirmed fake",
@@ -53,17 +52,10 @@ export function QualityChart({
         <Legend />
         <Bar dataKey="registrations" name="Registrations" fill="#1d5141" />
         <Line
-          dataKey="flagged"
-          name="Flagged"
-          stroke="#e66c4a"
-          strokeWidth={2}
-        />
-        <Line
           dataKey="confirmed_fake"
           name="Confirmed fake"
           stroke="#b63737"
           strokeWidth={2}
-          strokeDasharray="5 3"
         />
       </ComposedChart>
     </ResponsiveContainer>
@@ -81,18 +73,13 @@ export function QualityDashboardPage() {
       <PageHeader
         eyebrow="CLIENT WORKSPACE"
         title="Registration quality"
-        description="Customers registered by the agents who work for you, over the last 12 months."
+        description="Customers registered by the agents who work for you, over the last 12 months. Fake registrations are counted only after a SalesMesh reviewer has confirmed them."
       />
       {qualityQuery.isError && (
         <PageError message="Registration quality could not be loaded." />
       )}
       <section className="kpi-grid" aria-label="Registration quality">
         <KpiCard label="Registrations" value={quality?.registrations ?? null} />
-        <KpiCard
-          label="Flagged"
-          value={quality ? `${quality.flagged_percent}%` : null}
-          detail={quality ? `${quality.flagged} registrations` : undefined}
-        />
         <KpiCard
           label="Confirmed fake"
           value={quality ? `${quality.confirmed_fake_percent}%` : null}
@@ -101,13 +88,14 @@ export function QualityDashboardPage() {
           }
         />
         <KpiCard
-          label="Waiting for review"
-          value={quality?.pending_review ?? null}
+          label="Under review"
+          value={quality?.under_review ?? null}
+          detail="Registrations a reviewer is still checking"
         />
       </section>
       <ChartCard
         title="Monthly trend"
-        description="Registrations (bars) with flagged and confirmed-fake registrations (lines)."
+        description="Registrations (bars) and registrations confirmed as fake (line)."
       >
         {quality && <QualityChart trend={quality.trend} />}
       </ChartCard>

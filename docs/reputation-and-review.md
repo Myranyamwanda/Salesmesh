@@ -10,7 +10,7 @@ wait for a human review, and the outcome feeds the agent's reputation.
 | --- | --- |
 | Admin | Review queue, every assessment (probability, reasons, features), agent ranking and detail with reputation, scoring settings, model status |
 | Agent | Their referral link and the list of customers they onboarded (name, registration date, assisted) |
-| Client | Registration quality for the agents assigned to them: totals, flagged %, confirmed fake %, and a monthly trend |
+| Client | Registration quality for the agents assigned to them: registrations, confirmed fake % (decided by a reviewer), the number under review, and a monthly trend |
 
 Agents can see only their referral link and the list of customers they
 onboarded. Reputation is an admin-only decision-support tool. A future
@@ -86,3 +86,4 @@ subject `model_version:<version>`.
   removes their client. Each agent works for at most one client.
 - `GET /client/quality` counts only customers of the client's agents. Months
   in the trend are calendar months in UTC.
+- Clients see only outcomes a person has confirmed, never model flags or scores. At the model's precision about 9 in 10 flagged registrations are genuine, so a "flagged %" would overstate fraud and could unfairly harm an agent's standing with their client.

@@ -147,20 +147,18 @@ export type MyCustomer = {
   assisted: boolean;
 };
 
+// Clients see only human-confirmed outcomes, never model flags or scores.
 export type MonthQuality = {
   month: string;
   registrations: number;
-  flagged: number;
   confirmed_fake: number;
 };
 
 export type Quality = {
   registrations: number;
-  flagged: number;
-  flagged_percent: number;
   confirmed_fake: number;
   confirmed_fake_percent: number;
-  pending_review: number;
+  under_review: number;
   trend: MonthQuality[];
 };
 
