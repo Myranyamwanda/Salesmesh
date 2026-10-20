@@ -1,14 +1,16 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
+from sqlalchemy import func, select
 
 from app.auth import Configuration, Database, require_roles
 from app.ml.model_service import ModelService, ModelState, get_model_service
-from app.models import User
+from app.models import RiskAssessment, ScoringConfig, User
 from app.services.audit import audit
 from app.services.model_versions import record_active_model
+from app.services.periods import recent_months, utc_month
 
 router = APIRouter(prefix="/admin", tags=["Model"])
 type Admin = Annotated[User, Depends(require_roles("admin"))]
@@ -98,3 +100,55 @@ def reload_model(
             409, f"Reload failed; the current model is still in use. {candidate.error}"
         )
     return model_read(candidate)
+
+
+MONITORING_MONTHS = 12
+
+
+class MonitoringMonth(BaseModel):
+    month: str
+    assessments: int
+    # None for a month without assessments, so charts show a gap, not a drop.
+    flag_rate: float | None
+    mean_probability: float | None
+
+
+class MonitoringRead(BaseModel):
+    p0: float
+    months: list[MonitoringMonth]
+
+
+@router.get("/model/monitoring", response_model=MonitoringRead)
+def model_monitoring(session: Database, _: Admin) -> MonitoringRead:
+    """Monthly model flag rate and mean probability, compared with p0.
+
+    Counts model flags only (probability at or above the threshold stored with
+    each assessment), because p0 was measured from model flags in the agent
+    simulation. A sustained difference from p0 can indicate drift.
+    """
+    month = utc_month(RiskAssessment.created_at)
+    rows = session.execute(
+        select(
+            month,
+            func.count(RiskAssessment.id),
+            func.count(RiskAssessment.id).filter(
+                RiskAssessment.probability >= RiskAssessment.threshold
+            ),
+            func.avg(RiskAssessment.probability),
+        ).group_by(month)
+    ).all()
+    by_month = {
+        start.date(): (total, flags, mean) for start, total, flags, mean in rows
+    }
+    months = []
+    for start in recent_months(datetime.now(UTC).date(), MONITORING_MONTHS):
+        total, flags, mean = by_month.get(start, (0, 0, None))
+        months.append(
+            MonitoringMonth(
+                month=start.strftime("%Y-%m"),
+                assessments=total,
+                flag_rate=round(flags / total, 4) if total else None,
+                mean_probability=None if mean is None else round(float(mean), 4),
+            )
+        )
+    return MonitoringRead(p0=session.get(ScoringConfig, 1).p0, months=months)
