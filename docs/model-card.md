@@ -17,6 +17,10 @@
 - **Source:** Bank Account Fraud (BAF) dataset suite, Base variant (NeurIPS
   2022). It is a large, privacy-preserving synthetic dataset of bank account
   applications with a label `fraud_bool`.
+- **Citation and licence:** Jesus et al., "Turning the Tables: Biased,
+  Imbalanced, Dynamic Tabular Datasets for ML Evaluation", NeurIPS 2022
+  Datasets and Benchmarks. The dataset, and this model trained on it, are used
+  under the dataset's non-commercial licence.
 - **Split by time:** months 0–5 for training (794,989 rows) and months 6–7 for
   testing (205,011 rows), so the test imitates future applications.
 - **Class balance:** about 1.4% fraud in the test months (2,878 of 205,011),
