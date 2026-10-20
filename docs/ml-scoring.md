@@ -20,6 +20,34 @@ files themselves live in `backend/models/v1/`, which Git ignores. Docker
 Compose mounts that folder read-only at `/app/models`, so the model is never
 baked into an image.
 
+## Getting the Model Files
+
+A fresh clone has no model files, because model binaries are never committed.
+There are two sources:
+
+1. **GitHub Release (default).** The four files (`model.joblib`,
+   `metadata.json`, `golden_examples.json`, `coefficients.json`) are attached
+   to the GitHub Release `model-v1`. Run:
+
+   ```powershell
+   .\scripts\dev.ps1 fetch-model
+   ```
+
+   [`scripts/fetch-model.ps1`](../scripts/fetch-model.ps1) downloads each file
+   into `backend/models/v1/` and checks its SHA-256 against
+   [`ml/model_contract/model-v1.sha256`](../ml/model_contract/model-v1.sha256),
+   which is tracked in Git. A file that does not match is deleted, never kept,
+   and the command fails. Files that are already present and match are not
+   downloaded again. The command needs no `.env`.
+
+2. **S3 (alternative).** Set `MODEL_SOURCE=s3`, `MODEL_S3_BUCKET`,
+   `MODEL_S3_PREFIX`, and read-only AWS keys in `.env`. The API then downloads
+   the files at startup (see Settings below), and `backend/models/v1/` is not
+   needed.
+
+Either way, the API still runs its own checks at startup: scikit-learn
+version, then the 20 golden examples.
+
 ## Loading and Checks
 
 [`backend/app/ml/model_service.py`](../backend/app/ml/model_service.py) loads

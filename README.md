@@ -82,6 +82,7 @@ through each step, registering and approving an agent, and troubleshooting.
 | `.\scripts\dev.ps1 down` | Stop all services (the database volume is kept) |
 | `.\scripts\dev.ps1 migrate` | Apply Alembic migrations |
 | `.\scripts\dev.ps1 create-admin -Email <address>` | Create the first admin account |
+| `.\scripts\dev.ps1 fetch-model` | Download the model v1 files from the GitHub Release `model-v1` and verify their SHA-256 (no `.env` needed) |
 | `.\scripts\dev.ps1 seed-demo` | Create demo users and about 3,300 scored demo customers (needs `DEMO_PASSWORD` in `.env`; safe to rerun) |
 | `.\scripts\dev.ps1 reset-demo` | Delete only the demo data |
 | `.\scripts\dev.ps1 test` | Run backend tests against the separate test database |
