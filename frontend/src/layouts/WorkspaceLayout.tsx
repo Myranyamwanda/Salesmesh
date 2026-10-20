@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import {
   AppBar,
   Avatar,
@@ -38,6 +38,7 @@ import {
   useLocation,
   useNavigate,
 } from "react-router-dom";
+import { PageLoading } from "../components/PageLoading";
 import { useAuth } from "../hooks/useAuth";
 import type { UserRole } from "../types/auth";
 import { roleHome } from "../utils/roleHome";
@@ -277,7 +278,9 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
       <Box component="main" className="workspace-main">
         <Toolbar className="workspace-topbar-spacer" />
         <div className="workspace-content">
-          <Outlet />
+          <Suspense fallback={<PageLoading />}>
+            <Outlet />
+          </Suspense>
         </div>
         <footer className="workspace-footer">
           <span>SalesMesh</span>
