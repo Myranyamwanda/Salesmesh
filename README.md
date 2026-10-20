@@ -99,6 +99,18 @@ git switch develop
 
 `develop` has the latest integrated work; `main` has the latest release.
 
+Docker Compose names the project after the folder (`salesmesh`). If you
+already have another SalesMesh clone in a folder with the same name on this
+machine, both would share the same containers and database volume. Give the
+second clone its own project name in every PowerShell window you use for it,
+before any `dev.ps1` command:
+
+```powershell
+$env:COMPOSE_PROJECT_NAME = "salesmesh2"
+```
+
+Only one clone can run at a time, because both use the same ports.
+
 ### 3. Configure `.env`
 
 ```powershell
@@ -108,11 +120,13 @@ notepad .env
 
 In `.env`, set at least:
 
-- `POSTGRES_PASSWORD`: a unique local password. If port 5432 is already in
-  use, also set `POSTGRES_PORT`, for example to `5433`.
+- `POSTGRES_PASSWORD`: a unique local password.
 - `DEMO_PASSWORD`: the password for every demo account (12+ characters with
-  upper and lower case, a number, and a symbol), for example
-  `DEMO_PASSWORD=Demo-Salesmesh-2026!`.
+  upper and lower case, a number, and a symbol). In `.env.example` this line
+  is commented out, so **remove the leading `#`** and replace the placeholder,
+  for example `DEMO_PASSWORD=Demo-Salesmesh-2026!`.
+- `POSTGRES_PORT`: if PostgreSQL is installed directly on Windows, it already
+  uses port 5432, so set `POSTGRES_PORT=5433` (or another free port).
 
 There is **no separate frontend `.env`**: the frontend reads the same root
 `.env` (`VITE_API_URL` and `VITE_PRIVACY_CONTACT_EMAIL`, both with working
@@ -126,7 +140,9 @@ backend/.venv/Scripts/python.exe -m pip install -r backend/requirements-dev.txt
 backend/.venv/Scripts/python.exe backend/manage.py init-secret
 ```
 
-`init-secret` writes a random `JWT_SECRET` into `.env` without printing it.
+The `pip install` takes **about 6 minutes** the first time, because it
+installs the ML packages (scikit-learn, numpy, pandas, scipy). `init-secret`
+writes a random `JWT_SECRET` into `.env` without printing it.
 
 ### 5. Model files
 
@@ -154,6 +170,11 @@ Invoke-RestMethod http://localhost:8000/health
 health checks, and applies migrations; `migrate` is safe to run again. The
 health check must show `"database": "ok"` and `"model": "ok"`.
 
+**The first `up` can take 10–30 minutes**, depending on the internet
+connection, because the backend image installs the large ML packages
+(scikit-learn, numpy, pandas). In the clean-clone check it took about 9 and 23
+minutes. Later starts use Docker's build cache and are much faster.
+
 - Frontend: <http://localhost:5173>
 - API documentation: <http://localhost:8000/docs>
 
@@ -164,7 +185,9 @@ health check must show `"database": "ok"` and `"model": "ok"`.
 ```
 
 Type the password twice when prompted (12–128 characters with upper and lower
-case, a number, and a symbol). This works only while no admin exists.
+case, a number, and a symbol); run it in an interactive PowerShell window,
+because the password prompt needs a keyboard. This works only while no admin
+exists.
 
 ### 8. Demo data
 
@@ -200,7 +223,8 @@ Pop-Location
 ```
 
 `test` runs the backend tests in the API container against a separate
-`salesmesh_test` database, never against development data.
+`salesmesh_test` database, never against development data. The first
+`npm ci` takes a few minutes (about 3½ in the clean-clone check).
 
 ### 10. Git hooks (optional)
 
@@ -257,7 +281,8 @@ only on a trusted network, and switch back with `up` afterwards.
 | --- | --- |
 | `docker` is not recognised, or "cannot connect to the Docker API" | Start Docker Desktop and wait until the engine is running, then run the command again |
 | `Missing .env` from `dev.ps1` | Run step 3 |
-| Port 5432 already allocated | Set `POSTGRES_PORT` in `.env` to a free port and run `up` again |
+| `up` fails with "ports are not available … 5432 … forbidden by its access permissions" or "port is already allocated" | Another program, usually a PostgreSQL installed on Windows, uses port 5432. Set `POSTGRES_PORT=5433` (or another free port) in `.env` and run `up` again. Check with `Get-NetTCPConnection -LocalPort 5432 -State Listen` |
+| A second clone uses the first clone's database | Set `$env:COMPOSE_PROJECT_NAME` to a different name in that window (see step 2) |
 | API exits with a `JWT_SECRET` error | Run `init-secret` (step 4), then `up` again |
 | `/health` shows `"model": "failed"` | Run `.\scripts\dev.ps1 fetch-model`, then `up`; or check `MODEL_SOURCE` |
 | `seed-demo` says `Set DEMO_PASSWORD` or rejects the password | Add a `DEMO_PASSWORD` that meets the password policy to `.env`, then run `up` (the API reads `.env` only when its container is created) and `seed-demo` again |
