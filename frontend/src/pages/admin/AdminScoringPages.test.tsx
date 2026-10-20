@@ -1,6 +1,6 @@
 import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as adminApi from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
 import { httpError, makeUser, renderPage } from "../../test/render";
@@ -109,6 +109,14 @@ const agents = [
 ];
 
 afterEach(cleanup);
+
+// The Model page also loads the monitoring card; give it an empty history.
+beforeEach(() => {
+  vi.spyOn(scoringApi, "getMonitoring").mockResolvedValue({
+    p0: 0.0539,
+    months: [],
+  });
+});
 
 function rowNames() {
   return screen
