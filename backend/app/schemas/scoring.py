@@ -142,3 +142,9 @@ class ScoringConfigRead(ScoringConfigInput):
     model_config = ConfigDict(from_attributes=True)
     updated_at: datetime
     updated_by: UUID | None
+
+
+class EraseInput(BaseModel):
+    """The customer's email, typed by the admin to confirm the erasure."""
+
+    confirm_email: str = Field(min_length=1, max_length=320)
