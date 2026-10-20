@@ -6,6 +6,7 @@ import type {
   AssessmentDetail,
   Decision,
   ModelStatus,
+  Monitoring,
   Page,
   QueueItem,
   Review,
@@ -83,4 +84,16 @@ export async function getModel() {
 export async function reloadModel() {
   const { data } = await api.post<ModelStatus>("/admin/model/reload");
   return data;
+}
+
+export async function getMonitoring() {
+  const { data } = await api.get<Monitoring>("/admin/model/monitoring");
+  return data;
+}
+
+/** Erase a customer's data; the email must match the customer's email. */
+export async function eraseCustomer(customerId: string, confirmEmail: string) {
+  await api.post(`/admin/customers/${customerId}/erase`, {
+    confirm_email: confirmEmail,
+  });
 }
