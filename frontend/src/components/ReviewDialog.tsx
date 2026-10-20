@@ -20,6 +20,7 @@ import type { Decision, Reason } from "../types/scoring";
 import { apiErrorMessage } from "../utils/errors";
 import { formatDate, formatDateTime, formatPercent } from "../utils/format";
 import { SourceChip, StatusChip } from "./DataComponents";
+import { EraseCustomerDialog } from "./EraseCustomerDialog";
 
 // Plain names for the 13 stored feature values.
 const FEATURE_LABELS: Record<string, string> = {
@@ -70,6 +71,7 @@ export function ReviewDialog({
 }) {
   const queryClient = useQueryClient();
   const [notes, setNotes] = useState("");
+  const [eraseOpen, setEraseOpen] = useState(false);
   const assessmentQuery = useQuery({
     queryKey: ["admin", "assessment", assessmentId],
     queryFn: () => scoringApi.getAssessment(assessmentId as string),
@@ -86,142 +88,171 @@ export function ReviewDialog({
   });
   const assessment = assessmentQuery.data;
 
+  function erased() {
+    // The assessment no longer exists, so drop it rather than refetch it.
+    queryClient.removeQueries({
+      queryKey: ["admin", "assessment", assessmentId],
+    });
+    void queryClient.invalidateQueries({ queryKey: ["admin"] });
+    setEraseOpen(false);
+    onClose();
+  }
+
   return (
-    <Dialog
-      open={assessmentId !== null}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      aria-labelledby="review-title"
-    >
-      <DialogTitle id="review-title">Review registration</DialogTitle>
-      <DialogContent dividers>
-        {assessmentQuery.isPending && (
-          <CircularProgress aria-label="Loading assessment" />
-        )}
-        {assessmentQuery.isError && (
-          <Alert severity="error">The assessment could not be loaded.</Alert>
-        )}
-        {assessment && (
-          <>
-            <dl className="detail-grid">
-              <div>
-                <dt>Customer</dt>
-                <dd>{assessment.customer.full_name}</dd>
-              </div>
-              <div>
-                <dt>Email</dt>
-                <dd>{assessment.customer.email}</dd>
-              </div>
-              <div>
-                <dt>Mobile</dt>
-                <dd>{assessment.customer.mobile_phone}</dd>
-              </div>
-              <div>
-                <dt>Date of birth</dt>
-                <dd>{formatDate(assessment.customer.date_of_birth)}</dd>
-              </div>
-              <div>
-                <dt>Agent</dt>
-                <dd>{assessment.agent.display_name}</dd>
-              </div>
-              <div>
-                <dt>Registered</dt>
-                <dd>
-                  {formatDateTime(assessment.customer.created_at)}
-                  {assessment.customer.assisted && " (assisted)"}
-                </dd>
-              </div>
-              <div>
-                <dt>Probability of a fake customer</dt>
-                <dd>
-                  {formatPercent(assessment.probability)} (threshold{" "}
-                  {formatPercent(assessment.threshold)})
-                </dd>
-              </div>
-              <div>
-                <dt>Status</dt>
-                <dd>
-                  <StatusChip status={assessment.customer.status} />
-                </dd>
-              </div>
-            </dl>
-            <Typography component="h3" variant="subtitle1" gutterBottom>
-              Reasons
-            </Typography>
-            <ReasonList reasons={assessment.reasons} />
-            <Typography
-              component="h3"
-              variant="subtitle1"
-              sx={{ mt: 2 }}
-              gutterBottom
-            >
-              Feature values (as registered)
-            </Typography>
-            <Table size="small" aria-label="Feature values">
-              <TableBody>
-                {Object.entries(assessment.features).map(([name, value]) => (
-                  <TableRow key={name}>
-                    <TableCell>{FEATURE_LABELS[name] ?? name}</TableCell>
-                    <TableCell>{displayValue(value)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-            {assessment.review ? (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                Already reviewed:{" "}
-                {assessment.review.decision === "confirmed_fake"
-                  ? "confirmed fake"
-                  : "confirmed real"}{" "}
-                on {formatDateTime(assessment.review.created_at)}
-                {assessment.review.notes && ` — ${assessment.review.notes}`}
-              </Alert>
-            ) : (
-              <TextField
+    <>
+      <Dialog
+        open={assessmentId !== null}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        aria-labelledby="review-title"
+      >
+        <DialogTitle id="review-title">Review registration</DialogTitle>
+        <DialogContent dividers>
+          {assessmentQuery.isPending && (
+            <CircularProgress aria-label="Loading assessment" />
+          )}
+          {assessmentQuery.isError && (
+            <Alert severity="error">The assessment could not be loaded.</Alert>
+          )}
+          {assessment && (
+            <>
+              <dl className="detail-grid">
+                <div>
+                  <dt>Customer</dt>
+                  <dd>{assessment.customer.full_name}</dd>
+                </div>
+                <div>
+                  <dt>Email</dt>
+                  <dd>{assessment.customer.email}</dd>
+                </div>
+                <div>
+                  <dt>Mobile</dt>
+                  <dd>{assessment.customer.mobile_phone}</dd>
+                </div>
+                <div>
+                  <dt>Date of birth</dt>
+                  <dd>{formatDate(assessment.customer.date_of_birth)}</dd>
+                </div>
+                <div>
+                  <dt>Agent</dt>
+                  <dd>{assessment.agent.display_name}</dd>
+                </div>
+                <div>
+                  <dt>Registered</dt>
+                  <dd>
+                    {formatDateTime(assessment.customer.created_at)}
+                    {assessment.customer.assisted && " (assisted)"}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Probability of a fake customer</dt>
+                  <dd>
+                    {formatPercent(assessment.probability)} (threshold{" "}
+                    {formatPercent(assessment.threshold)})
+                  </dd>
+                </div>
+                <div>
+                  <dt>Status</dt>
+                  <dd>
+                    <StatusChip status={assessment.customer.status} />
+                  </dd>
+                </div>
+              </dl>
+              <Typography component="h3" variant="subtitle1" gutterBottom>
+                Reasons
+              </Typography>
+              <ReasonList reasons={assessment.reasons} />
+              <Typography
+                component="h3"
+                variant="subtitle1"
                 sx={{ mt: 2 }}
-                label="Notes (optional)"
-                multiline
-                minRows={2}
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                slotProps={{ htmlInput: { maxLength: 1000 } }}
-              />
-            )}
-            {reviewMutation.isError && (
-              <Alert severity="error" sx={{ mt: 2 }}>
-                {apiErrorMessage(
-                  reviewMutation.error,
-                  "The review could not be saved.",
-                )}
-              </Alert>
-            )}
-          </>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-        {assessment && !assessment.review && (
-          <>
-            <Button
-              color="success"
-              variant="outlined"
-              disabled={reviewMutation.isPending}
-              onClick={() => reviewMutation.mutate("confirmed_real")}
-            >
-              Confirm real
-            </Button>
+                gutterBottom
+              >
+                Feature values (as registered)
+              </Typography>
+              <Table size="small" aria-label="Feature values">
+                <TableBody>
+                  {Object.entries(assessment.features).map(([name, value]) => (
+                    <TableRow key={name}>
+                      <TableCell>{FEATURE_LABELS[name] ?? name}</TableCell>
+                      <TableCell>{displayValue(value)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {assessment.review ? (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  Already reviewed:{" "}
+                  {assessment.review.decision === "confirmed_fake"
+                    ? "confirmed fake"
+                    : "confirmed real"}{" "}
+                  on {formatDateTime(assessment.review.created_at)}
+                  {assessment.review.notes && ` — ${assessment.review.notes}`}
+                </Alert>
+              ) : (
+                <TextField
+                  sx={{ mt: 2 }}
+                  label="Notes (optional)"
+                  multiline
+                  minRows={2}
+                  value={notes}
+                  onChange={(event) => setNotes(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: 1000 } }}
+                />
+              )}
+              {reviewMutation.isError && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  {apiErrorMessage(
+                    reviewMutation.error,
+                    "The review could not be saved.",
+                  )}
+                </Alert>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions>
+          {assessment && (
             <Button
               color="error"
-              variant="contained"
-              disabled={reviewMutation.isPending}
-              onClick={() => reviewMutation.mutate("confirmed_fake")}
+              sx={{ mr: "auto" }}
+              onClick={() => setEraseOpen(true)}
             >
-              Confirm fake
+              Erase customer data
             </Button>
-          </>
-        )}
-      </DialogActions>
-    </Dialog>
+          )}
+          <Button onClick={onClose}>Close</Button>
+          {assessment && !assessment.review && (
+            <>
+              <Button
+                color="success"
+                variant="outlined"
+                disabled={reviewMutation.isPending}
+                onClick={() => reviewMutation.mutate("confirmed_real")}
+              >
+                Confirm real
+              </Button>
+              <Button
+                color="error"
+                variant="contained"
+                disabled={reviewMutation.isPending}
+                onClick={() => reviewMutation.mutate("confirmed_fake")}
+              >
+                Confirm fake
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
+      {assessment && (
+        <EraseCustomerDialog
+          customer={assessment.customer}
+          open={eraseOpen}
+          onClose={() => setEraseOpen(false)}
+          onErased={erased}
+        />
+      )}
+    </>
   );
 }
