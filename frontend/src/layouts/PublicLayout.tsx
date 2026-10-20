@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
+import { PageLoading } from "../components/PageLoading";
 
 /** A single, mobile-first column for pages customers open without signing in. */
 export function PublicLayout() {
@@ -11,7 +13,9 @@ export function PublicLayout() {
         <span>SalesMesh</span>
       </header>
       <main className="public-main">
-        <Outlet />
+        <Suspense fallback={<PageLoading />}>
+          <Outlet />
+        </Suspense>
       </main>
       <footer className="public-footer">
         SalesMesh · Secure customer registration
