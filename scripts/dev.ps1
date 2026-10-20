@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "seed-demo", "reset-demo", "test", "lint")]
+    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "fetch-model", "seed-demo", "reset-demo", "test", "lint")]
     [string]$Command,
     [string]$Email
 )
@@ -10,6 +10,11 @@ $RepositoryRoot = Split-Path -Parent $PSScriptRoot
 Push-Location $RepositoryRoot
 
 try {
+    if ($Command -eq "fetch-model") {
+        # Needs no .env: it only downloads and verifies the model files.
+        & (Join-Path $PSScriptRoot "fetch-model.ps1")
+        exit 0
+    }
     if (-not (Test-Path ".env")) {
         throw "Missing .env. Copy .env.example to .env and configure it first."
     }
