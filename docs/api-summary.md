@@ -72,6 +72,8 @@ if the model is unavailable the endpoint returns 503 and saves nothing.
 | PATCH /admin/agents/{id} | Admin | display_name and/or client_id (a client account, or null to unassign) |
 | GET /admin/scoring-config | Admin | Reputation and rule settings |
 | PUT /admin/scoring-config | Admin | p0, k, min_users_for_band, high_risk_below, watch_below, device_email_rule_min |
+| POST /admin/customers/{id}/erase | Admin | confirm_email; deletes the customer, assessments, and reviews (204), audited as `customer_erased` without personal data; 422 if the email does not match |
+| GET /admin/model/monitoring | Admin | p0 and, for the last 12 months, assessments, model flag rate, and mean probability (null for empty months) |
 
 List endpoints accept `offset` (>= 0) and `limit` (1-100, default 25) and
 return `items` and `total`. Admins cannot deactivate themselves or change their

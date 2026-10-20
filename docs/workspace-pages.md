@@ -69,7 +69,11 @@ commission module may show payout status to agents.
   and the agent's customers with their status and probability.
 - **Model:** status, version, scikit-learn version, threshold, test metrics,
   and the golden check. "Reload model" keeps the current model if the new one
-  fails its checks.
+  fails its checks. A **Monitoring** card charts the monthly model flag rate
+  and mean probability against p0, with a table of the same figures.
+- **Erase customer data:** in the review dialog, with a typed-email
+  confirmation and warnings for confirmed-fake or pending customers (see
+  [Reputation and review](reputation-and-review.md#erasure-requests)).
 - **Settings:** the six scoring settings, each with a short explanation and the
   same validation as the backend.
 - **Audit log:** now also shows each entry's subject, such as

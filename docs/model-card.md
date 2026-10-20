@@ -161,6 +161,9 @@ they onboarded. A future commission module may show payout status to agents.
   neutral. The real count is still stored for later analysis.
 - **Drift.** Fraud patterns change. The time split shows performance one to two
   months ahead only; recall, precision, and the flag rate should be monitored.
+  The admin Model page shows the monthly model flag rate and mean probability
+  against p0; a sustained difference from p0 can indicate drift, and the
+  threshold or p0 should then be recalibrated with reviewed cases.
 - **Low precision.** About 34% recall at a 5% false-positive rate, with about
   9% precision: most flagged customers are genuine. **Human review is
   required** for every flag, and the score must never be used to reject a

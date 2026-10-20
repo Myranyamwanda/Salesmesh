@@ -177,6 +177,14 @@ never to agents or customers.
   fraud at a 5% false-positive rate, with about 9% precision, so most flagged
   customers are genuine. Every flag needs human review.
 
+## Monitoring
+
+`GET /admin/model/monitoring` (admin only) returns, for the last 12 months, the
+number of assessments, the **model** flag rate (probability at or above the
+stored threshold; rule-only flags are excluded because p0 was measured from
+model flags), and the mean probability, from one aggregate query. Months
+without assessments are `null`, not 0. The Model page charts them against p0.
+
 ## Tests
 
 `backend/tests/test_model_service.py` uses a small fake model to test version

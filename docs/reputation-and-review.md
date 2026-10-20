@@ -80,6 +80,28 @@ and golden checks. If the new model fails, the current model stays in use and
 the endpoint returns 409 with the reason. Both outcomes are audited with the
 subject `model_version:<version>`.
 
+## Erasure Requests
+
+Customers can ask for their personal data to be erased (Kenya Data Protection
+Act 2019, see the privacy notice on `/join`).
+
+- **Handled by an admin.** In the review dialog, "Erase customer data" opens a
+  confirmation that requires typing the customer's email; the API checks it
+  again (`POST /admin/customers/{id}/erase`). The customer, their risk
+  assessment, and their review are deleted.
+- **Audited without personal data.** Every attempt is written to the audit log
+  as `customer_erased` with the subject `customer:<id>`, the admin as actor,
+  and the agent as target. No name, email, phone number, or date of birth is
+  stored in the audit entry.
+- **Removed from the agent's reputation.** Reputation is calculated on read,
+  so the erased customer no longer counts towards the agent's customers or
+  flags. Erasing a confirmed fake therefore raises the agent's reputation; the
+  confirmation dialog warns about this, and about customers still waiting for
+  review.
+- **Retention.** Data needed for fraud prevention or legal claims may be
+  retained after case-by-case review under the Kenya Data Protection Act 2019.
+  The admin decides whether erasure is appropriate before confirming it.
+
 ## Agents and Clients
 
 - `PATCH /admin/agents/{id}` changes an agent's display name and assigns or
