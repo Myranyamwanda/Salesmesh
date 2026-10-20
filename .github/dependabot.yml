@@ -9,6 +9,14 @@ updates:
       # The approved stack is SQLAlchemy 2.0; accept 2.0.x patch releases only.
       - dependency-name: sqlalchemy
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      # The saved model (backend/models/v1/model.joblib) was trained and checked
+      # with these exact versions. The API refuses to load it with another
+      # scikit-learn, and numpy, pandas, or joblib changes can alter predictions,
+      # so they are updated only together with a retrained and re-exported model.
+      - dependency-name: scikit-learn
+      - dependency-name: numpy
+      - dependency-name: pandas
+      - dependency-name: joblib
   - package-ecosystem: npm
     directory: /frontend
     target-branch: develop
