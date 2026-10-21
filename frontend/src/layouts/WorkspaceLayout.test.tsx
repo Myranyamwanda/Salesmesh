@@ -14,7 +14,8 @@ function renderLayout(role: UserRole) {
   const auth: AuthContextValue = {
     user,
     isLoading: false,
-    login: async () => user,
+    startSession: async () => user,
+    legacyLogin: async () => user,
     logout: async () => undefined,
     logoutAll: async () => undefined,
     clearSession: () => undefined,
