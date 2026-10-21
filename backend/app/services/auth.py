@@ -19,6 +19,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models import AuditLog, PasswordResetToken, RefreshToken, User
+from app.services.agents import create_agent_profile
 from app.services.audit import audit
 from app.services.email import EmailSender, send_token_email
 
@@ -55,11 +56,19 @@ def active_user(user: User) -> bool:
     )
 
 
-def check_login_rate(session: Session, request: Request, settings: Settings) -> str:
-    address = request.client.host if request.client else "unknown"
-    hashed = hmac.new(
+def client_address(request: Request) -> str:
+    return request.client.host if request.client else "unknown"
+
+
+def hash_ip(address: str, settings: Settings) -> str:
+    """HMAC-SHA256 of an IP address, so raw addresses are never stored."""
+    return hmac.new(
         settings.signing_key().encode(), address.encode(), hashlib.sha256
     ).hexdigest()
+
+
+def check_login_rate(session: Session, request: Request, settings: Settings) -> str:
+    hashed = hash_ip(client_address(request), settings)
     lock_key = int(hashed[:15], 16)
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": lock_key})
     since = datetime.now(UTC) - timedelta(seconds=settings.login_rate_window_seconds)
@@ -205,6 +214,7 @@ def register(
     request: Request,
     email: str,
     password: str,
+    display_name: str,
     settings: Settings,
     sender: EmailSender,
 ) -> User:
@@ -223,6 +233,7 @@ def register(
         raise HTTPException(
             409, "Registration cannot be completed for this email"
         ) from None
+    create_agent_profile(session, user, display_name)
     audit(session, request, "agent_registered", actor=user)
     session.commit()
     send_token_email(sender, settings, user.email, "verification", raw)

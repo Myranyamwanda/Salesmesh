@@ -1,5 +1,10 @@
 # Phase 3 Backend Authentication
 
+> Historical record of this phase as it was built. Statements such as "no
+> dataset has been selected" describe the project at that time; for the
+> current system see [architecture](architecture.md) and
+> [ML integration](ml-integration.md).
+
 ## Scope and Decisions
 
 Authentication users can be admins, agents, or clients. These are account roles,

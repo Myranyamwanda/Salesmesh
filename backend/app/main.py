@@ -8,12 +8,19 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.admin import router as admin_router
+from app.api.agent import router as agent_router
 from app.api.auth import router as auth_router
+from app.api.client import router as client_router
 from app.api.health import router
+from app.api.join import router as join_router
+from app.api.model import router as model_router
+from app.api.scoring_admin import router as scoring_admin_router
 from app.core.config import Settings, get_settings
 from app.core.errors import register_error_handlers
 from app.core.logging import configure_logging
 from app.db.session import get_engine
+from app.ml.model_service import ModelService
+from app.services.model_versions import save_active_model
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +32,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.signing_key()
         configure_logging(settings.log_level)
+        save_active_model(app.state.model_service.load(settings))
         logger.info("application_started")
         yield
         get_engine().dispose()
@@ -32,6 +40,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         logger.info("application_stopped")
 
     app = FastAPI(title="SalesMesh API", version="0.1.0", lifespan=lifespan)
+    app.state.model_service = ModelService()
     register_error_handlers(app)
 
     @app.middleware("http")
@@ -58,6 +67,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(router)
     app.include_router(auth_router)
     app.include_router(admin_router)
+    app.include_router(model_router)
+    app.include_router(join_router)
+    app.include_router(scoring_admin_router)
+    app.include_router(agent_router)
+    app.include_router(client_router)
     return app
 
 
@@ -66,7 +80,7 @@ app = CORSMiddleware(
     api,
     allow_origins=[get_settings().frontend_url],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
     expose_headers=["X-Request-ID"],
 )

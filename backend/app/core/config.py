@@ -7,6 +7,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
+BACKEND_DIR = Path(__file__).resolve().parents[2]
 
 
 class Settings(BaseSettings):
@@ -37,6 +38,22 @@ class Settings(BaseSettings):
     login_rate_window_seconds: int = Field(default=60, ge=1)
     login_failure_limit: int = Field(default=5, ge=1)
     account_lockout_minutes: int = Field(default=15, ge=1)
+    model_source: Literal["local", "s3"] = "local"
+    model_dir: Path = BACKEND_DIR / "models" / "v1"
+    model_s3_bucket: str | None = None
+    model_s3_prefix: str = "models/final/v1"
+    aws_region: str | None = None
+    aws_access_key_id: str | None = None
+    aws_secret_access_key: SecretStr | None = None
+    free_email_domains: str = (
+        "gmail.com,yahoo.com,outlook.com,hotmail.com,icloud.com,live.com,"
+        "aol.com,proton.me,protonmail.com,gmx.com,mail.com,yandex.com,zoho.com"
+    )
+    phone_default_region: str = Field(default="KE", pattern="^[A-Z]{2}$")
+    join_rate_limit: int = Field(default=10, ge=1)
+    join_rate_window_seconds: int = Field(default=3600, ge=1)
+    # Password for every demo account created by `manage.py seed-demo`.
+    demo_password: SecretStr | None = None
 
     @field_validator("jwt_secret")
     @classmethod
@@ -49,6 +66,19 @@ class Settings(BaseSettings):
                 "JWT_SECRET must be a generated secret of at least 32 characters"
             )
         return value
+
+    @field_validator("model_dir")
+    @classmethod
+    def resolve_model_dir(cls, value: Path) -> Path:
+        return value if value.is_absolute() else BACKEND_DIR / value
+
+    @property
+    def free_email_domain_set(self) -> frozenset[str]:
+        return frozenset(
+            domain.strip().lower()
+            for domain in self.free_email_domains.split(",")
+            if domain.strip()
+        )
 
     def signing_key(self) -> str:
         if self.jwt_secret is None:

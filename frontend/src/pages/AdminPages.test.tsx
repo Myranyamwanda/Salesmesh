@@ -181,6 +181,7 @@ describe("admin audit log", () => {
           id: "audit-id",
           actor_user_id: adminUser.id,
           target_user_id: pendingAgent.id,
+          subject: null,
           action: "agent_approved",
           outcome: "success",
           request_id: "request-id",

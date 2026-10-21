@@ -14,8 +14,10 @@ notepad .env
 backend/.venv/Scripts/python.exe backend/manage.py init-secret
 ```
 
-Set a unique PostgreSQL password in `.env` before starting the stack. To install
-the host frontend tools and Git hooks, run:
+Set a unique PostgreSQL password and a `DEMO_PASSWORD` in `.env` before
+starting the stack, and download the model files with
+`.\scripts\dev.ps1 fetch-model` (see the README for the full clean-clone
+setup). To install the host frontend tools and Git hooks, run:
 
 ```powershell
 Push-Location frontend
@@ -24,8 +26,11 @@ Pop-Location
 backend/.venv/Scripts/python.exe -m pre_commit install
 ```
 
-The hooks run Ruff on Python changes, Prettier and ESLint when frontend files
-change, and secret/large-file checks on staged files. Frontend checks require
+The hooks run Ruff on Python changes (never on the Jupyter notebooks, which
+are a research record), Prettier and ESLint when frontend files change, and
+secret/large-file checks on staged files. `.gitattributes` keeps LF line endings
+for all text files, and Prettier accepts either ending, so the hooks pass on a
+Windows working copy too. Frontend checks require
 `npm ci` to have been run in `frontend/`; the Compose frontend image installs
 its own dependencies.
 
@@ -48,9 +53,17 @@ Useful commands:
 .\scripts\dev.ps1 down
 .\scripts\dev.ps1 migrate
 .\scripts\dev.ps1 create-admin -Email admin@example.com
+.\scripts\dev.ps1 fetch-model
+.\scripts\dev.ps1 seed-demo
+.\scripts\dev.ps1 reset-demo
+.\scripts\dev.ps1 up-lan
 .\scripts\dev.ps1 test
 .\scripts\dev.ps1 lint
 ```
+
+`fetch-model` downloads the model files and checks their SHA-256; `seed-demo`
+and `reset-demo` create and remove the demo data; `up-lan` makes the app
+reachable from a phone on the same Wi-Fi (see the README).
 
 `down` preserves the named database volume. The first `test` run creates the
 separate database named by `TEST_POSTGRES_DB`; tests run migrations and data
@@ -69,17 +82,20 @@ npm run build
 Pop-Location
 ```
 
-`npm run format:check` is a whole-tree audit and currently reports existing
-formatting drift in Phase 5 files. The pre-commit hook checks only staged
-frontend files to avoid reformatting unrelated pages.
+`npm run format:check` checks the whole frontend; the pre-commit hook checks
+only the staged frontend files.
 
 ## Continuous Integration
 
 GitHub Actions runs backend and frontend workflows on pushes and pull requests
 targeting `main` or `develop`. The backend job starts PostgreSQL 16, checks Ruff,
 applies migrations, creates an isolated test database, and runs pytest. The
-frontend job runs `npm ci`, lint, tests, and a production build. Dependabot
-checks pip, npm, and GitHub Actions dependencies monthly.
+frontend job runs `npm ci`, lint, tests, and a production build. Model files
+are not in Git, so the 4 tests that need the real model are skipped in CI; the
+other model tests use a small model trained inside the tests. Dependabot
+checks pip, npm, and GitHub Actions dependencies monthly against `develop`, and
+never proposes scikit-learn, numpy, pandas, or joblib, because the saved model
+needs those exact versions.
 
 ## GitHub Branch Protection
 

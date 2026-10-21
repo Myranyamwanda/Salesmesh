@@ -46,6 +46,11 @@ const credentialsSchema = z.object({
 });
 const registrationSchema = z
   .object({
+    displayName: z
+      .string()
+      .trim()
+      .min(2, "Enter the name customers will see")
+      .max(100, "Use 100 characters or fewer"),
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string(),
@@ -188,7 +193,11 @@ export function RegistrationPage() {
   async function submit(values: RegistrationValues) {
     setServerError("");
     try {
-      await authApi.registerAgent(values.email, values.password);
+      await authApi.registerAgent(
+        values.email,
+        values.password,
+        values.displayName,
+      );
       navigate("/registration-pending", {
         replace: true,
         state: { email: values.email },
@@ -212,12 +221,19 @@ export function RegistrationPage() {
       />
       <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
         <FormTextField
+          label="Display name"
+          autoComplete="name"
+          registration={register("displayName")}
+          error={errors.displayName?.message}
+          hint="Shown to customers on your registration link"
+          autoFocus
+        />
+        <FormTextField
           label="Email address"
           type="email"
           autoComplete="email"
           registration={register("email")}
           error={errors.email?.message}
-          autoFocus
         />
         <PasswordField
           label="Password"

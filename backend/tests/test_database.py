@@ -16,12 +16,18 @@ from app.main import create_app
 from app.models import AuditLog, PasswordResetToken, RefreshToken, User
 
 
-def test_schema_has_only_authentication_and_audit_tables(test_engine):
+def test_schema_has_only_approved_tables(test_engine):
     assert set(inspect(test_engine).get_table_names()) == {
         "users",
         "refresh_tokens",
         "password_reset_tokens",
         "audit_logs",
+        "agent_profiles",
+        "customers",
+        "risk_assessments",
+        "reviews",
+        "scoring_config",
+        "model_versions",
         "alembic_version",
     }
 

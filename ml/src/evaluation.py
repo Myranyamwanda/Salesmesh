@@ -1,21 +1,10 @@
-"""Measure model quality and choose the decision threshold.
+"""Evaluate the candidates, check fairness, and choose the threshold.
 
-Placeholder: the metrics are undecided. Whatever is chosen is recorded in the
-model metadata's "metrics" object, and the selected cut-off in "threshold".
+Implemented in ml/notebooks/04_evaluation.ipynb (calibration, recall at 5% FPR,
+the FPR ratio by age, and the final choice of the model without age), and the
+agent reputation bands in 06_agent_simulation.ipynb. Results are summarised in
+docs/model-card.md.
+
+This module contains no code: the notebooks are the record of how model v1
+was built, and the backend loads only the exported files.
 """
-
-
-def evaluate_model(model, features, labels):
-    """Score held-out data and return a mapping of metric names to values.
-
-    TODO: Choose metrics suited to the class balance of the real dataset.
-    """
-    raise NotImplementedError("Evaluation metrics have not been chosen yet")
-
-
-def choose_threshold(model, features, labels):
-    """Return the score cut-off used to flag high-risk behaviour.
-
-    TODO: Decide how the threshold is selected once metrics are agreed.
-    """
-    raise NotImplementedError("Threshold selection is not implemented yet")

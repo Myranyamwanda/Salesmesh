@@ -6,12 +6,13 @@ from app.models import AuditLog, User
 
 def audit(
     session: Session,
-    request: Request,
+    request: Request | None,
     action: str,
     outcome: str = "success",
     actor: User | None = None,
     target: User | None = None,
     client_ip_hash: str | None = None,
+    subject: str | None = None,
 ) -> None:
     session.add(
         AuditLog(
@@ -19,7 +20,9 @@ def audit(
             target_user_id=target.id if target else None,
             action=action,
             outcome=outcome,
-            request_id=request.state.request_id,
+            # None for actions outside an HTTP request (terminal commands).
+            request_id=request.state.request_id if request else None,
             client_ip_hash=client_ip_hash,
+            subject=subject,
         )
     )

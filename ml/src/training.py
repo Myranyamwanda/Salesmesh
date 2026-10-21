@@ -1,13 +1,8 @@
-"""Train the fraud-detection model.
+"""Train the candidate models.
 
-Placeholder: the algorithm and training library are chosen once the features
-and the labelling of fraudulent behaviour are known.
+Implemented in ml/notebooks/03_training.ipynb (logistic regression and random
+forest with cross-validated tuning).
+
+This module contains no code: the notebooks are the record of how model v1
+was built, and the backend loads only the exported files.
 """
-
-
-def train_model(features, labels):
-    """Fit a model on the training split and return it.
-
-    TODO: Select the algorithm, split strategy, and hyperparameters.
-    """
-    raise NotImplementedError("Model training is not implemented yet")

@@ -70,6 +70,11 @@ export function AdminAuditLogPage() {
       ),
     },
     {
+      key: "subject",
+      label: "Subject",
+      render: (entry) => <code>{entry.subject ?? "—"}</code>,
+    },
+    {
       key: "actor",
       label: "Actor user ID",
       render: (entry) => <code>{entry.actor_user_id ?? "System"}</code>,

@@ -1,17 +1,9 @@
-"""Load the raw dataset from data/ into memory.
+"""Load the raw dataset.
 
-Placeholder: no dataset has been selected. Raw files belong in data/, which Git
-ignores, so datasets are never committed.
+Implemented in ml/notebooks/01_eda.ipynb and 02_preprocessing.ipynb, which read
+the BAF Base dataset from the project's S3 bucket. Datasets are never committed;
+local copies belong in data/, which Git ignores.
+
+This module contains no code: the notebooks are the record of how model v1
+was built, and the backend loads only the exported files.
 """
-
-from pathlib import Path
-
-DATA_DIR = Path(__file__).resolve().parents[2] / "data"
-
-
-def load_raw_data(path: Path = DATA_DIR):
-    """Read the raw dataset and return it unchanged.
-
-    TODO: Choose the file format and loading library once the dataset is known.
-    """
-    raise NotImplementedError("No dataset has been selected yet")

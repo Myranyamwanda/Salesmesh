@@ -1,0 +1,18 @@
+# Development only: make SalesMesh reachable from a phone on the same Wi-Fi,
+# for example to scan a referral QR code. Started by `.\scripts\dev.ps1 up-lan`,
+# which detects this computer's LAN IP and sets LAN_IP.
+#
+# The API allows exactly one browser origin (CORS), so in this mode open the
+# app at http://<LAN_IP>:5173 on the computer too, not at localhost.
+services:
+  backend:
+    ports: !override
+      - "8000:8000"
+    environment:
+      FRONTEND_URL: http://${LAN_IP:?Run .\scripts\dev.ps1 up-lan}:5173
+
+  frontend:
+    ports: !override
+      - "5173:5173"
+    environment:
+      VITE_API_URL: http://${LAN_IP:?Run .\scripts\dev.ps1 up-lan}:8000

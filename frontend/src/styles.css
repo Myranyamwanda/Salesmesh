@@ -384,6 +384,12 @@ a:hover {
   margin: 8px auto 0 !important;
 }
 
+.page-loading {
+  display: grid;
+  min-height: 240px;
+  place-items: center;
+}
+
 .route-loading {
   display: grid;
   min-height: 100vh;
@@ -410,45 +416,6 @@ a:hover {
 .status-page h1 {
   max-width: 700px;
   font-size: clamp(32px, 4vw, 48px);
-}
-
-.workspace-placeholder {
-  min-height: 100vh;
-  background: #f7f8f5;
-}
-
-.workspace-header {
-  display: flex;
-  height: 68px;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 clamp(20px, 5vw, 72px);
-  background: #fff;
-  border-bottom: 1px solid var(--line);
-}
-
-.dark-lockup {
-  color: var(--ink);
-}
-
-.dark-lockup .brand-mark {
-  color: #fff;
-  background: var(--forest);
-}
-
-.workspace-body {
-  display: grid;
-  max-width: 900px;
-  align-content: start;
-  justify-items: start;
-  gap: 20px;
-  margin: 0 auto;
-  padding: clamp(56px, 10vh, 120px) 28px;
-}
-
-.workspace-body h1 {
-  max-width: 800px;
-  font-size: clamp(36px, 5vw, 58px);
 }
 
 .workspace-app {
@@ -720,7 +687,7 @@ a:hover {
 
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   margin-bottom: 18px;
 }
@@ -1204,6 +1171,159 @@ a:hover {
   .form-heading h1 {
     font-size: 30px;
   }
+}
+
+/* Public customer pages (/join): one mobile-first column. */
+.public-frame {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.public-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+  font-weight: 800;
+}
+
+.public-header .brand-mark {
+  background: var(--forest);
+  color: #fff;
+}
+
+.public-main {
+  width: min(100%, 560px);
+  flex: 1;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+}
+
+.public-form {
+  display: grid;
+  gap: 16px;
+}
+
+.public-form .MuiFormControlLabel-root {
+  align-items: flex-start;
+}
+
+.public-form .MuiCheckbox-root {
+  padding-top: 2px;
+}
+
+.consent-block {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.consent-block > .MuiLink-root {
+  justify-self: start;
+  font-size: 14px;
+}
+
+.public-state {
+  display: grid;
+  justify-items: center;
+  gap: 10px;
+  padding: 56px 0;
+  text-align: center;
+}
+
+.public-state-icon {
+  color: var(--forest);
+  font-size: 48px !important;
+}
+
+.public-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* Workspace data views */
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-bottom: 22px;
+}
+
+.detail-grid dt {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-grid dd {
+  margin: 2px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.reason-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reason-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.referral-link {
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f7f8f5;
+  font-family: ui-monospace, Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+
+.qr-large {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  background: #fff;
+}
+
+.qr-large canvas {
+  width: min(78vw, 360px) !important;
+  height: auto !important;
+}
+
+.settings-form {
+  display: grid;
+  max-width: 720px;
+  gap: 18px;
+}
+
+.toolbar-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 @media (prefers-reduced-motion: reduce) {
