@@ -6,12 +6,13 @@ from uuid import uuid4
 
 import jwt
 import pytest
+from cryptography.fernet import Fernet
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.cli import create_first_admin, initialize_secret
+from app.cli import initialize_secret
 from app.core.config import get_settings
 from app.core.security import hash_password, new_token, token_hash
 from app.db.session import get_db
@@ -37,7 +38,11 @@ class RecordingSender:
 @pytest.fixture
 def auth_context(db_session, fake_firebase):
     settings = get_settings().model_copy(
-        update={"jwt_secret": SecretStr(new_token()), "login_rate_limit": 100}
+        update={
+            "jwt_secret": SecretStr(new_token()),
+            "totp_encryption_key": SecretStr(Fernet.generate_key().decode()),
+            "login_rate_limit": 100,
+        }
     )
     application = create_app(settings)
     sender = RecordingSender()
@@ -340,21 +345,20 @@ def test_change_password_and_logout_all(auth_context):
     assert client.post("/auth/refresh").status_code == 401
 
 
-def test_first_admin_bootstrap_and_secret_generation(auth_context, tmp_path):
-    client, session, _, _ = auth_context
-    user = create_first_admin(session, "First-Admin@example.com", PASSWORD)
-    assert user.email_verified_at is not None
-    assert sign_in(client, user.email).status_code == 200
-    with pytest.raises(ValueError, match="already exists"):
-        create_first_admin(session, "other-admin@example.com", PASSWORD)
+def test_secret_generation(tmp_path):
     path = tmp_path / ".env"
-    path.write_text("POSTGRES_PORT=5433\n", encoding="utf-8")
-    assert initialize_secret(path)
+    path.write_text('POSTGRES_PORT=5433\nJWT_SECRET="kept"\n', encoding="utf-8")
+    # An existing secret is kept; only the missing one is added.
+    assert initialize_secret(path) == ["TOTP_ENCRYPTION_KEY"]
     contents = path.read_text(encoding="utf-8")
-    assert "JWT_SECRET=" in contents
+    assert 'JWT_SECRET="kept"' in contents
+    assert "TOTP_ENCRYPTION_KEY=" in contents
     assert "POSTGRES_PORT=5433" in contents
-    assert not initialize_secret(path)
+    assert initialize_secret(path) == []
     assert path.read_text(encoding="utf-8") == contents
+    fresh = tmp_path / "fresh.env"
+    fresh.write_text("", encoding="utf-8")
+    assert initialize_secret(fresh) == ["JWT_SECRET", "TOTP_ENCRYPTION_KEY"]
 
 
 def test_login_rate_limit_is_shared_across_accounts(auth_context):

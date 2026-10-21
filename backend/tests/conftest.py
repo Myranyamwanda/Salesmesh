@@ -63,6 +63,10 @@ class FakeFirebase:
     def ensure_user(self, email):
         return self.find_uid(email) or self.add_user(email, verified=False)
 
+    def password_reset_link(self, email):
+        self.check_available()
+        return f"https://firebase.test/reset?email={email}"
+
     def set_disabled(self, uid, disabled):
         self.check_available()
         if uid in self.users:

@@ -3,6 +3,9 @@
 Firebase is replaced by FakeFirebase (conftest.py): no network, no real accounts.
 """
 
+from datetime import UTC, datetime
+
+import pyotp
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
@@ -14,6 +17,7 @@ from app.core.security import new_token
 from app.db.session import get_db
 from app.main import create_app
 from app.models import AgentProfile, AuditLog, RefreshToken, User
+from app.services.mfa import encrypt_secret
 
 
 def firebase_sign_in(client, fake_firebase, uid):
@@ -174,15 +178,25 @@ def test_rbac_is_unchanged_for_firebase_logins(
     assert client.get("/admin/audit-logs", headers=headers).status_code == 403
 
 
-def test_admin_firebase_login_reaches_admin_endpoints(
+def test_admin_firebase_login_needs_mfa_then_reaches_admin_endpoints(
     auth_context,  # noqa: F811
     fake_firebase,
 ):
     client, session, _, _ = auth_context
     add_user(session, role="admin", email="admin@example.com")
     uid = fake_firebase.add_user("admin@example.com")
-    headers = bearer_headers(firebase_sign_in(client, fake_firebase, uid))
-    assert client.get("/admin/users", headers=headers).status_code == 200
+    response = firebase_sign_in(client, fake_firebase, uid)
+    # No SalesMesh tokens and no refresh cookie before the second factor.
+    assert response.json()["mfa"] == "setup"
+    assert "access_token" not in response.json()
+    assert "set-cookie" not in response.headers
+    assert (
+        client.get(
+            "/admin/users",
+            headers=admin_headers(client, session, fake_firebase, create=False),
+        ).status_code
+        == 200
+    )
 
 
 def test_firebase_login_is_rate_limited_per_ip(auth_context, fake_firebase):  # noqa: F811
@@ -286,10 +300,39 @@ def test_registration_refuses_an_existing_email(auth_context, fake_firebase):  #
     assert session.scalar(select(User.role)) == "client"
 
 
-def admin_headers(client, session, fake_firebase):
-    add_user(session, role="admin", email="admin@example.com")
-    uid = fake_firebase.add_user("admin@example.com")
-    return bearer_headers(firebase_sign_in(client, fake_firebase, uid))
+def app_settings(client):
+    return client.app.dependency_overrides[get_settings]()
+
+
+def enrol_totp(session, user, settings) -> str:
+    """Give an admin a working authenticator directly; return its secret."""
+    secret = pyotp.random_base32()
+    user.totp_secret_encrypted = encrypt_secret(secret, settings)
+    user.totp_enabled_at = datetime.now(UTC)
+    session.commit()
+    return secret
+
+
+def admin_headers(
+    client, session, fake_firebase, email="admin@example.com", create=True
+):
+    """Sign an admin in through Firebase and TOTP; return bearer headers."""
+    if create:
+        add_user(session, role="admin", email=email)
+    user = session.scalar(select(User).where(User.email == email))
+    uid = (
+        user.firebase_uid
+        or fake_firebase.find_uid(email)
+        or fake_firebase.add_user(email)
+    )
+    secret = enrol_totp(session, user, app_settings(client))
+    challenge = firebase_sign_in(client, fake_firebase, uid).json()
+    response = client.post(
+        "/auth/mfa/verify",
+        json={"mfa_token": challenge["mfa_token"], "code": pyotp.TOTP(secret).now()},
+    )
+    assert response.status_code == 200, response.text
+    return bearer_headers(response)
 
 
 def test_admin_creates_users_in_firebase(auth_context, fake_firebase):  # noqa: F811

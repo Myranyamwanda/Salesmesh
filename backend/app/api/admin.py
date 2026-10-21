@@ -12,7 +12,7 @@ from app.models import AgentProfile, AuditLog, User
 from app.schemas.auth import ActiveInput, CreateUserInput, RoleInput, UserRead
 from app.services.agents import create_agent_profile
 from app.services.audit import audit
-from app.services.auth import revoke_sessions
+from app.services.auth import other_usable_admins, revoke_sessions
 from app.services.firebase import Firebase, FirebaseUnavailable, unavailable
 
 router = APIRouter(prefix="/admin", tags=["Administration"])
@@ -59,20 +59,11 @@ def protect_admin(session, actor, target):
             400, "Administrators cannot deactivate or change their own role"
         )
     if target.role == "admin" and target.is_active and target.status == "approved":
-        others = session.scalar(
-            select(func.count())
-            .select_from(User)
-            .where(
-                User.role == "admin",
-                User.is_active.is_(True),
-                User.status == "approved",
-                User.id != target.id,
-                User.email_verified_at.is_not(None),
-            )
-        )
-        if not others:
+        if not other_usable_admins(session, target.id):
             raise HTTPException(
-                409, "At least one verified active administrator must remain"
+                409,
+                "At least one other administrator who signs in with Firebase "
+                "and an authenticator app must remain",
             )
 
 

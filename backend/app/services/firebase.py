@@ -82,6 +82,13 @@ class FirebaseAuth:
         except exceptions.FirebaseError as exc:
             raise FirebaseUnavailable(type(exc).__name__) from None
 
+    def password_reset_link(self, email: str) -> str:
+        """A one-time Firebase link to set the password, for printing in a terminal."""
+        try:
+            return auth.generate_password_reset_link(email, app=self.app)
+        except exceptions.FirebaseError as exc:
+            raise FirebaseUnavailable(type(exc).__name__) from None
+
     def set_disabled(self, uid: str, disabled: bool) -> None:
         """Disable or enable sign-in; disabling also ends Firebase sessions."""
         try:

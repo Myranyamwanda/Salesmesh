@@ -13,8 +13,14 @@ logger = logging.getLogger(__name__)
 class CodedHTTPException(fastapi.HTTPException):
     """An HTTP error with a stable code, so the frontend need not match messages."""
 
-    def __init__(self, status_code: int, code: str, detail: str) -> None:
-        super().__init__(status_code, detail)
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        detail: str,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        super().__init__(status_code, detail, headers)
         self.code = code
 
 

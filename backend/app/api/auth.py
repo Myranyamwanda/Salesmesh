@@ -11,6 +11,11 @@ from app.schemas.auth import (
     FirebaseTokenInput,
     LoginInput,
     MessageResponse,
+    MfaChallengeResponse,
+    MfaCodeInput,
+    MfaEnabledResponse,
+    MfaSetupResponse,
+    MfaTokenInput,
     RegistrationInput,
     ResetPasswordInput,
     TokenInput,
@@ -90,7 +95,7 @@ def token_response(response: Response, encoded: str, raw: str, settings):
     )
 
 
-@router.post("/firebase", response_model=AccessTokenResponse)
+@router.post("/firebase", response_model=AccessTokenResponse | MfaChallengeResponse)
 def firebase_login(
     payload: FirebaseTokenInput,
     request: Request,
@@ -99,8 +104,53 @@ def firebase_login(
     settings: Configuration,
     firebase: Firebase,
 ):
-    encoded, raw = auth.firebase_login(
+    encoded, raw, challenge = auth.firebase_login(
         session, request, payload.id_token, settings, firebase
+    )
+    if challenge is not None:
+        response.headers["Cache-Control"] = "no-store"
+        return MfaChallengeResponse(**challenge)
+    return token_response(response, encoded, raw, settings)
+
+
+@router.post("/mfa/setup", response_model=MfaSetupResponse)
+def mfa_setup(
+    payload: MfaTokenInput,
+    request: Request,
+    response: Response,
+    session: Database,
+    settings: Configuration,
+):
+    secret, uri = auth.mfa_setup(session, request, payload.mfa_token, settings)
+    response.headers["Cache-Control"] = "no-store"
+    return MfaSetupResponse(secret=secret, otpauth_uri=uri)
+
+
+@router.post("/mfa/setup/confirm", response_model=MfaEnabledResponse)
+def mfa_setup_confirm(
+    payload: MfaCodeInput,
+    request: Request,
+    response: Response,
+    session: Database,
+    settings: Configuration,
+):
+    encoded, raw, codes = auth.mfa_complete(
+        session, request, payload.mfa_token, payload.code, settings, setup=True
+    )
+    tokens = token_response(response, encoded, raw, settings)
+    return MfaEnabledResponse(**tokens.model_dump(), recovery_codes=codes)
+
+
+@router.post("/mfa/verify", response_model=AccessTokenResponse)
+def mfa_verify(
+    payload: MfaCodeInput,
+    request: Request,
+    response: Response,
+    session: Database,
+    settings: Configuration,
+):
+    encoded, raw, _ = auth.mfa_complete(
+        session, request, payload.mfa_token, payload.code, settings, setup=False
     )
     return token_response(response, encoded, raw, settings)
 
