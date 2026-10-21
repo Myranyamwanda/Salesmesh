@@ -7,6 +7,8 @@ from app.schemas.auth import (
     AccessTokenResponse,
     ChangePasswordInput,
     EmailInput,
+    FirebaseRegistrationInput,
+    FirebaseTokenInput,
     LoginInput,
     MessageResponse,
     RegistrationInput,
@@ -17,6 +19,7 @@ from app.schemas.auth import (
 from app.services import auth
 from app.services.audit import audit
 from app.services.email import EmailSender, get_email_sender
+from app.services.firebase import Firebase
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 type Sender = Annotated[EmailSender, Depends(get_email_sender)]
@@ -76,10 +79,41 @@ def login(
         payload.password.get_secret_value(),
         settings,
     )
+    return token_response(response, encoded, raw, settings)
+
+
+def token_response(response: Response, encoded: str, raw: str, settings):
     set_refresh_cookie(response, raw, settings.refresh_token_days * 86400)
     response.headers["Cache-Control"] = "no-store"
     return AccessTokenResponse(
         access_token=encoded, expires_in=settings.access_token_minutes * 60
+    )
+
+
+@router.post("/firebase", response_model=AccessTokenResponse)
+def firebase_login(
+    payload: FirebaseTokenInput,
+    request: Request,
+    response: Response,
+    session: Database,
+    settings: Configuration,
+    firebase: Firebase,
+):
+    encoded, raw = auth.firebase_login(
+        session, request, payload.id_token, settings, firebase
+    )
+    return token_response(response, encoded, raw, settings)
+
+
+@router.post("/firebase/register", response_model=UserRead, status_code=201)
+def firebase_register(
+    payload: FirebaseRegistrationInput,
+    request: Request,
+    session: Database,
+    firebase: Firebase,
+):
+    return auth.firebase_register(
+        session, request, payload.id_token, payload.display_name, firebase
     )
 
 

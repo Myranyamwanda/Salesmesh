@@ -35,7 +35,9 @@ def hash_password(password: str) -> str:
     return password_hasher.hash(validate_password(password))
 
 
-def verify_password(password: str, hashed: str) -> bool:
+def verify_password(password: str, hashed: str | None) -> bool:
+    if hashed is None:  # Firebase-only account: no local password.
+        return False
     try:
         return password_hasher.verify(hashed, password)
     except VerificationError, InvalidHashError:

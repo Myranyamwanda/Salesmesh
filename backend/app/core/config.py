@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     phone_default_region: str = Field(default="KE", pattern="^[A-Z]{2}$")
     join_rate_limit: int = Field(default=10, ge=1)
     join_rate_window_seconds: int = Field(default=3600, ge=1)
+    # Firebase Authentication (sign-in only; SalesMesh keeps roles and sessions).
+    # The service-account key file stays outside the repository.
+    firebase_project_id: str | None = None
+    firebase_credentials_path: Path | None = None
     # Password for every demo account created by `manage.py seed-demo`.
     demo_password: SecretStr | None = None
 
