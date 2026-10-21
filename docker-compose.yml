@@ -26,9 +26,20 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       FRONTEND_URL: http://localhost:5173
+      # .env holds the Windows path of the key file; inside the container the
+      # file is mounted at this fixed path instead.
+      FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-admin.json
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
+      # Firebase service-account key: outside the repository, read-only. A
+      # missing file is an error instead of an empty folder being created.
+      - type: bind
+        source: ${FIREBASE_CREDENTIALS_PATH:?Set FIREBASE_CREDENTIALS_PATH in .env}
+        target: /run/secrets/firebase-admin.json
+        read_only: true
+        bind:
+          create_host_path: false
       # Model files stay outside the image and Git; mounted read-only.
       - ./backend/models:/app/models:ro
       # Tracked model contract, read by the tests only. The repository root is
@@ -59,6 +70,11 @@ services:
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
       VITE_PRIVACY_CONTACT_EMAIL: ${VITE_PRIVACY_CONTACT_EMAIL:-privacy@example.com}
+      # Firebase web configuration (public values that identify the project).
+      VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+      VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:-}
+      VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:-}
+      VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:-}
     ports:
       - "127.0.0.1:5173:5173"
     depends_on:

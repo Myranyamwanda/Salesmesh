@@ -4,6 +4,9 @@
 !.env.example
 *.pem
 *.key
+# Firebase service-account keys belong outside the repository.
+*firebase-adminsdk*.json
+*firebase-admin*.json
 
 # Local assistant instructions
 CLAUDE.md
