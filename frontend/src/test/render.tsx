@@ -36,7 +36,8 @@ export function renderPage(
   const auth: AuthContextValue = {
     user,
     isLoading: false,
-    login: async () => user as AuthUser,
+    startSession: async () => user as AuthUser,
+    legacyLogin: async () => user as AuthUser,
     logout: async () => undefined,
     logoutAll: async () => undefined,
     clearSession: () => undefined,
@@ -56,9 +57,13 @@ export function renderPage(
 }
 
 /** An axios-like error with an HTTP status, as the API helpers would throw. */
-export function httpError(status: number, message = "Request failed") {
+export function httpError(
+  status: number,
+  message = "Request failed",
+  code = `http_${status}`,
+) {
   return Object.assign(new Error(message), {
     isAxiosError: true,
-    response: { status, data: { error: { message } } },
+    response: { status, data: { error: { code, message } } },
   });
 }

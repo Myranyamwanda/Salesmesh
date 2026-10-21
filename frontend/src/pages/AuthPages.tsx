@@ -1,29 +1,38 @@
-import { useState, type FormEvent } from "react";
-import {
-  Alert,
-  Button,
-  Divider,
-  Link as MuiLink,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { useState } from "react";
+import { Alert, Button, Divider } from "@mui/material";
 import ArrowForward from "@mui/icons-material/ArrowForward";
+import Google from "@mui/icons-material/Google";
 import TaskAlt from "@mui/icons-material/TaskAlt";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import {
-  Link,
-  useLocation,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { z } from "zod";
 import * as authApi from "../api/auth";
-import { useAuth } from "../hooks/useAuth";
+import {
+  changePassword,
+  currentFirebaseUser,
+  firebaseErrorCode,
+  firebaseErrorMessage,
+  idToken,
+  sendPasswordReset,
+  signInWithGoogle,
+  signInWithPassword,
+  signOutOfFirebase,
+  signUpWithPassword,
+  wasCancelled,
+  type FirebaseUser,
+} from "../auth/firebase";
+import { AuthFeedback } from "../components/AuthFeedback";
 import { FormTextField } from "../components/FormTextField";
 import { PasswordField } from "../components/PasswordField";
-import { AuthFeedback } from "../components/AuthFeedback";
-import { apiErrorMessage } from "../utils/errors";
+import {
+  MfaStep,
+  StepHeading as PageHeading,
+  VerifyEmailStep,
+} from "../components/SignInSteps";
+import { useAuth } from "../hooks/useAuth";
+import type { MfaChallenge } from "../types/auth";
+import { apiErrorCode, apiErrorMessage } from "../utils/errors";
 import { roleHome } from "../utils/roleHome";
 
 const emailSchema = z
@@ -31,6 +40,8 @@ const emailSchema = z
   .trim()
   .email("Enter a valid email address")
   .max(320);
+// The SalesMesh password rule. Firebase on the free (Spark) plan cannot
+// enforce a custom policy, so the sign-up and change-password forms do.
 const passwordSchema = z
   .string()
   .min(12, "Use at least 12 characters")
@@ -39,18 +50,14 @@ const passwordSchema = z
   .regex(/[A-Z]/, "Add an uppercase letter")
   .regex(/\d/, "Add a number")
   .regex(/[^a-zA-Z0-9\s]/, "Add a symbol");
+const PASSWORD_HINT = "12–128 characters with upper, lower, number, and symbol";
 
 const credentialsSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, "Enter your password").max(128),
 });
-const registrationSchema = z
+const signUpSchema = z
   .object({
-    displayName: z
-      .string()
-      .trim()
-      .min(2, "Enter the name customers will see")
-      .max(100, "Use 100 characters or fewer"),
     email: emailSchema,
     password: passwordSchema,
     confirmPassword: z.string(),
@@ -59,13 +66,14 @@ const registrationSchema = z
     path: ["confirmPassword"],
     message: "Passwords do not match",
   });
+const displayNameSchema = z.object({
+  displayName: z
+    .string()
+    .trim()
+    .min(2, "Enter the name customers will see")
+    .max(100, "Use 100 characters or fewer"),
+});
 const emailFormSchema = z.object({ email: emailSchema });
-const resetSchema = z
-  .object({ password: passwordSchema, confirmPassword: z.string() })
-  .refine((values) => values.password === values.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "Passwords do not match",
-  });
 const changeSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password").max(128),
@@ -78,63 +86,166 @@ const changeSchema = z
   });
 
 type Credentials = z.infer<typeof credentialsSchema>;
-type RegistrationValues = z.infer<typeof registrationSchema>;
+type SignUpValues = z.infer<typeof signUpSchema>;
+type DisplayNameValues = z.infer<typeof displayNameSchema>;
 type EmailValues = z.infer<typeof emailFormSchema>;
-type ResetValues = z.infer<typeof resetSchema>;
 type ChangeValues = z.infer<typeof changeSchema>;
-
-function PageHeading({
-  eyebrow,
-  title,
-  description,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <header className="form-heading">
-      <p className="eyebrow">{eyebrow}</p>
-      <Typography component="h1" variant="h4">
-        {title}
-      </Typography>
-      <Typography className="form-description">{description}</Typography>
-    </header>
-  );
-}
 
 function FormFooter({ children }: { children: React.ReactNode }) {
   return <div className="form-footer">{children}</div>;
 }
 
+function signInError(error: unknown, fallback: string) {
+  return firebaseErrorMessage(error) ?? apiErrorMessage(error, fallback);
+}
+
+function GoogleButton({
+  label,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <>
+      <Divider className="or-divider">or</Divider>
+      <Button
+        variant="outlined"
+        startIcon={<Google />}
+        disabled={disabled}
+        onClick={onClick}
+        fullWidth
+      >
+        {label}
+      </Button>
+    </>
+  );
+}
+
+type LoginStep =
+  | { name: "credentials" }
+  | { name: "verify-email"; user: FirebaseUser }
+  | { name: "no-account"; email: string }
+  | { name: "mfa"; challenge: MfaChallenge };
+
+/**
+ * Sign in with Firebase (password or Google), then exchange the Firebase ID
+ * token for the SalesMesh session. Admins then enter an authenticator code.
+ */
 export function LoginPage() {
-  const { login } = useAuth();
+  const { startSession } = useAuth();
   const navigate = useNavigate();
-  const [serverError, setServerError] = useState("");
+  const location = useLocation();
+  const [step, setStep] = useState<LoginStep>({ name: "credentials" });
+  const [serverError, setServerError] = useState(
+    location.state?.expired ? "Your session expired. Sign in again." : "",
+  );
+  const [busy, setBusy] = useState(false);
   const form = useForm<Credentials>({
     resolver: zodResolver(credentialsSchema),
   });
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = form;
 
-  async function submit(values: Credentials) {
-    setServerError("");
+  async function enter(accessToken: string) {
+    const user = await startSession(accessToken);
+    navigate(roleHome[user.role], { replace: true });
+  }
+
+  async function restart(message = "") {
+    await signOutOfFirebase().catch(() => undefined);
+    setStep({ name: "credentials" });
+    setServerError(message);
+  }
+
+  /** After Firebase sign-in: hand the verified identity to SalesMesh. */
+  async function exchange(user: FirebaseUser) {
+    if (!user.emailVerified) {
+      setStep({ name: "verify-email", user });
+      return;
+    }
     try {
-      const user = await login(values.email, values.password);
-      navigate(roleHome[user.role], { replace: true });
+      const result = await authApi.exchangeFirebaseToken(await idToken(user));
+      // The Firebase sign-in has done its job; SalesMesh holds the session.
+      await signOutOfFirebase();
+      if ("mfa" in result) setStep({ name: "mfa", challenge: result });
+      else await enter(result.access_token);
     } catch (error) {
-      setServerError(
-        apiErrorMessage(
-          error,
-          "We could not sign you in. Check your details and try again.",
-        ),
-      );
+      const code = apiErrorCode(error);
+      if (code === "account_not_found") {
+        // Stay signed in to Firebase so the agent can finish registering.
+        setStep({ name: "no-account", email: user.email ?? "" });
+      } else if (code === "email_not_verified") {
+        setStep({ name: "verify-email", user });
+      } else if (code === "account_pending") {
+        await signOutOfFirebase();
+        navigate("/registration-pending", { replace: true });
+      } else {
+        await restart(
+          signInError(error, "We could not sign you in. Try again."),
+        );
+      }
     }
   }
 
+  async function attempt(signIn: () => Promise<FirebaseUser>) {
+    setServerError("");
+    setBusy(true);
+    try {
+      await exchange(await signIn());
+    } catch (error) {
+      if (!wasCancelled(error)) {
+        setServerError(signInError(error, "We could not sign you in."));
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (step.name === "verify-email") {
+    return (
+      <VerifyEmailStep
+        user={step.user}
+        onVerified={() => void attempt(async () => step.user)}
+        onCancel={() => void restart()}
+      />
+    );
+  }
+  if (step.name === "mfa") {
+    return (
+      <MfaStep
+        challenge={step.challenge}
+        onSignedIn={enter}
+        onRestart={(message) => void restart(message)}
+      />
+    );
+  }
+  if (step.name === "no-account") {
+    return (
+      <>
+        <PageHeading
+          eyebrow="NO ACCOUNT YET"
+          title="This email has no SalesMesh account"
+          description={`${step.email} is not registered. Agents can request access now. Admin and client accounts are created by an administrator.`}
+        />
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={() => navigate("/register")}
+        >
+          Request agent access
+        </Button>
+        <Button className="text-action" onClick={() => void restart()}>
+          Use a different account
+        </Button>
+      </>
+    );
+  }
   return (
     <>
       <PageHeading
@@ -142,7 +253,13 @@ export function LoginPage() {
         title="Sign in"
         description="Enter your account details to continue."
       />
-      <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
+      <form
+        className="auth-form"
+        onSubmit={handleSubmit((values) =>
+          attempt(() => signInWithPassword(values.email, values.password)),
+        )}
+        noValidate
+      >
         <FormTextField
           label="Email address"
           type="email"
@@ -164,25 +281,38 @@ export function LoginPage() {
         <Button
           type="submit"
           variant="contained"
-          disabled={isSubmitting}
+          disabled={busy}
           endIcon={<ArrowForward />}
           fullWidth
         >
-          {isSubmitting ? "Signing in…" : "Sign in"}
+          {busy ? "Signing in…" : "Sign in"}
         </Button>
+        <GoogleButton
+          label="Sign in with Google"
+          disabled={busy}
+          onClick={() => void attempt(signInWithGoogle)}
+        />
       </form>
       <FormFooter>
         New to SalesMesh? <Link to="/register">Create an agent account</Link>
+        <br />
+        Account from before Firebase sign-in?{" "}
+        <Link to="/legacy-login">Legacy sign-in</Link>
       </FormFooter>
     </>
   );
 }
 
-export function RegistrationPage() {
+/**
+ * The old SalesMesh password sign-in, kept only as a fallback while existing
+ * accounts move to Firebase. It is removed together with local passwords.
+ */
+export function LegacyLoginPage() {
+  const { legacyLogin } = useAuth();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");
-  const form = useForm<RegistrationValues>({
-    resolver: zodResolver(registrationSchema),
+  const form = useForm<Credentials>({
+    resolver: zodResolver(credentialsSchema),
   });
   const {
     register,
@@ -190,23 +320,16 @@ export function RegistrationPage() {
     formState: { errors, isSubmitting },
   } = form;
 
-  async function submit(values: RegistrationValues) {
+  async function submit(values: Credentials) {
     setServerError("");
     try {
-      await authApi.registerAgent(
-        values.email,
-        values.password,
-        values.displayName,
-      );
-      navigate("/registration-pending", {
-        replace: true,
-        state: { email: values.email },
-      });
+      const user = await legacyLogin(values.email, values.password);
+      navigate(roleHome[user.role], { replace: true });
     } catch (error) {
       setServerError(
         apiErrorMessage(
           error,
-          "We could not complete registration. Try again.",
+          "We could not sign you in. Check your details and try again.",
         ),
       );
     }
@@ -215,32 +338,201 @@ export function RegistrationPage() {
   return (
     <>
       <PageHeading
-        eyebrow="AGENT ACCESS"
-        title="Create your account"
-        description="Register as an agent to request access to the workspace."
+        eyebrow="LEGACY SIGN-IN"
+        title="Sign in with a SalesMesh password"
+        description="Only for accounts created before Firebase sign-in. This option will be removed; use the normal sign-in page if you can."
       />
       <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
-        <FormTextField
-          label="Display name"
-          autoComplete="name"
-          registration={register("displayName")}
-          error={errors.displayName?.message}
-          hint="Shown to customers on your registration link"
-          autoFocus
-        />
         <FormTextField
           label="Email address"
           type="email"
           autoComplete="email"
           registration={register("email")}
           error={errors.email?.message}
+          autoFocus
+        />
+        <PasswordField
+          label="Password"
+          autoComplete="current-password"
+          registration={register("password")}
+          error={errors.password?.message}
+        />
+        <AuthFeedback error={serverError} />
+        <Button
+          type="submit"
+          variant="contained"
+          disabled={isSubmitting}
+          fullWidth
+        >
+          {isSubmitting ? "Signing in…" : "Sign in"}
+        </Button>
+      </form>
+      <FormFooter>
+        <Link to="/login">Back to sign in</Link>
+      </FormFooter>
+    </>
+  );
+}
+
+/**
+ * Agent self-registration: create (or reuse) a Firebase account, verify the
+ * email, then give the display name. The backend creates a pending agent.
+ */
+export function RegistrationPage() {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<FirebaseUser | null>(currentFirebaseUser);
+  const [verified, setVerified] = useState(user?.emailVerified ?? false);
+  const [serverError, setServerError] = useState("");
+  const [notPermanent, setNotPermanent] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const accountForm = useForm<SignUpValues>({
+    resolver: zodResolver(signUpSchema),
+  });
+  const nameForm = useForm<DisplayNameValues>({
+    resolver: zodResolver(displayNameSchema),
+  });
+
+  async function startOver(message = "") {
+    await signOutOfFirebase().catch(() => undefined);
+    setUser(null);
+    setVerified(false);
+    setNotPermanent(false);
+    setServerError(message);
+  }
+
+  async function createAccount(create: () => Promise<FirebaseUser>) {
+    setServerError("");
+    setBusy(true);
+    try {
+      const created = await create();
+      setUser(created);
+      setVerified(created.emailVerified);
+    } catch (error) {
+      if (!wasCancelled(error)) {
+        setServerError(
+          signInError(error, "We could not create your account. Try again."),
+        );
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function finish(values: DisplayNameValues) {
+    if (!user) return;
+    setServerError("");
+    try {
+      await authApi.registerAgent(await idToken(user), values.displayName);
+      await signOutOfFirebase();
+      navigate("/registration-pending", { replace: true });
+    } catch (error) {
+      const code = apiErrorCode(error);
+      if (code === "account_exists") {
+        // An existing SalesMesh account: the Firebase sign-in just created
+        // links to it at the next sign-in (matched by the verified email).
+        await startOver(
+          "You already have a SalesMesh account with this email. Sign in with this email and the password you just chose.",
+        );
+      } else {
+        setNotPermanent(code === "email_not_permanent");
+        setServerError(
+          signInError(error, "We could not complete registration. Try again."),
+        );
+      }
+    }
+  }
+
+  if (user && !verified) {
+    return (
+      <VerifyEmailStep
+        user={user}
+        onVerified={() => setVerified(true)}
+        onCancel={() => void startOver()}
+      />
+    );
+  }
+  if (user) {
+    const {
+      register,
+      handleSubmit,
+      formState: { errors, isSubmitting },
+    } = nameForm;
+    return (
+      <>
+        <PageHeading
+          eyebrow="AGENT ACCESS"
+          title="One last step"
+          description={`Signed in as ${user.email}. Choose the name customers will see on your registration link.`}
+        />
+        <form className="auth-form" onSubmit={handleSubmit(finish)} noValidate>
+          <FormTextField
+            label="Display name"
+            autoComplete="name"
+            registration={register("displayName")}
+            error={errors.displayName?.message}
+            hint="Shown to customers on your registration link"
+            autoFocus
+          />
+          <AuthFeedback error={serverError} />
+          {notPermanent && (
+            <Alert severity="info">
+              Disposable or mail-less addresses cannot be used. Start again with
+              a permanent email address.
+            </Alert>
+          )}
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={isSubmitting}
+            endIcon={<ArrowForward />}
+            fullWidth
+          >
+            {isSubmitting ? "Sending request…" : "Request agent access"}
+          </Button>
+        </form>
+        <FormFooter>
+          <Button className="text-action" onClick={() => void startOver()}>
+            Use a different email
+          </Button>
+        </FormFooter>
+      </>
+    );
+  }
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = accountForm;
+  return (
+    <>
+      <PageHeading
+        eyebrow="AGENT ACCESS"
+        title="Create your account"
+        description="Register as an agent to request access to the workspace. An administrator approves new agents."
+      />
+      <form
+        className="auth-form"
+        onSubmit={handleSubmit((values) =>
+          createAccount(() =>
+            signUpWithPassword(values.email, values.password),
+          ),
+        )}
+        noValidate
+      >
+        <FormTextField
+          label="Email address"
+          type="email"
+          autoComplete="email"
+          registration={register("email")}
+          error={errors.email?.message}
+          autoFocus
         />
         <PasswordField
           label="Password"
           autoComplete="new-password"
           registration={register("password")}
           error={errors.password?.message}
-          hint="12–128 characters with upper, lower, number, and symbol"
+          hint={PASSWORD_HINT}
         />
         <PasswordField
           label="Confirm password"
@@ -252,12 +544,17 @@ export function RegistrationPage() {
         <Button
           type="submit"
           variant="contained"
-          disabled={isSubmitting}
+          disabled={busy}
           endIcon={<ArrowForward />}
           fullWidth
         >
-          {isSubmitting ? "Creating account…" : "Request agent access"}
+          {busy ? "Creating account…" : "Create account"}
         </Button>
+        <GoogleButton
+          label="Sign up with Google"
+          disabled={busy}
+          onClick={() => void createAccount(signInWithGoogle)}
+        />
       </form>
       <FormFooter>
         Already registered? <Link to="/login">Sign in</Link>
@@ -267,33 +564,6 @@ export function RegistrationPage() {
 }
 
 export function RegistrationPendingPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [searchParams] = useSearchParams();
-  const [email, setEmail] = useState(
-    searchParams.get("email") ?? location.state?.email ?? "",
-  );
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [isSubmitting, setSubmitting] = useState(false);
-
-  async function resend(event: FormEvent) {
-    event.preventDefault();
-    setSubmitting(true);
-    setError("");
-    setSuccess("");
-    try {
-      const result = await authApi.resendVerification(email);
-      setSuccess(result.message);
-    } catch (cause) {
-      setError(
-        apiErrorMessage(cause, "We could not send a verification email."),
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
   return (
     <>
       <div className="state-symbol">
@@ -302,104 +572,16 @@ export function RegistrationPendingPage() {
       <PageHeading
         eyebrow="REQUEST RECEIVED"
         title="You’re in the review queue"
-        description="Your agent account is pending administrator approval. Verify your email while you wait; sign-in becomes available once both steps are complete."
+        description="Your agent account is waiting for administrator approval. You can sign in as soon as it is approved."
       />
-      <Divider className="section-divider" />
-      <form className="auth-form compact-form" onSubmit={resend}>
-        <TextField
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          slotProps={{ htmlInput: { maxLength: 320 } }}
-        />
-        <AuthFeedback error={error} success={success} />
-        <Button
-          type="submit"
-          variant="outlined"
-          disabled={isSubmitting || !email}
-          fullWidth
-        >
-          {isSubmitting ? "Sending…" : "Resend verification email"}
-        </Button>
-      </form>
       <FormFooter>
-        <MuiLink component={Link} to="/login">
-          Return to sign in
-        </MuiLink>
+        <Link to="/login">Return to sign in</Link>
       </FormFooter>
-      <Button className="text-action" onClick={() => navigate("/login")}>
-        Go to sign in
-      </Button>
     </>
   );
 }
 
-export function VerifyEmailPage() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const token = searchParams.get("token") ?? "";
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [isSubmitting, setSubmitting] = useState(false);
-
-  async function verify() {
-    setSubmitting(true);
-    setError("");
-    try {
-      await authApi.verifyEmail(token);
-      setSuccess(true);
-    } catch (cause) {
-      setError(
-        apiErrorMessage(cause, "This verification link is invalid or expired."),
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <>
-      <PageHeading
-        eyebrow="EMAIL VERIFICATION"
-        title={success ? "Email verified" : "Verify your email"}
-        description={
-          success
-            ? "Your email address is confirmed. Agent accounts still need administrator approval before sign-in."
-            : "Confirm the email address used for your SalesMesh account."
-        }
-      />
-      <AuthFeedback error={error} />
-      {success ? (
-        <Button
-          variant="contained"
-          onClick={() => navigate("/login")}
-          fullWidth
-        >
-          Continue to sign in
-        </Button>
-      ) : (
-        <Button
-          variant="contained"
-          onClick={verify}
-          disabled={isSubmitting || !token}
-          fullWidth
-        >
-          {isSubmitting ? "Verifying…" : "Verify email"}
-        </Button>
-      )}
-      {!token && (
-        <Alert severity="warning">
-          This link is missing its verification token. Request another from the
-          registration screen.
-        </Alert>
-      )}
-    </>
-  );
-}
-
-function EmailRequestPage({ reset = false }: { reset?: boolean }) {
+export function ForgotPasswordPage() {
   const [success, setSuccess] = useState("");
   const [serverError, setServerError] = useState("");
   const form = useForm<EmailValues>({ resolver: zodResolver(emailFormSchema) });
@@ -408,31 +590,27 @@ function EmailRequestPage({ reset = false }: { reset?: boolean }) {
     handleSubmit,
     formState: { errors, isSubmitting },
   } = form;
+  const sent =
+    "If an account uses this email, we have sent a link to choose a new password. Check your spam folder too.";
 
   async function submit(values: EmailValues) {
     setServerError("");
     try {
-      const result = reset
-        ? await authApi.requestPasswordReset(values.email)
-        : await authApi.resendVerification(values.email);
-      setSuccess(result.message);
+      await sendPasswordReset(values.email);
+      setSuccess(sent);
     } catch (error) {
-      setServerError(
-        apiErrorMessage(error, "We could not process that request. Try again."),
-      );
+      // Never reveal whether an account exists.
+      if (firebaseErrorCode(error) === "auth/user-not-found") setSuccess(sent);
+      else setServerError(signInError(error, "We could not send the email."));
     }
   }
 
   return (
     <>
       <PageHeading
-        eyebrow={reset ? "ACCOUNT RECOVERY" : "EMAIL VERIFICATION"}
-        title={reset ? "Reset your password" : "Resend verification"}
-        description={
-          reset
-            ? "Enter your account email. If it is eligible, we’ll send a reset link."
-            : "Enter your account email and we’ll resend the verification link if it is still needed."
-        }
+        eyebrow="ACCOUNT RECOVERY"
+        title="Reset your password"
+        description="Enter your account email and we’ll send a link to choose a new password. Accounts that sign in with Google do not need one."
       />
       <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
         <FormTextField
@@ -450,11 +628,7 @@ function EmailRequestPage({ reset = false }: { reset?: boolean }) {
           disabled={isSubmitting}
           fullWidth
         >
-          {isSubmitting
-            ? "Sending…"
-            : reset
-              ? "Send reset link"
-              : "Send verification link"}
+          {isSubmitting ? "Sending…" : "Send reset link"}
         </Button>
       </form>
       <FormFooter>
@@ -464,92 +638,10 @@ function EmailRequestPage({ reset = false }: { reset?: boolean }) {
   );
 }
 
-export function ForgotPasswordPage() {
-  return <EmailRequestPage reset />;
-}
-
-export function ResendVerificationPage() {
-  return <EmailRequestPage />;
-}
-
-export function ResetPasswordPage() {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const token = searchParams.get("token") ?? "";
-  const [serverError, setServerError] = useState("");
-  const [success, setSuccess] = useState("");
-  const form = useForm<ResetValues>({ resolver: zodResolver(resetSchema) });
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = form;
-
-  async function submit(values: ResetValues) {
-    setServerError("");
-    try {
-      const result = await authApi.resetPassword(token, values.password);
-      setSuccess(result.message);
-    } catch (error) {
-      setServerError(
-        apiErrorMessage(error, "This reset link is invalid or expired."),
-      );
-    }
-  }
-
-  return (
-    <>
-      <PageHeading
-        eyebrow="ACCOUNT RECOVERY"
-        title="Choose a new password"
-        description="Use a unique password that meets the security requirements."
-      />
-      {!token && (
-        <Alert severity="warning">This link is missing its reset token.</Alert>
-      )}
-      <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
-        <PasswordField
-          label="New password"
-          autoComplete="new-password"
-          registration={register("password")}
-          error={errors.password?.message}
-          hint="12–128 characters with upper, lower, number, and symbol"
-        />
-        <PasswordField
-          label="Confirm new password"
-          autoComplete="new-password"
-          registration={register("confirmPassword")}
-          error={errors.confirmPassword?.message}
-        />
-        <AuthFeedback error={serverError} success={success} />
-        {success ? (
-          <Button
-            variant="contained"
-            onClick={() => navigate("/login")}
-            fullWidth
-          >
-            Return to sign in
-          </Button>
-        ) : (
-          <Button
-            type="submit"
-            variant="contained"
-            disabled={isSubmitting || !token}
-            fullWidth
-          >
-            {isSubmitting ? "Updating…" : "Update password"}
-          </Button>
-        )}
-      </form>
-    </>
-  );
-}
-
 export function ChangePasswordPage() {
-  const { logout } = useAuth();
+  const { user, logoutAll } = useAuth();
   const navigate = useNavigate();
   const [serverError, setServerError] = useState("");
-  const [success, setSuccess] = useState("");
   const form = useForm<ChangeValues>({ resolver: zodResolver(changeSchema) });
   const {
     register,
@@ -558,20 +650,22 @@ export function ChangePasswordPage() {
   } = form;
 
   async function submit(values: ChangeValues) {
+    if (!user) return;
     setServerError("");
     try {
-      const result = await authApi.changePassword(
-        values.currentPassword,
-        values.password,
-      );
-      setSuccess(result.message);
-      await logout().catch(() => undefined);
-      navigate("/login", { replace: true });
+      await changePassword(user.email, values.currentPassword, values.password);
     } catch (error) {
+      const code = firebaseErrorCode(error);
       setServerError(
-        apiErrorMessage(error, "We could not update your password."),
+        code === "auth/invalid-credential" || code === "auth/wrong-password"
+          ? "Your current password is not correct. If you sign in with Google, change your password in your Google account instead."
+          : signInError(error, "We could not update your password."),
       );
+      return;
     }
+    // Like before: a new password ends every session, including this one.
+    await logoutAll().catch(() => undefined);
+    navigate("/login", { replace: true });
   }
 
   return (
@@ -579,7 +673,7 @@ export function ChangePasswordPage() {
       <PageHeading
         eyebrow="ACCOUNT SECURITY"
         title="Change password"
-        description="Confirm your current password, then choose a new one."
+        description="Confirm your current password, then choose a new one. You will be signed out everywhere."
       />
       <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
         <PasswordField
@@ -593,7 +687,7 @@ export function ChangePasswordPage() {
           autoComplete="new-password"
           registration={register("password")}
           error={errors.password?.message}
-          hint="12–128 characters with upper, lower, number, and symbol"
+          hint={PASSWORD_HINT}
         />
         <PasswordField
           label="Confirm new password"
@@ -601,7 +695,7 @@ export function ChangePasswordPage() {
           registration={register("confirmPassword")}
           error={errors.confirmPassword?.message}
         />
-        <AuthFeedback error={serverError} success={success} />
+        <AuthFeedback error={serverError} />
         <Button
           type="submit"
           variant="contained"
@@ -612,13 +706,5 @@ export function ChangePasswordPage() {
         </Button>
       </form>
     </>
-  );
-}
-
-export function RegistrationPendingContent() {
-  return (
-    <Typography variant="body2">
-      Your account request is awaiting review.
-    </Typography>
   );
 }

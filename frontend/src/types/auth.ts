@@ -16,6 +16,19 @@ export type AccessTokenResponse = {
   expires_in: number;
 };
 
+/** Returned to an admin by /auth/firebase instead of tokens. */
+export type MfaChallenge = {
+  mfa: "setup" | "verify";
+  mfa_token: string;
+  expires_in: number;
+};
+
+export type MfaSetup = { secret: string; otpauth_uri: string };
+
+export type MfaEnabledResponse = AccessTokenResponse & {
+  recovery_codes: string[];
+};
+
 export type ApiErrorBody = {
   error?: { code?: string; message?: string; request_id?: string };
 };

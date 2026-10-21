@@ -2,7 +2,16 @@ import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import type { AccessTokenResponse } from "../types/auth";
 
 const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-const accessTokenUrl = "/auth/login";
+// Sign-in steps answer 401 for wrong credentials or codes; a refresh cannot help.
+const signInUrls = new Set([
+  "/auth/login",
+  "/auth/refresh",
+  "/auth/firebase",
+  "/auth/firebase/register",
+  "/auth/mfa/setup",
+  "/auth/mfa/setup/confirm",
+  "/auth/mfa/verify",
+]);
 let accessToken: string | null = null;
 let refreshInFlight: Promise<string> | null = null;
 
@@ -64,8 +73,7 @@ api.interceptors.response.use(
       error.response?.status !== 401 ||
       !request ||
       request._retried ||
-      request.url === accessTokenUrl ||
-      request.url === "/auth/refresh"
+      signInUrls.has(request.url ?? "")
     ) {
       return Promise.reject(error);
     }
