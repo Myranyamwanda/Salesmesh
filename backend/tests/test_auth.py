@@ -18,6 +18,7 @@ from app.db.session import get_db
 from app.main import create_app
 from app.models import AuditLog, PasswordResetToken, RefreshToken, User
 from app.services.email import get_email_sender
+from app.services.firebase import get_firebase
 
 PASSWORD = "Correct-Passphrase123!"
 
@@ -34,7 +35,7 @@ class RecordingSender:
 
 
 @pytest.fixture
-def auth_context(db_session):
+def auth_context(db_session, fake_firebase):
     settings = get_settings().model_copy(
         update={"jwt_secret": SecretStr(new_token()), "login_rate_limit": 100}
     )
@@ -43,6 +44,7 @@ def auth_context(db_session):
     application.dependency_overrides[get_db] = lambda: db_session
     application.dependency_overrides[get_settings] = lambda: settings
     application.dependency_overrides[get_email_sender] = lambda: sender
+    application.dependency_overrides[get_firebase] = lambda: fake_firebase
     client = TestClient(
         application,
         base_url="https://testserver",
@@ -181,8 +183,8 @@ def test_expired_access_token_is_401(auth_context):
     )
 
 
-def test_admin_approval_rejection_and_user_management(auth_context):
-    client, session, sender, _ = auth_context
+def test_admin_approval_rejection_and_user_management(auth_context, fake_firebase):
+    client, session, _, _ = auth_context
     admin = add_user(session, role="admin", email="admin@example.com")
     agent = add_user(session, email="pending@example.com", status="pending")
     rejected = add_user(session, email="rejected@example.com", status="pending")
@@ -204,20 +206,16 @@ def test_admin_approval_rejection_and_user_management(auth_context):
     for role in ("client", "admin"):
         email = f"new-{role}@example.com"
         created = client.post(
-            "/admin/users",
-            json={"email": email, "password": PASSWORD, "role": role},
-            headers=admin_headers,
+            "/admin/users", json={"email": email, "role": role}, headers=admin_headers
         )
         assert created.status_code == 201
         assert created.json()["role"] == role
+        assert created.json()["email_verified_at"] is None
+        user = session.scalar(select(User).where(User.email == email))
+        # Created in Firebase without a password; there is no local password.
+        assert fake_firebase.users[user.firebase_uid]["email"] == email
+        assert user.password_hash is None
         assert sign_in(client, email).status_code == 401
-        assert (
-            client.post(
-                "/auth/verify-email", json={"token": sender.token()}
-            ).status_code
-            == 200
-        )
-        assert sign_in(client, email).status_code == 200
     agent_login = sign_in(client, "pending@example.com")
     assert (
         client.patch(
@@ -287,7 +285,7 @@ def test_wrong_role_forbidden(auth_context, role):
         client.post(
             "/admin/users",
             headers=headers,
-            json={"email": "new@example.com", "password": PASSWORD, "role": "admin"},
+            json={"email": "new@example.com", "role": "admin"},
         ).status_code
         == 403
     )
@@ -297,7 +295,7 @@ def test_admin_failed_user_actions_are_audited(auth_context):
     client, session, _, _ = auth_context
     add_user(session, role="admin", email="admin@example.com")
     headers = bearer_headers(sign_in(client, "admin@example.com"))
-    payload = {"email": "admin@example.com", "password": PASSWORD, "role": "client"}
+    payload = {"email": "admin@example.com", "role": "client"}
     assert client.post("/admin/users", headers=headers, json=payload).status_code == 409
     assert client.get(f"/admin/users/{uuid4()}", headers=headers).status_code == 404
     failures = session.scalars(
