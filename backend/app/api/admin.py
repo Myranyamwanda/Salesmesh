@@ -7,18 +7,16 @@ from pydantic import BaseModel, ConfigDict
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
-from app.auth import Configuration, Database, require_roles
-from app.core.security import hash_password
+from app.auth import Database, require_roles
 from app.models import AgentProfile, AuditLog, User
 from app.schemas.auth import ActiveInput, CreateUserInput, RoleInput, UserRead
 from app.services.agents import create_agent_profile
 from app.services.audit import audit
-from app.services.auth import issue_verification, revoke_sessions
-from app.services.email import EmailSender, get_email_sender, send_token_email
+from app.services.auth import revoke_sessions
+from app.services.firebase import Firebase, FirebaseUnavailable, unavailable
 
 router = APIRouter(prefix="/admin", tags=["Administration"])
 type Admin = Annotated[User, Depends(require_roles("admin"))]
-type Sender = Annotated[EmailSender, Depends(get_email_sender)]
 
 
 class UserPage(BaseModel):
@@ -115,27 +113,37 @@ def create_user(
     request: Request,
     session: Database,
     actor: Admin,
-    settings: Configuration,
-    sender: Sender,
+    firebase: Firebase,
 ):
-    target = User(
-        email=str(payload.email).lower(),
-        password_hash=hash_password(payload.password.get_secret_value()),
-        role=payload.role,
-        status="approved",
-    )
-    raw = issue_verification(target, settings)
+    """Create an admin or client in SalesMesh and Firebase, without a password.
+
+    The frontend then asks Firebase to send a password-reset email, which the
+    person uses to set their password. Firebase marks the email verified when
+    they first sign in through a verified link.
+    """
+    email = str(payload.email).lower()
+
+    def failed(status: int, message: str) -> HTTPException:
+        audit(session, request, "user_created", "failure", actor=actor)
+        session.commit()
+        return HTTPException(status, message)
+
+    conflict = "Account cannot be created for this email"
+    if session.scalar(select(User.id).where(User.email == email)):
+        raise failed(409, conflict)
+    try:
+        uid = firebase.ensure_user(email)
+    except FirebaseUnavailable:
+        raise failed(503, unavailable().detail) from None
+    target = User(email=email, firebase_uid=uid, role=payload.role, status="approved")
     session.add(target)
     try:
         session.flush()
     except IntegrityError:
         session.rollback()
-        audit(session, request, "user_created", "failure", actor=actor)
-        session.commit()
-        raise HTTPException(409, "Account cannot be created for this email") from None
+        raise failed(409, conflict) from None
     audit(session, request, "user_created", actor=actor, target=target)
     session.commit()
-    send_token_email(sender, settings, target.email, "verification", raw)
     return target
 
 
@@ -182,10 +190,18 @@ def set_user_active(
     request: Request,
     session: Database,
     actor: Admin,
+    firebase: Firebase,
 ):
     def apply(target):
         if not payload.is_active:
             protect_admin(session, actor, target)
+        # Firebase first: if it fails, nothing changes in SalesMesh either.
+        try:
+            uid = target.firebase_uid or firebase.find_uid(target.email)
+            if uid is not None:
+                firebase.set_disabled(uid, not payload.is_active)
+        except FirebaseUnavailable:
+            raise unavailable() from None
         target.is_active = payload.is_active
 
     return change_user(session, request, actor, user_id, "user_activity_changed", apply)

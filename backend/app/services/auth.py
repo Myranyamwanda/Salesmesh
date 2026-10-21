@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import Settings
+from app.core.errors import CodedHTTPException
 from app.core.security import (
     DUMMY_PASSWORD_HASH,
     access_token,
@@ -22,6 +23,15 @@ from app.models import AuditLog, PasswordResetToken, RefreshToken, User
 from app.services.agents import create_agent_profile
 from app.services.audit import audit
 from app.services.email import EmailSender, send_token_email
+from app.services.firebase import (
+    FirebaseAuth,
+    FirebaseIdentity,
+    FirebaseUnavailable,
+    InvalidFirebaseToken,
+    unavailable,
+)
+
+INACTIVE_MESSAGE = "This account cannot sign in. Contact an administrator."
 
 
 def unauthorized() -> HTTPException:
@@ -102,9 +112,9 @@ def login(
     locked = (
         user is not None and user.locked_until is not None and user.locked_until > now
     )
-    valid = verify_password(
-        password, user.password_hash if user else DUMMY_PASSWORD_HASH
-    )
+    # The dummy hash keeps timing the same for unknown and Firebase-only users.
+    stored = user.password_hash if user else None
+    valid = verify_password(password, stored or DUMMY_PASSWORD_HASH) and bool(stored)
     if user is None or locked or not valid or not active_user(user):
         if user is not None and not locked and not valid:
             if user.locked_until is not None and user.locked_until <= now:
@@ -129,6 +139,13 @@ def login(
     user.locked_until = None
     if password_hasher.check_needs_rehash(user.password_hash):
         user.password_hash = hash_password(password)
+    return start_session(session, request, user, settings, source)
+
+
+def start_session(
+    session: Session, request: Request, user: User, settings: Settings, source: str
+):
+    """Issue the SalesMesh access token and refresh token after a successful login."""
     raw = new_token()
     session_id = uuid4()
     session.add(
@@ -136,13 +153,153 @@ def login(
             user_id=user.id,
             session_id=session_id,
             token_hash=token_hash(raw),
-            expires_at=now + timedelta(days=settings.refresh_token_days),
+            expires_at=datetime.now(UTC) + timedelta(days=settings.refresh_token_days),
         )
     )
     encoded = access_token(user, session_id, settings)
     audit(session, request, "login_success", actor=user, client_ip_hash=source)
     session.commit()
     return encoded, raw
+
+
+def verified_identity(firebase: FirebaseAuth, id_token: str) -> FirebaseIdentity:
+    """Check a Firebase ID token; raise the HTTP error the caller should return."""
+    try:
+        identity = firebase.verify(id_token)
+    except InvalidFirebaseToken as exc:
+        if exc.reason == "disabled":
+            raise CodedHTTPException(
+                403, "account_inactive", INACTIVE_MESSAGE
+            ) from None
+        raise unauthorized() from None
+    except FirebaseUnavailable:
+        raise unavailable() from None
+    if identity.email is None:
+        raise unauthorized()
+    if not identity.email_verified:
+        raise CodedHTTPException(
+            403,
+            "email_not_verified",
+            "Verify your email address using the link we sent, then sign in again",
+        )
+    return identity
+
+
+def find_firebase_user(session: Session, identity: FirebaseIdentity) -> User | None:
+    """The SalesMesh user for a Firebase identity: by Firebase uid, else by email."""
+    user = session.scalar(
+        select(User).where(User.firebase_uid == identity.uid).with_for_update()
+    )
+    if user is None:
+        user = session.scalar(
+            select(User).where(User.email == identity.email).with_for_update()
+        )
+    return user
+
+
+def firebase_login(
+    session: Session,
+    request: Request,
+    id_token: str,
+    settings: Settings,
+    firebase: FirebaseAuth,
+):
+    """Exchange a Firebase ID token for SalesMesh tokens.
+
+    Firebase proves who the person is; the existing SalesMesh rules (active,
+    approved, role) decide whether they get the usual access and refresh tokens.
+    """
+    source = check_login_rate(session, request, settings)
+
+    def failure(error: HTTPException, user: User | None = None) -> HTTPException:
+        audit(
+            session,
+            request,
+            "login_failure",
+            "failure",
+            target=user,
+            client_ip_hash=source,
+        )
+        session.commit()
+        return error
+
+    try:
+        identity = verified_identity(firebase, id_token)
+    except HTTPException as exc:
+        if exc.status_code == 503:
+            session.rollback()
+            raise
+        raise failure(exc) from None
+    user = find_firebase_user(session, identity)
+    if user is None:
+        raise failure(
+            CodedHTTPException(
+                404, "account_not_found", "No SalesMesh account uses this email"
+            )
+        )
+    if user.firebase_uid not in (None, identity.uid):
+        raise failure(
+            CodedHTTPException(
+                409,
+                "account_link_conflict",
+                "This account is linked to a different sign-in. "
+                "Contact an administrator.",
+            ),
+            user,
+        )
+    # Firebase has verified this email, so link the account and record it.
+    user.firebase_uid = identity.uid
+    if user.email_verified_at is None:
+        user.email_verified_at = datetime.now(UTC)
+    if not user.is_active or user.status == "rejected":
+        raise failure(
+            CodedHTTPException(403, "account_inactive", INACTIVE_MESSAGE), user
+        )
+    if user.status == "pending":
+        raise failure(
+            CodedHTTPException(
+                403,
+                "account_pending",
+                "Your agent account is awaiting administrator approval",
+            ),
+            user,
+        )
+    return start_session(session, request, user, settings, source)
+
+
+def firebase_register(
+    session: Session,
+    request: Request,
+    id_token: str,
+    display_name: str,
+    firebase: FirebaseAuth,
+) -> User:
+    """Create a pending agent for a verified Firebase user (agents only)."""
+    identity = verified_identity(firebase, id_token)
+    exists = CodedHTTPException(
+        409, "account_exists", "An account already uses this email; sign in instead"
+    )
+    if find_firebase_user(session, identity) is not None:
+        audit(session, request, "agent_registered", "failure")
+        session.commit()
+        raise exists
+    user = User(
+        email=identity.email,
+        firebase_uid=identity.uid,
+        role="agent",
+        status="pending",
+        email_verified_at=datetime.now(UTC),
+    )
+    session.add(user)
+    try:
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        raise exists from None
+    create_agent_profile(session, user, display_name)
+    audit(session, request, "agent_registered", actor=user)
+    session.commit()
+    return user
 
 
 def refresh(session: Session, request: Request, raw: str, settings: Settings):
@@ -286,7 +443,8 @@ def forgot_password(
     user = session.scalar(
         select(User).where(User.email == email.lower()).with_for_update()
     )
-    if user is not None and user.is_active:
+    # Firebase-only accounts reset their password through Firebase.
+    if user is not None and user.is_active and user.password_hash is not None:
         session.execute(
             update(PasswordResetToken)
             .where(

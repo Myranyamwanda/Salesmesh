@@ -54,6 +54,15 @@ class ResetPasswordInput(TokenInput):
     password: NewPassword
 
 
+class FirebaseTokenInput(BaseModel):
+    # A Firebase ID token is a JWT of about 1 KB.
+    id_token: str = Field(min_length=1, max_length=8192)
+
+
+class FirebaseRegistrationInput(FirebaseTokenInput):
+    display_name: DisplayName
+
+
 class ChangePasswordInput(BaseModel):
     current_password: SecretStr = Field(min_length=1, max_length=128)
     new_password: NewPassword
@@ -80,7 +89,8 @@ class MessageResponse(BaseModel):
     message: str
 
 
-class CreateUserInput(CredentialsInput):
+class CreateUserInput(EmailInput):
+    # No password: the person sets one from Firebase's password-reset email.
     role: Literal["admin", "client"]
 
 
