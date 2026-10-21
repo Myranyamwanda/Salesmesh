@@ -1,15 +1,13 @@
 import argparse
-from datetime import UTC, datetime
-from getpass import getpass
-from uuid import uuid4
 
+from cryptography.fernet import Fernet
 from dotenv import dotenv_values, set_key
 from pydantic import EmailStr, TypeAdapter, ValidationError
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import ROOT_DIR, get_settings
-from app.core.security import hash_password, new_token, validate_password
+from app.core.security import new_token
 from app.db.session import get_engine
 from app.demo import (
     ADMIN_EMAIL,
@@ -20,49 +18,114 @@ from app.demo import (
     seed_demo,
 )
 from app.ml.model_service import ModelService
-from app.models import AuditLog, User
+from app.models import User
+from app.services.audit import audit
+from app.services.auth import other_usable_admins, revoke_sessions
+from app.services.firebase import (
+    FirebaseAuth,
+    FirebaseUnavailable,
+    firebase_from_settings,
+)
+from app.services.mfa import reset_mfa
+
+SECRET_GENERATORS = {
+    "JWT_SECRET": new_token,
+    "TOTP_ENCRYPTION_KEY": lambda: Fernet.generate_key().decode(),
+}
+# Same lock as admin user management, so the "usable admin" check cannot race.
+USER_ADMIN_LOCK = 71023
 
 
-def initialize_secret(path=ROOT_DIR / ".env") -> bool:
+def initialize_secret(path=ROOT_DIR / ".env") -> list[str]:
+    """Add any missing generated secrets to the ignored .env without printing them."""
     if not path.exists():
         raise ValueError("Copy .env.example to .env and configure the database first")
-    if dotenv_values(path).get("JWT_SECRET"):
-        return False
-    set_key(str(path), "JWT_SECRET", new_token(), quote_mode="always")
+    existing = dotenv_values(path)
+    created = []
+    for name, generate in SECRET_GENERATORS.items():
+        if not existing.get(name):
+            set_key(str(path), name, generate(), quote_mode="always")
+            created.append(name)
     get_settings.cache_clear()
-    return True
+    return created
 
 
-def create_first_admin(session: Session, email: str, password: str) -> User:
-    email = str(TypeAdapter(EmailStr).validate_python(email)).lower()
-    hashed = hash_password(password)
-    session.execute(text("SELECT pg_advisory_xact_lock(71023)"))
-    if session.scalar(select(User.id).where(User.role == "admin").limit(1)):
-        raise ValueError(
-            "An administrator already exists; use authenticated user management"
-        )
+def normalise_email(email: str) -> str:
+    return str(TypeAdapter(EmailStr).validate_python(email)).lower()
+
+
+def user_by_email(session: Session, email: str) -> User:
+    user = session.scalar(
+        select(User).where(User.email == normalise_email(email)).with_for_update()
+    )
+    if user is None:
+        raise ValueError("No account uses this email")
+    return user
+
+
+def create_admin(session: Session, email: str, firebase: FirebaseAuth) -> str:
+    """Create an administrator in SalesMesh and Firebase; return a set-password link.
+
+    Works when other admins exist: terminal access already means server access.
+    The new admin has no password until they open the link, and sets up an
+    authenticator app at their first sign-in.
+    """
+    email = normalise_email(email)
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(:key)"), {"key": USER_ADMIN_LOCK}
+    )
     if session.scalar(select(User.id).where(User.email == email)):
         raise ValueError("An account already uses this email")
-    user = User(
-        email=email,
-        password_hash=hashed,
-        role="admin",
-        status="approved",
-        email_verified_at=datetime.now(UTC),
-    )
+    uid = firebase.ensure_user(email)
+    if session.scalar(select(User.id).where(User.firebase_uid == uid)):
+        raise ValueError("This Firebase user is already linked to another account")
+    user = User(email=email, firebase_uid=uid, role="admin", status="approved")
     session.add(user)
     session.flush()
-    session.add(
-        AuditLog(
-            actor_user_id=user.id,
-            target_user_id=user.id,
-            action="first_admin_created",
-            outcome="success",
-            request_id=str(uuid4()),
-        )
-    )
+    audit(session, None, "admin_created_cli", target=user)
+    # Before the commit: if Firebase fails here, SalesMesh keeps nothing, and a
+    # rerun reuses the Firebase user created above.
+    link = firebase.password_reset_link(email)
     session.commit()
-    return user
+    return link
+
+
+def reset_admin_mfa(session: Session, email: str) -> None:
+    """Remove an admin's authenticator app; they set up a new one at next sign-in."""
+    user = user_by_email(session, email)
+    if user.role != "admin":
+        raise ValueError("Only administrators use an authenticator app")
+    reset_mfa(session, user)
+    revoke_sessions(session, user)
+    audit(session, None, "mfa_reset_cli", target=user)
+    session.commit()
+
+
+def deactivate_user(session: Session, email: str, firebase: FirebaseAuth) -> bool:
+    """Deactivate a user (kept for audit history); False if already inactive.
+
+    Refuses to leave no administrator who can sign in with Firebase and an
+    authenticator app.
+    """
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(:key)"), {"key": USER_ADMIN_LOCK}
+    )
+    user = user_by_email(session, email)
+    if not user.is_active:
+        return False
+    if user.role == "admin" and not other_usable_admins(session, user.id):
+        raise ValueError(
+            "Refused: at least one other administrator who signs in with Firebase "
+            "and an authenticator app must remain"
+        )
+    uid = user.firebase_uid or firebase.find_uid(user.email)
+    if uid is not None:
+        firebase.set_disabled(uid, True)
+    user.is_active = False
+    revoke_sessions(session, user)
+    audit(session, None, "user_activity_changed", target=user)
+    session.commit()
+    return True
 
 
 def print_demo_logins(plan: DemoPlan) -> None:
@@ -119,12 +182,16 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser(
         "init-secret",
-        help="Generate JWT_SECRET in the ignored root .env without printing it",
+        help="Generate JWT_SECRET and TOTP_ENCRYPTION_KEY in the ignored root .env "
+        "without printing them",
     )
-    create = commands.add_parser(
-        "create-admin", help="Create the first verified administrator"
-    )
-    create.add_argument("--email", required=True)
+    for name, description in (
+        ("create-admin", "Create an administrator in SalesMesh and Firebase"),
+        ("reset-mfa", "Remove an administrator's authenticator app"),
+        ("deactivate-user", "Deactivate a user (kept for audit history)"),
+    ):
+        command = commands.add_parser(name, help=description)
+        command.add_argument("--email", required=True)
     commands.add_parser(
         "seed-demo", help="Create demo users and scored customers (safe to rerun)"
     )
@@ -132,11 +199,11 @@ def main() -> None:
     args = parser.parse_args()
     try:
         if args.command == "init-secret":
-            changed = initialize_secret()
+            created = initialize_secret()
             print(
-                "JWT_SECRET created in local .env"
-                if changed
-                else "JWT_SECRET already exists; unchanged"
+                f"Created in local .env: {', '.join(created)}"
+                if created
+                else "JWT_SECRET and TOTP_ENCRYPTION_KEY already exist; unchanged"
             )
             return
         if args.command == "seed-demo":
@@ -150,14 +217,29 @@ def main() -> None:
                 f"{removed['customers']} demo customers."
             )
             return
-        get_settings().signing_key()
-        password = getpass("Password (hidden): ")
-        validate_password(password)
-        if getpass("Confirm password (hidden): ") != password:
-            raise ValueError("Passwords do not match")
+        settings = get_settings()
+        if args.command == "reset-mfa":
+            with Session(get_engine()) as session:
+                reset_admin_mfa(session, args.email)
+            print("Authenticator removed; a new one is set up at the next sign-in.")
+            return
+        firebase = firebase_from_settings(settings)
+        if args.command == "deactivate-user":
+            with Session(get_engine()) as session:
+                changed = deactivate_user(session, args.email, firebase)
+            print("User deactivated" if changed else "User was already inactive")
+            return
         with Session(get_engine()) as session:
-            create_first_admin(session, args.email, password)
-        print("First administrator created")
+            link = create_admin(session, args.email, firebase)
+        print("Administrator created.")
+        print("Open this one-time link to set the password (do not share it):")
+        print(link)
+        print(
+            f"Then sign in at {settings.frontend_url} with that email and password; "
+            "you will be asked to set up an authenticator app."
+        )
+    except FirebaseUnavailable:
+        parser.exit(1, "Firebase could not be reached; nothing was changed\n")
     except (ValueError, ValidationError, RuntimeError) as exc:
         parser.exit(1, f"{exc}\n")
 
