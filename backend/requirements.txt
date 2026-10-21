@@ -8,6 +8,8 @@ argon2-cffi==25.1.0
 PyJWT==2.15.1
 email-validator==2.3.0
 python-dotenv==1.2.4
+# Authentication: verifies Firebase ID tokens and manages Firebase users.
+firebase-admin==7.7.0
 
 # Fraud model. scikit-learn must match metadata.json "sklearn_version" exactly;
 # numpy, pandas, and joblib are pinned to the versions the golden test passed with.
