@@ -13,6 +13,8 @@ firebase-admin==7.7.0
 # Admin multi-factor authentication: TOTP codes and encryption of TOTP secrets.
 pyotp==2.10.0
 cryptography==50.0.2
+# Real-email check: MX record lookups.
+dnspython==2.9.0
 
 # Fraud model. scikit-learn must match metadata.json "sklearn_version" exactly;
 # numpy, pandas, and joblib are pinned to the versions the golden test passed with.

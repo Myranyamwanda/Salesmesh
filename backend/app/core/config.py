@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     phone_default_region: str = Field(default="KE", pattern="^[A-Z]{2}$")
     join_rate_limit: int = Field(default=10, ge=1)
     join_rate_window_seconds: int = Field(default=3600, ge=1)
+    # How long the real-email check waits for DNS before accepting the address.
+    email_dns_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
+    # Optional comma-separated DNS server IPs for that check; empty = system DNS.
+    email_dns_servers: str = ""
     # Firebase Authentication (sign-in only; SalesMesh keeps roles and sessions).
     # The service-account key file stays outside the repository.
     firebase_project_id: str | None = None
@@ -98,6 +102,14 @@ class Settings(BaseSettings):
             domain.strip().lower()
             for domain in self.free_email_domains.split(",")
             if domain.strip()
+        )
+
+    @property
+    def email_dns_server_list(self) -> tuple[str, ...]:
+        return tuple(
+            server.strip()
+            for server in self.email_dns_servers.split(",")
+            if server.strip()
         )
 
     def signing_key(self) -> str:

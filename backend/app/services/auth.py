@@ -24,6 +24,7 @@ from app.services import mfa
 from app.services.agents import create_agent_profile
 from app.services.audit import audit
 from app.services.email import EmailSender, send_token_email
+from app.services.email_checks import check_permanent_email
 from app.services.firebase import (
     FirebaseAuth,
     FirebaseIdentity,
@@ -361,10 +362,15 @@ def firebase_register(
     request: Request,
     id_token: str,
     display_name: str,
+    settings: Settings,
     firebase: FirebaseAuth,
 ) -> User:
-    """Create a pending agent for a verified Firebase user (agents only)."""
+    """Create a pending agent for a verified Firebase user (agents only).
+
+    The email must also pass the real-email checks (not disposable, has MX).
+    """
     identity = verified_identity(firebase, id_token)
+    check_permanent_email(identity.email, settings)
     exists = CodedHTTPException(
         409, "account_exists", "An account already uses this email; sign in instead"
     )

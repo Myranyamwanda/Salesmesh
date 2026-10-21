@@ -80,6 +80,26 @@ def fake_firebase():
     return FakeFirebase()
 
 
+class FakeDns:
+    """MX lookups without the network: every domain has a mail server unless
+    `records[domain]` is [] (no MX) or None (DNS unreachable)."""
+
+    def __init__(self):
+        self.records = {}
+        self.lookups = []
+
+    def mx_hosts(self, domain, timeout, nameservers=()):
+        self.lookups.append(domain)
+        return self.records.get(domain, [f"mx.{domain}."])
+
+
+@pytest.fixture(autouse=True)
+def fake_dns(monkeypatch):
+    fake = FakeDns()
+    monkeypatch.setattr("app.services.email_checks.mx_hosts", fake.mx_hosts)
+    return fake
+
+
 def validate_test_database(settings) -> None:
     if (
         settings.test_postgres_db == settings.postgres_db

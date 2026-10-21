@@ -160,10 +160,11 @@ def firebase_register(
     payload: FirebaseRegistrationInput,
     request: Request,
     session: Database,
+    settings: Configuration,
     firebase: Firebase,
 ):
     return auth.firebase_register(
-        session, request, payload.id_token, payload.display_name, firebase
+        session, request, payload.id_token, payload.display_name, settings, firebase
     )
 
 
