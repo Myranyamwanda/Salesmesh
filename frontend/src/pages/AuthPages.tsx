@@ -428,7 +428,11 @@ export function RegistrationPage() {
     } catch (error) {
       const code = apiErrorCode(error);
       if (code === "account_exists") {
-        await startOver("An account already uses this email. Sign in instead.");
+        // An existing SalesMesh account: the Firebase sign-in just created
+        // links to it at the next sign-in (matched by the verified email).
+        await startOver(
+          "You already have a SalesMesh account with this email. Sign in with this email and the password you just chose.",
+        );
       } else {
         setNotPermanent(code === "email_not_permanent");
         setServerError(

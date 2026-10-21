@@ -116,6 +116,22 @@ describe("agent registration", () => {
     expect(await screen.findByLabelText("Display name")).toBeInTheDocument();
   });
 
+  it("tells an existing user to sign in with the new password", async () => {
+    vi.mocked(firebase.currentFirebaseUser).mockReturnValue(firebaseUser(true));
+    vi.mocked(authApi.registerAgent).mockRejectedValue(
+      httpError(409, "An account already uses this email", "account_exists"),
+    );
+    const interaction = renderPage();
+    await interaction.type(screen.getByLabelText("Display name"), "Amina");
+    await interaction.click(
+      screen.getByRole("button", { name: "Request agent access" }),
+    );
+    expect(
+      await screen.findByText(/You already have a SalesMesh account/),
+    ).toBeInTheDocument();
+    expect(firebase.signOutOfFirebase).toHaveBeenCalled();
+  });
+
   it("explains a rejected disposable or mail-less address", async () => {
     vi.mocked(firebase.currentFirebaseUser).mockReturnValue(firebaseUser(true));
     vi.mocked(authApi.registerAgent).mockRejectedValue(
