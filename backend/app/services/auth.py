@@ -20,6 +20,7 @@ from app.core.security import (
     verify_password,
 )
 from app.models import AuditLog, PasswordResetToken, RefreshToken, User
+from app.services import mfa
 from app.services.agents import create_agent_profile
 from app.services.audit import audit
 from app.services.email import EmailSender, send_token_email
@@ -66,6 +67,28 @@ def active_user(user: User) -> bool:
     )
 
 
+def other_usable_admins(session: Session, user_id) -> int:
+    """Admins other than user_id who can actually sign in today.
+
+    Usable means active, approved, verified, linked to Firebase, and with an
+    authenticator app set up. An admin with an undeliverable email (who can
+    never sign in through Firebase) does not count.
+    """
+    return session.scalar(
+        select(func.count())
+        .select_from(User)
+        .where(
+            User.role == "admin",
+            User.is_active.is_(True),
+            User.status == "approved",
+            User.email_verified_at.is_not(None),
+            User.firebase_uid.is_not(None),
+            User.totp_enabled_at.is_not(None),
+            User.id != user_id,
+        )
+    )
+
+
 def client_address(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
@@ -87,7 +110,7 @@ def check_login_rate(session: Session, request: Request, settings: Settings) -> 
         .select_from(AuditLog)
         .where(
             AuditLog.client_ip_hash == hashed,
-            AuditLog.action.in_(["login_success", "login_failure"]),
+            AuditLog.action.in_(["login_success", "login_failure", "mfa_failure"]),
             AuditLog.created_at >= since,
         )
     )
@@ -204,10 +227,14 @@ def firebase_login(
     settings: Settings,
     firebase: FirebaseAuth,
 ):
-    """Exchange a Firebase ID token for SalesMesh tokens.
+    """Exchange a Firebase ID token for SalesMesh tokens, or for an MFA challenge.
 
     Firebase proves who the person is; the existing SalesMesh rules (active,
     approved, role) decide whether they get the usual access and refresh tokens.
+    Admins must first enter a TOTP code (see app/services/mfa.py).
+
+    Returns (access token, refresh token, None), or (None, None, MFA challenge)
+    for an admin.
     """
     source = check_login_rate(session, request, settings)
 
@@ -264,7 +291,69 @@ def firebase_login(
             ),
             user,
         )
-    return start_session(session, request, user, settings, source)
+    if user.role == "admin":
+        return None, None, mfa.challenge(session, request, user, settings, source)
+    return *start_session(session, request, user, settings, source), None
+
+
+def mfa_setup(session: Session, request: Request, mfa_token: str, settings: Settings):
+    """Start authenticator setup for an admin who has none yet."""
+    user = mfa.mfa_user(session, mfa_token, settings)
+    secret, uri = mfa.begin_setup(user, settings)
+    audit(session, request, "mfa_setup_started", actor=user)
+    session.commit()
+    return secret, uri
+
+
+def mfa_complete(
+    session: Session,
+    request: Request,
+    mfa_token: str,
+    code: str,
+    settings: Settings,
+    setup: bool,
+):
+    """Finish an admin sign-in with a TOTP code or, outside setup, a recovery code.
+
+    In setup, the first correct code turns TOTP on and returns new recovery codes.
+    Wrong codes count towards the same lockout as wrong passwords.
+    """
+    source = check_login_rate(session, request, settings)
+    user = mfa.mfa_user(session, mfa_token, settings)
+    mfa.check_not_locked(user)
+    if setup and user.totp_enabled_at is not None:
+        raise CodedHTTPException(
+            409, "mfa_already_enabled", "An authenticator app is already set up"
+        )
+    if not setup and user.totp_enabled_at is None:
+        raise CodedHTTPException(
+            409, "mfa_setup_required", "Set up an authenticator app first"
+        )
+    step = mfa.matching_step(user, code, settings)
+    recovery_codes = None
+    if step is not None and setup:
+        recovery_codes = mfa.enable_totp(session, user, step)
+        audit(session, request, "mfa_enabled", actor=user)
+    elif step is not None:
+        user.totp_last_step = step
+    elif not setup and mfa.use_recovery_code(session, user, code):
+        audit(session, request, "mfa_recovery_code_used", actor=user)
+    else:
+        mfa.record_failure(user, settings)
+        audit(
+            session,
+            request,
+            "mfa_failure",
+            "failure",
+            target=user,
+            client_ip_hash=source,
+        )
+        session.commit()
+        raise CodedHTTPException(401, "mfa_invalid_code", "That code is not correct")
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    encoded, raw = start_session(session, request, user, settings, source)
+    return encoded, raw, recovery_codes
 
 
 def firebase_register(
