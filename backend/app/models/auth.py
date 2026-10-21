@@ -28,7 +28,10 @@ class User(Base):
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
     email: Mapped[str] = mapped_column(String(320), unique=True)
-    password_hash: Mapped[str] = mapped_column(String(255))
+    # Firebase user ID, stored at the first Firebase sign-in or account creation.
+    firebase_uid: Mapped[str | None] = mapped_column(String(128), unique=True)
+    # None for accounts that sign in only through Firebase.
+    password_hash: Mapped[str | None] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(20), server_default="pending")
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
