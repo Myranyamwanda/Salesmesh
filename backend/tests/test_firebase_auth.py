@@ -254,7 +254,7 @@ def test_agent_self_registration(auth_context, fake_firebase):  # noqa: F811
     body = response.json()
     assert (body["role"], body["status"]) == ("agent", "pending")
     user = session.scalar(select(User))
-    assert (user.firebase_uid, user.password_hash) == (uid, None)
+    assert user.firebase_uid == uid
     assert session.get(AgentProfile, user.id).display_name == "Amina"
     assert audit_actions(session, "success") == ["agent_registered"]
     # Signing in now gives the awaiting-approval response.

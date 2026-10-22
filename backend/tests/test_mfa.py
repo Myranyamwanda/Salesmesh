@@ -7,7 +7,7 @@ import pyotp
 import pytest
 from pydantic import SecretStr
 from sqlalchemy import select
-from test_auth import add_user, auth_context, bearer_headers, sign_in  # noqa: F401
+from test_auth import add_user, auth_context, bearer_headers  # noqa: F401
 from test_firebase_auth import (
     admin_headers,
     app_settings,
@@ -221,15 +221,23 @@ def test_invalid_encryption_key_is_refused(auth_context):  # noqa: F811
 def test_cannot_deactivate_the_last_usable_admin(auth_context, fake_firebase):  # noqa: F811
     client, session, _, _ = auth_context
     headers = admin_headers(client, session, fake_firebase)
-    new = session.scalar(select(User).where(User.email == "admin@example.com"))
-    # The old admin: undeliverable email, so it can never sign in through
-    # Firebase; it still has the local password login until that is removed.
+    # The old admin: an undeliverable email, so it can never sign in through
+    # Firebase, and it does not count as an admin who keeps the system usable.
     old = add_user(session, role="admin", email="old-admin@example.com")
-    old_headers = bearer_headers(sign_in(client, "old-admin@example.com"))
+    # A second admin signs in, then loses the authenticator mid-session (as if
+    # reset in the database): no longer usable, so it may not remove the
+    # last usable admin, by deactivation or by demotion.
+    acting_headers = admin_headers(
+        client, session, fake_firebase, email="acting@example.com"
+    )
+    acting = session.scalar(select(User).where(User.email == "acting@example.com"))
+    acting.totp_enabled_at = None
+    session.commit()
+    new = session.scalar(select(User).where(User.email == "admin@example.com"))
     for change in ("active", "role"):
         payload = {"is_active": False} if change == "active" else {"role": "client"}
         response = client.patch(
-            f"/admin/users/{new.id}/{change}", json=payload, headers=old_headers
+            f"/admin/users/{new.id}/{change}", json=payload, headers=acting_headers
         )
         assert response.status_code == 409
         assert "must remain" in response.json()["error"]["message"]
@@ -254,7 +262,7 @@ def test_cli_create_admin_alongside_existing_admins(db_session, fake_firebase):
     link = create_admin(db_session, "Name+Admin@Gmail.com", fake_firebase)
     user = db_session.scalar(select(User).where(User.email == "name+admin@gmail.com"))
     assert (user.role, user.status, user.is_active) == ("admin", "approved", True)
-    assert user.password_hash is None and user.email_verified_at is None
+    assert user.email_verified_at is None
     assert fake_firebase.users[user.firebase_uid]["email"] == "name+admin@gmail.com"
     assert link == "https://firebase.test/reset?email=name+admin@gmail.com"
     assert audit_actions(db_session, "success") == ["admin_created_cli"]
