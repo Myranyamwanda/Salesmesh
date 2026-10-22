@@ -4,16 +4,14 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import jwt
-from argon2 import PasswordHasher
-from argon2.exceptions import InvalidHashError, VerificationError
 
 from app.core.config import Settings
 
-password_hasher = PasswordHasher(time_cost=2, memory_cost=19456, parallelism=1)
-DUMMY_PASSWORD_HASH = password_hasher.hash(secrets.token_urlsafe(32))
-
 
 def validate_password(password: str) -> str:
+    """The SalesMesh password rule. Firebase checks real accounts' passwords
+    (password policy) and so do the frontend forms; this checks DEMO_PASSWORD.
+    """
     if not 12 <= len(password) <= 128:
         raise ValueError("Password must contain 12 to 128 characters")
     if (
@@ -29,19 +27,6 @@ def validate_password(password: str) -> str:
             "Password must contain lowercase, uppercase, a digit, and a symbol"
         )
     return password
-
-
-def hash_password(password: str) -> str:
-    return password_hasher.hash(validate_password(password))
-
-
-def verify_password(password: str, hashed: str | None) -> bool:
-    if hashed is None:  # Firebase-only account: no local password.
-        return False
-    try:
-        return password_hasher.verify(hashed, password)
-    except VerificationError, InvalidHashError:
-        return False
 
 
 def new_token() -> str:

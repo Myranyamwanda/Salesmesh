@@ -6,7 +6,6 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.exc import DBAPIError, IntegrityError
 from test_auth import (  # noqa: F401
-    PASSWORD,
     add_user,
     auth_context,
     bearer_headers,
@@ -41,7 +40,7 @@ CODE_PATTERN = re.compile(r"^AGT-[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$")
 
 
 def make_user(session, role="agent"):
-    user = User(email=f"{uuid4()}@example.test", password_hash="hash", role=role)
+    user = User(email=f"{uuid4()}@example.test", role=role)
     session.add(user)
     session.flush()
     return user
@@ -321,14 +320,11 @@ def test_audit_log_stores_subject(db_session):
 
 
 def test_registration_creates_agent_profile(auth_context):  # noqa: F811
-    client, session, _, _ = auth_context
+    client, session, fake_firebase, _ = auth_context
+    uid = fake_firebase.add_user("amina@example.com")
     response = client.post(
-        "/auth/register",
-        json={
-            "email": "amina@example.com",
-            "password": PASSWORD,
-            "display_name": "  Amina Otieno  ",
-        },
+        "/auth/firebase/register",
+        json={"id_token": fake_firebase.token(uid), "display_name": "  Amina Otieno  "},
     )
     assert response.status_code == 201
 
@@ -340,11 +336,11 @@ def test_registration_creates_agent_profile(auth_context):  # noqa: F811
 
 @pytest.mark.parametrize("display_name", [None, "", "   ", "A", "x" * 101])
 def test_registration_requires_a_display_name(auth_context, display_name):  # noqa: F811
-    client, session, _, _ = auth_context
-    payload = {"email": "amina@example.com", "password": PASSWORD}
+    client, session, fake_firebase, _ = auth_context
+    payload = {"id_token": fake_firebase.token(fake_firebase.add_user("a@example.com"))}
     if display_name is not None:
         payload["display_name"] = display_name
-    assert client.post("/auth/register", json=payload).status_code == 422
+    assert client.post("/auth/firebase/register", json=payload).status_code == 422
     assert session.scalar(select(User)) is None
 
 

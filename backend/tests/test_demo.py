@@ -299,8 +299,6 @@ def test_demo_users_get_verified_firebase_accounts(db_session, sample):
         account = firebase.users[user.firebase_uid]
         assert account["email"] == user.email
         assert account["email_verified"] and account["password"] == PASSWORD
-        # Firebase-only sign-in: no local password is stored.
-        assert user.password_hash is None
 
 
 def test_existing_demo_firebase_accounts_are_reused(db_session, sample):

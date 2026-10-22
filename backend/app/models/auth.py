@@ -31,17 +31,12 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(320), unique=True)
     # Firebase user ID, stored at the first Firebase sign-in or account creation.
     firebase_uid: Mapped[str | None] = mapped_column(String(128), unique=True)
-    # None for accounts that sign in only through Firebase.
-    password_hash: Mapped[str | None] = mapped_column(String(255))
     role: Mapped[str] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(20), server_default="pending")
     is_active: Mapped[bool] = mapped_column(Boolean, server_default="true")
+    # Copied from Firebase at sign-in; Firebase sends the verification emails.
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    verification_token_hash: Mapped[str | None] = mapped_column(String(64), unique=True)
-    verification_expires_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True)
-    )
-    # Wrong passwords and wrong MFA codes both count towards the lockout.
+    # Wrong admin MFA codes count towards the lockout.
     failed_login_attempts: Mapped[int] = mapped_column(Integer, server_default="0")
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     token_version: Mapped[int] = mapped_column(Integer, server_default="0")
@@ -69,21 +64,6 @@ class RefreshToken(Base):
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-
-
-class PasswordResetToken(Base):
-    __tablename__ = "password_reset_tokens"
-
-    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
-    user_id: Mapped[UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="CASCADE"), index=True
-    )
-    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

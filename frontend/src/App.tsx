@@ -26,7 +26,6 @@ const named = <Name extends string>(
 const authPages = () => import("./pages/AuthPages");
 const ChangePasswordPage = named(authPages, "ChangePasswordPage");
 const ForgotPasswordPage = named(authPages, "ForgotPasswordPage");
-const LegacyLoginPage = named(authPages, "LegacyLoginPage");
 const LoginPage = named(authPages, "LoginPage");
 const RegistrationPage = named(authPages, "RegistrationPage");
 const RegistrationPendingPage = named(authPages, "RegistrationPendingPage");
@@ -136,8 +135,6 @@ function AppRoutes() {
               element={<RegistrationPendingPage />}
             />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            {/* Fallback for pre-Firebase accounts; removed with local passwords. */}
-            <Route path="/legacy-login" element={<LegacyLoginPage />} />
           </Route>
           {/* Public: customers register without signing in. */}
           <Route element={<PublicLayout />}>

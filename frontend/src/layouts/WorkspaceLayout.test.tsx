@@ -15,7 +15,6 @@ function renderLayout(role: UserRole) {
     user,
     isLoading: false,
     startSession: async () => user,
-    legacyLogin: async () => user,
     logout: async () => undefined,
     logoutAll: async () => undefined,
     clearSession: () => undefined,

@@ -8,12 +8,7 @@ import { AuthContext, type AuthContextValue } from "../auth/context";
 import * as firebase from "../auth/firebase";
 import { httpError, makeUser } from "../test/render";
 import type { AuthUser } from "../types/auth";
-import {
-  ChangePasswordPage,
-  ForgotPasswordPage,
-  LegacyLoginPage,
-  LoginPage,
-} from "./AuthPages";
+import { ChangePasswordPage, ForgotPasswordPage, LoginPage } from "./AuthPages";
 
 vi.mock("../auth/firebase", () => ({
   signInWithPassword: vi.fn(),
@@ -58,7 +53,6 @@ function renderSignIn(
     user,
     isLoading: false,
     startSession: vi.fn(async () => makeUser("agent")),
-    legacyLogin: vi.fn(async () => makeUser("admin")),
     logout: vi.fn(async () => undefined),
     logoutAll: vi.fn(async () => undefined),
     clearSession: vi.fn(),
@@ -333,16 +327,6 @@ describe("admin two-step sign-in", () => {
 });
 
 describe("other account pages", () => {
-  it("keeps the legacy password sign-in as a fallback", async () => {
-    const { auth, interaction } = renderSignIn(<LegacyLoginPage />);
-    await submitCredentials(interaction);
-    await waitFor(() =>
-      expect(screen.getByTestId("location")).toHaveTextContent("/admin"),
-    );
-    expect(auth.legacyLogin).toHaveBeenCalledWith("a@example.com", PASSWORD);
-    expect(firebase.signInWithPassword).not.toHaveBeenCalled();
-  });
-
   it("sends Firebase's reset email without revealing unknown accounts", async () => {
     vi.mocked(firebase.sendPasswordReset).mockRejectedValueOnce({
       code: "auth/user-not-found",

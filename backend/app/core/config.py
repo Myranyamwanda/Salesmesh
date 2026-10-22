@@ -32,8 +32,6 @@ class Settings(BaseSettings):
     jwt_audience: str = "salesmesh-api"
     access_token_minutes: int = Field(default=15, ge=1, le=60)
     refresh_token_days: int = Field(default=30, ge=1, le=90)
-    verification_token_hours: int = Field(default=24, ge=1, le=48)
-    reset_token_minutes: int = Field(default=30, ge=1, le=60)
     login_rate_limit: int = Field(default=20, ge=1)
     login_rate_window_seconds: int = Field(default=60, ge=1)
     login_failure_limit: int = Field(default=5, ge=1)

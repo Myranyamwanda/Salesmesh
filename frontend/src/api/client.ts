@@ -4,7 +4,6 @@ import type { AccessTokenResponse } from "../types/auth";
 const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
 // Sign-in steps answer 401 for wrong credentials or codes; a refresh cannot help.
 const signInUrls = new Set([
-  "/auth/login",
   "/auth/refresh",
   "/auth/firebase",
   "/auth/firebase/register",

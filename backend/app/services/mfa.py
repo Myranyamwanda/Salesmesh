@@ -193,7 +193,7 @@ def check_not_locked(user: User) -> None:
 
 
 def record_failure(user: User, settings: Settings) -> None:
-    """Count a wrong code; lock the account like repeated wrong passwords do."""
+    """Count a wrong code; lock the account after LOGIN_FAILURE_LIMIT of them."""
     now = datetime.now(UTC)
     if user.locked_until is not None and user.locked_until <= now:
         user.failed_login_attempts = 0
