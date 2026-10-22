@@ -63,6 +63,7 @@ unavailable the endpoint returns 503 and saves nothing.
 | GET /admin/users | Admin | Paginated user list |
 | GET /admin/users/{id} | Admin | User detail |
 | POST /admin/users | Admin | email, role (`admin` or `client`); creates the user in SalesMesh and Firebase without a password (the browser then sends Firebase's "set your password" email) |
+| POST /admin/users/{id}/password-email | Admin | Makes sure the user has a Firebase account (creates and links one without a password if missing) so the browser can then send Firebase's password email; 409 for an inactive or conflicting account |
 | POST /admin/users/{id}/approve | Admin | Approve a pending agent |
 | POST /admin/users/{id}/reject | Admin | Reject a pending agent |
 | PATCH /admin/users/{id}/active | Admin | is_active boolean; also disables or enables the Firebase user and revokes its Firebase sessions |
@@ -121,6 +122,7 @@ A user is returned as:
   "status": "pending | approved | rejected",
   "is_active": true,
   "email_verified_at": "2026-10-11T09:00:00Z or null",
+  "firebase_linked": true,
   "created_at": "2026-10-11T09:00:00Z"
 }
 ```

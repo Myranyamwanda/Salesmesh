@@ -91,6 +91,9 @@ Run every command in **Windows PowerShell** from the repository root.
 | Docker Desktop (Linux containers, Compose v2) | any recent | `docker compose version` |
 | Python | 3.14 | `python --version` |
 | Node.js and npm (only for frontend checks on the host) | 22.13 or newer | `node --version` |
+| A Google account | for the free Firebase project (Spark plan) | <https://console.firebase.google.com/> opens |
+| An authenticator app | Google or Microsoft Authenticator on a phone, or an authenticator browser extension | needed for every admin sign-in |
+| An email address that can receive mail | for your admin account (a Gmail plus-address works) | |
 
 Start Docker Desktop and wait until it says the engine is running.
 
@@ -340,6 +343,8 @@ only on a trusted network, and switch back with `up` afterwards.
 | `up` says `Set FIREBASE_CREDENTIALS_PATH in .env`, or the bind mount's source path does not exist | Set `FIREBASE_CREDENTIALS_PATH` to the key file's full path with forward slashes, and check that the file exists outside the repository |
 | Sign-in says "Sign-in is not configured" (503), or `seed-demo` asks for the Firebase credentials | One of the six Firebase variables is missing; set all six (step 3), then `up` |
 | The sign-in page says Firebase is not configured | The browser values must be named `VITE_FIREBASE_*` (with the prefix). After fixing `.env`, run `up` |
+| Every sign-in fails at once with "Sign-in failed. Try again." | The `VITE_FIREBASE_*` values are probably still the `replace_with_…` placeholders from `.env.example`. Copy the real web app values (step 3), then run `up` |
+| An existing user (from before Firebase) cannot sign in with a password | Use **Send password email** for them in User management: it creates their Firebase account and Firebase emails a link to set the password. Or they sign in with Google |
 | "Admin sign-in is not configured: run the init-secret command" | `TOTP_ENCRYPTION_KEY` is missing: run `init-secret` (step 4), then `up` |
 | Firebase sign-in does not work at `http://<LAN-IP>:5173` (`auth/unauthorized-domain`) | Expected: a LAN IP is not an authorized Firebase domain. Sign in at `http://localhost:5173`; on a phone use only the `/join` page (see Testing on a Phone) |
 | A verification or "set your password" email does not arrive | Check the spam folder: Firebase sends from `noreply@<project>.firebaseapp.com`. Admins can resend with **Send password email** in User management |

@@ -131,7 +131,7 @@ sequenceDiagram
 | Role | How the account is created | How the password is set |
 | --- | --- | --- |
 | Agent | Self-registration at `/register`: Firebase sign-up (email and password, or Google), verify the email, then give a display name. The backend creates a pending agent. | Chosen at sign-up (the form enforces the policy); Google accounts need none |
-| Client or admin | An admin uses **User management > Create account**. The backend creates the Firebase user without a password and the browser asks Firebase to send a "set your password" email. | From that email. "Send password email" sends it again. Google sign-in also works for the same address |
+| Client or admin | An admin uses **User management > Create account**. The backend creates the Firebase user without a password and the browser asks Firebase to send a "set your password" email. | From that email. **Send password email** sends it again; for an account from before Firebase, it first creates the missing Firebase account. Google sign-in also works for the same address |
 | Admin (from a terminal) | `.\scripts\dev.ps1 create-admin -Email <address>` creates the admin in SalesMesh and Firebase, even when other admins exist (audited as `admin_created_cli`) | From the one-time link the command prints. Do not share it |
 | Demo users | `.\scripts\dev.ps1 seed-demo` creates the 44 `@demo.example.com` users, already verified, with `DEMO_PASSWORD` | `DEMO_PASSWORD`; the demo admin's authenticator key is printed once |
 
