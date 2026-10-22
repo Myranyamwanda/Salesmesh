@@ -24,10 +24,13 @@ class FakeFirebase:
         self.users = {}  # uid -> {"email", "email_verified", "disabled"}
         self.revoked_tokens = set()
         self.revoked_uids = []
+        self.deleted = []
+        self.created = 0  # Numbers new uids; never reused after a delete.
         self.available = True
 
     def add_user(self, email, verified=True, uid=None, disabled=False):
-        uid = uid or f"uid-{len(self.users) + 1}"
+        self.created += 1
+        uid = uid or f"uid-{self.created}"
         self.users[uid] = {
             "email": email,
             "email_verified": verified,
@@ -62,6 +65,24 @@ class FakeFirebase:
 
     def ensure_user(self, email):
         return self.find_uid(email) or self.add_user(email, verified=False)
+
+    def upsert_password_user(self, email, password):
+        self.check_available()
+        uid = self.find_uid(email)
+        created = uid is None
+        uid = uid or self.add_user(email)
+        self.users[uid].update(email_verified=True, disabled=False, password=password)
+        return uid, created
+
+    def email_of(self, uid):
+        self.check_available()
+        user = self.users.get(uid)
+        return user["email"] if user else None
+
+    def delete_user(self, uid):
+        self.check_available()
+        self.users.pop(uid, None)
+        self.deleted.append(uid)
 
     def password_reset_link(self, email):
         self.check_available()

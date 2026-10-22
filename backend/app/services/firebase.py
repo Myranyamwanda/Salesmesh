@@ -82,6 +82,51 @@ class FirebaseAuth:
         except exceptions.FirebaseError as exc:
             raise FirebaseUnavailable(type(exc).__name__) from None
 
+    def upsert_password_user(self, email: str, password: str) -> tuple[str, bool]:
+        """Create a verified password user, or update the existing one.
+
+        Returns (uid, created). Used only by the demo seed, whose accounts all
+        share a published password.
+        """
+        try:
+            user = auth.create_user(
+                email=email, password=password, email_verified=True, app=self.app
+            )
+            return user.uid, True
+        except auth.EmailAlreadyExistsError:
+            uid = self.find_uid(email)
+        except exceptions.FirebaseError as exc:
+            raise FirebaseUnavailable(type(exc).__name__) from None
+        try:
+            auth.update_user(
+                uid,
+                password=password,
+                email_verified=True,
+                disabled=False,
+                app=self.app,
+            )
+        except exceptions.FirebaseError as exc:
+            raise FirebaseUnavailable(type(exc).__name__) from None
+        return uid, False
+
+    def email_of(self, uid: str) -> str | None:
+        """The email of a Firebase user, or None when the uid does not exist."""
+        try:
+            email = auth.get_user(uid, app=self.app).email
+        except auth.UserNotFoundError:
+            return None
+        except exceptions.FirebaseError as exc:
+            raise FirebaseUnavailable(type(exc).__name__) from None
+        return email.lower() if email else None
+
+    def delete_user(self, uid: str) -> None:
+        try:
+            auth.delete_user(uid, app=self.app)
+        except auth.UserNotFoundError:
+            return
+        except exceptions.FirebaseError as exc:
+            raise FirebaseUnavailable(type(exc).__name__) from None
+
     def password_reset_link(self, email: str) -> str:
         """A one-time Firebase link to set the password, for printing in a terminal."""
         try:

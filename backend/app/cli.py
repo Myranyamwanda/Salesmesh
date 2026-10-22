@@ -136,7 +136,7 @@ def print_demo_logins(plan: DemoPlan) -> None:
     )
     print()
     print("Demo logins (password: DEMO_PASSWORD from your .env):")
-    print(f"  Admin              {ADMIN_EMAIL}")
+    print(f"  Admin              {ADMIN_EMAIL}  (plus an authenticator code)")
     print(f"  Agent (honest)     {agent_email(honest)}")
     print(f"  Agent (fraudulent) {agent_email(plan.fraudulent_agents[0])}")
     for number in range(1, plan.clients + 1):
@@ -144,10 +144,26 @@ def print_demo_logins(plan: DemoPlan) -> None:
     print("Open http://localhost:5173 to sign in.")
 
 
+def demo_firebase(settings) -> FirebaseAuth:
+    """Firebase for the demo commands, or a clear error before anything changes."""
+    try:
+        return firebase_from_settings(settings)
+    except RuntimeError as exc:
+        raise RuntimeError(
+            f"{exc}. The demo accounts sign in through Firebase, so the demo "
+            "commands need the Firebase credentials."
+        ) from None
+
+
 def run_seed_demo() -> None:
     settings = get_settings()
     if settings.demo_password is None:
         raise ValueError("Set DEMO_PASSWORD in .env first (see .env.example)")
+    if settings.totp_encryption_key is None:
+        raise ValueError(
+            "Run init-secret first: the demo admin needs TOTP_ENCRYPTION_KEY"
+        )
+    firebase = demo_firebase(settings)
     model_service = ModelService()
     state = model_service.load(settings)
     if state.status != "ok":
@@ -155,11 +171,21 @@ def run_seed_demo() -> None:
     plan = DemoPlan()
     with Session(get_engine()) as session:
         summary = seed_demo(
-            session, model_service, settings.demo_password.get_secret_value(), plan=plan
+            session,
+            model_service,
+            settings.demo_password.get_secret_value(),
+            firebase,
+            settings,
+            plan=plan,
         )
     if not summary.created:
         print("Demo data already exists; nothing was added.")
+        print("To start again: reset-demo, then seed-demo (prints a new admin code).")
     else:
+        print(
+            f"Firebase accounts: {summary.firebase['created']} created, "
+            f"{summary.firebase['reused']} reused."
+        )
         print(
             f"Created {plan.agents} agents, {plan.clients} clients, and "
             f"{summary.customers} scored customers."
@@ -173,6 +199,12 @@ def run_seed_demo() -> None:
         bands = sorted(summary.bands.items())
         print("Agent bands: " + ", ".join(f"{band} {count}" for band, count in bands))
     print_demo_logins(plan)
+    if summary.admin_totp_secret:
+        # Shown once: the secret is stored encrypted and cannot be printed again.
+        print()
+        print("Demo admin authenticator (shown once; add it to your app now):")
+        print(f"  Setup key   {summary.admin_totp_secret}")
+        print(f"  otpauth URI {summary.admin_otpauth_uri}")
 
 
 def main() -> None:
@@ -210,10 +242,12 @@ def main() -> None:
             run_seed_demo()
             return
         if args.command == "reset-demo":
+            firebase = demo_firebase(get_settings())
             with Session(get_engine()) as session:
-                removed = reset_demo(session)
+                removed = reset_demo(session, firebase)
             print(
-                f"Removed {removed['users']} demo users and "
+                f"Removed {removed['users']} demo users, "
+                f"{removed['firebase']} demo Firebase accounts, and "
                 f"{removed['customers']} demo customers."
             )
             return
@@ -239,7 +273,11 @@ def main() -> None:
             "you will be asked to set up an authenticator app."
         )
     except FirebaseUnavailable:
-        parser.exit(1, "Firebase could not be reached; nothing was changed\n")
+        parser.exit(
+            1,
+            "Firebase could not be reached; the database was not changed. "
+            "Run the command again when the connection works.\n",
+        )
     except (ValueError, ValidationError, RuntimeError) as exc:
         parser.exit(1, f"{exc}\n")
 

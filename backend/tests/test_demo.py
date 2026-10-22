@@ -2,12 +2,19 @@ import random
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
+import pyotp
 import pytest
+from conftest import FakeFirebase
+from cryptography.fernet import Fernet
 from model_fixtures import tiny_state
+from pydantic import SecretStr
 from sqlalchemy import func, select
-from test_auth import auth_context  # noqa: F401
+from test_auth import auth_context, bearer_headers  # noqa: F401
 from test_domain_tables import make_customer, make_user
+from test_firebase_auth import firebase_sign_in
 
+from app.cli import demo_firebase
+from app.core.config import get_settings
 from app.demo import (
     ADMIN_EMAIL,
     REVIEW_NOTE,
@@ -17,13 +24,17 @@ from app.demo import (
     assign_rows,
     client_email,
     is_demo_email,
+    planned_emails,
     read_sample,
+    require_demo_email,
     reset_demo,
     seed_demo,
 )
 from app.ml.features import ASSISTED_UNKNOWN
 from app.ml.model_service import ModelService, ModelUnavailableError
 from app.models import AgentProfile, AuditLog, Customer, Review, RiskAssessment, User
+from app.services.firebase import FirebaseUnavailable
+from app.services.mfa import decrypt_secret
 
 PASSWORD = "Demo-Password-2026!"
 NOW = datetime(2026, 10, 15, 12, tzinfo=UTC)
@@ -47,11 +58,26 @@ def sample():
     return read_sample()
 
 
-def seed(session, sample, plan=SMALL, threshold=ALWAYS_FLAG, rows=None):
+SETTINGS = get_settings().model_copy(
+    update={"totp_encryption_key": SecretStr(Fernet.generate_key().decode())}
+)
+
+
+def seed(
+    session,
+    sample,
+    plan=SMALL,
+    threshold=ALWAYS_FLAG,
+    rows=None,
+    firebase=None,
+    settings=SETTINGS,
+):
     return seed_demo(
         session,
         ModelService(tiny_state(threshold)),
         PASSWORD,
+        firebase if firebase is not None else FakeFirebase(),
+        settings,
         rows=rows or sample,
         plan=plan,
         now=NOW,
@@ -182,14 +208,28 @@ def test_seed_is_safe_to_run_twice(db_session, sample):
 
 def test_seed_refuses_without_a_ready_model(db_session, sample):
     with pytest.raises(ModelUnavailableError):
-        seed_demo(db_session, ModelService(), PASSWORD, rows=sample, plan=SMALL)
+        seed_demo(
+            db_session,
+            ModelService(),
+            PASSWORD,
+            FakeFirebase(),
+            SETTINGS,
+            rows=sample,
+            plan=SMALL,
+        )
     assert count(db_session, User) == 0
 
 
 def test_seed_refuses_a_weak_password(db_session, sample):
     with pytest.raises(ValueError):
         seed_demo(
-            db_session, ModelService(tiny_state()), "weak", rows=sample, plan=SMALL
+            db_session,
+            ModelService(tiny_state()),
+            "weak",
+            FakeFirebase(),
+            SETTINGS,
+            rows=sample,
+            plan=SMALL,
         )
 
 
@@ -210,7 +250,7 @@ def test_reset_removes_only_demo_data(db_session, sample):
     db_session.add(real_profile)
     db_session.commit()
 
-    removed = reset_demo(db_session)
+    removed = reset_demo(db_session, FakeFirebase(), SMALL)
 
     assert removed["users"] == 1 + 3 + 6
     assert removed["customers"] > 0
@@ -225,13 +265,161 @@ def test_reset_removes_only_demo_data(db_session, sample):
     assert seed(db_session, sample).created
 
 
-def test_demo_accounts_can_sign_in(auth_context, sample):  # noqa: F811
-    # Regression: an address on a domain that email validation rejects (such
-    # as .test) can be created in the database but can never sign in.
-    client, session, _, _ = auth_context
-    seed(session, sample)
-    for email in (ADMIN_EMAIL, agent_email(1), client_email(1)):
-        response = client.post(
-            "/auth/login", json={"email": email, "password": PASSWORD}
+def customer_snapshot(session):
+    """What a presenter sees: customers, scores, and review decisions."""
+    rows = session.execute(
+        select(Customer, RiskAssessment, Review)
+        .join(RiskAssessment, RiskAssessment.customer_id == Customer.id)
+        .outerjoin(Review, Review.assessment_id == RiskAssessment.id)
+        .order_by(Customer.email)
+    ).all()
+    return [
+        (
+            customer.email,
+            customer.full_name,
+            customer.mobile_phone,
+            customer.date_of_birth,
+            customer.assisted,
+            customer.status,
+            assessment.probability,
+            assessment.flagged,
+            assessment.features,
+            review.decision if review else None,
         )
+        for customer, assessment, review in rows
+    ]
+
+
+def test_demo_users_get_verified_firebase_accounts(db_session, sample):
+    firebase = FakeFirebase()
+    summary = seed(db_session, sample, firebase=firebase)
+    users = db_session.scalars(select(User)).all()
+    assert len(users) == 10 == summary.firebase["created"]
+    for user in users:
+        account = firebase.users[user.firebase_uid]
+        assert account["email"] == user.email
+        assert account["email_verified"] and account["password"] == PASSWORD
+        # Firebase-only sign-in: no local password is stored.
+        assert user.password_hash is None
+
+
+def test_existing_demo_firebase_accounts_are_reused(db_session, sample):
+    firebase = FakeFirebase()
+    old_uid = firebase.add_user(ADMIN_EMAIL, verified=False, disabled=True)
+    summary = seed(db_session, sample, firebase=firebase)
+    admin = db_session.scalar(select(User).where(User.email == ADMIN_EMAIL))
+    assert admin.firebase_uid == old_uid
+    assert firebase.users[old_uid]["email_verified"] is True
+    assert firebase.users[old_uid]["disabled"] is False
+    assert (summary.firebase["reused"], summary.firebase["created"]) == (1, 9)
+
+
+def test_customer_data_does_not_depend_on_firebase(db_session, sample):
+    seed(db_session, sample)
+    first = customer_snapshot(db_session)
+    reset_demo(db_session, FakeFirebase(), SMALL)
+    firebase = FakeFirebase()
+    for email in planned_emails(SMALL)[:4]:
+        firebase.add_user(email)
+    seed(db_session, sample, firebase=firebase)
+    assert customer_snapshot(db_session) == first
+
+
+def test_demo_admin_has_an_authenticator(db_session, sample):
+    summary = seed(db_session, sample)
+    admin = db_session.scalar(select(User).where(User.email == ADMIN_EMAIL))
+    assert admin.totp_enabled_at is not None
+    assert decrypt_secret(admin.totp_secret_encrypted, SETTINGS) == (
+        summary.admin_totp_secret
+    )
+    assert summary.admin_otpauth_uri.startswith(
+        "otpauth://totp/SalesMesh:admin%40demo.example.com?"
+    )
+    # A rerun adds nothing and never shows the secret again.
+    assert seed(db_session, sample).admin_totp_secret is None
+
+
+def test_seed_with_firebase_down_leaves_no_users(db_session, sample):
+    firebase = FakeFirebase()
+    firebase.available = False
+    with pytest.raises(FirebaseUnavailable):
+        seed(db_session, sample, firebase=firebase)
+    db_session.rollback()
+    assert count(db_session, User) == 0
+
+
+def test_demo_commands_refuse_without_firebase_credentials():
+    settings = SETTINGS.model_copy(
+        update={"firebase_project_id": None, "firebase_credentials_path": None}
+    )
+    with pytest.raises(RuntimeError, match="demo commands need the Firebase"):
+        demo_firebase(settings)
+
+
+def test_only_demo_addresses_are_ever_changed_in_firebase():
+    assert require_demo_email("agent01@demo.example.com")
+    for email in ("admin@example.com", "name+admin@gmail.com", "x@demo.example.org"):
+        with pytest.raises(ValueError, match="non-demo"):
+            require_demo_email(email)
+
+
+def test_reset_deletes_demo_firebase_accounts_in_every_state(db_session, sample):
+    firebase = FakeFirebase()
+    seed(db_session, sample, firebase=firebase)
+    real_uid = firebase.add_user("name+admin@gmail.com")
+    real_admin = User(email="name+admin@gmail.com", firebase_uid=real_uid, role="admin")
+    db_session.add(real_admin)
+    users = {
+        user.email: user
+        for user in db_session.scalars(
+            select(User).where(User.email.like("%@demo.example.com"))
+        )
+    }
+    # No stored uid: found by email.
+    users[client_email(1)].firebase_uid = None
+    # No Firebase account at all: skipped.
+    firebase.users.pop(users[client_email(2)].firebase_uid)
+    users[client_email(2)].firebase_uid = None
+    # A stored uid that points at a real account is never deleted; the demo
+    # address's own account is found by email instead.
+    other_real_uid = firebase.add_user("someone@gmail.com")
+    agent_uid = users[agent_email(1)].firebase_uid
+    users[agent_email(1)].firebase_uid = other_real_uid
+    db_session.commit()
+    # A demo Firebase account with no SalesMesh user (an interrupted seed of
+    # the full 40-agent plan, which the reset checks by default).
+    orphan = firebase.add_user(agent_email(7))
+
+    removed = reset_demo(db_session, firebase)
+
+    assert firebase.users[real_uid]["email"] == "name+admin@gmail.com"
+    assert firebase.users[other_real_uid]["email"] == "someone@gmail.com"
+    assert agent_uid in firebase.deleted and orphan in firebase.deleted
+    assert not any(is_demo_email(user["email"]) for user in firebase.users.values())
+    # 10 seeded accounts, minus the one already missing, plus the orphan.
+    assert removed["firebase"] == 10
+    assert db_session.get(User, real_admin.id).firebase_uid == real_uid
+    # Running it again with nothing left is harmless.
+    assert reset_demo(db_session, firebase)["firebase"] == 0
+
+
+def test_demo_accounts_can_sign_in(auth_context, fake_firebase, sample):  # noqa: F811
+    client, session, _, settings = auth_context
+    summary = seed(session, sample, firebase=fake_firebase, settings=settings)
+    for email in (agent_email(1), client_email(1)):
+        uid = session.scalar(select(User.firebase_uid).where(User.email == email))
+        response = firebase_sign_in(client, fake_firebase, uid)
         assert response.status_code == 200, email
+        assert "access_token" in response.json()
+    admin_uid = session.scalar(
+        select(User.firebase_uid).where(User.email == ADMIN_EMAIL)
+    )
+    challenge = firebase_sign_in(client, fake_firebase, admin_uid).json()
+    assert challenge["mfa"] == "verify"
+    code = pyotp.TOTP(summary.admin_totp_secret).now()
+    response = client.post(
+        "/auth/mfa/verify", json={"mfa_token": challenge["mfa_token"], "code": code}
+    )
+    assert response.status_code == 200
+    me = client.get("/auth/me", headers=bearer_headers(response))
+    assert me.json()["email"] == ADMIN_EMAIL
