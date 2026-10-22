@@ -10,20 +10,11 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.errors import CodedHTTPException
-from app.core.security import (
-    DUMMY_PASSWORD_HASH,
-    access_token,
-    hash_password,
-    new_token,
-    password_hasher,
-    token_hash,
-    verify_password,
-)
-from app.models import AuditLog, PasswordResetToken, RefreshToken, User
+from app.core.security import access_token, new_token, token_hash
+from app.models import AuditLog, RefreshToken, User
 from app.services import mfa
 from app.services.agents import create_agent_profile
 from app.services.audit import audit
-from app.services.email import EmailSender, send_token_email
 from app.services.email_checks import check_permanent_email
 from app.services.firebase import (
     FirebaseAuth,
@@ -123,47 +114,6 @@ def check_login_rate(session: Session, request: Request, settings: Settings) -> 
             headers={"Retry-After": str(settings.login_rate_window_seconds)},
         )
     return hashed
-
-
-def login(
-    session: Session, request: Request, email: str, password: str, settings: Settings
-):
-    source = check_login_rate(session, request, settings)
-    user = session.scalar(
-        select(User).where(User.email == email.lower()).with_for_update()
-    )
-    now = datetime.now(UTC)
-    locked = (
-        user is not None and user.locked_until is not None and user.locked_until > now
-    )
-    # The dummy hash keeps timing the same for unknown and Firebase-only users.
-    stored = user.password_hash if user else None
-    valid = verify_password(password, stored or DUMMY_PASSWORD_HASH) and bool(stored)
-    if user is None or locked or not valid or not active_user(user):
-        if user is not None and not locked and not valid:
-            if user.locked_until is not None and user.locked_until <= now:
-                user.failed_login_attempts = 0
-                user.locked_until = None
-            user.failed_login_attempts += 1
-            if user.failed_login_attempts >= settings.login_failure_limit:
-                user.locked_until = now + timedelta(
-                    minutes=settings.account_lockout_minutes
-                )
-        audit(
-            session,
-            request,
-            "login_failure",
-            "failure",
-            target=user,
-            client_ip_hash=source,
-        )
-        session.commit()
-        raise unauthorized()
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    if password_hasher.check_needs_rehash(user.password_hash):
-        user.password_hash = hash_password(password)
-    return start_session(session, request, user, settings, source)
 
 
 def start_session(
@@ -317,7 +267,7 @@ def mfa_complete(
     """Finish an admin sign-in with a TOTP code or, outside setup, a recovery code.
 
     In setup, the first correct code turns TOTP on and returns new recovery codes.
-    Wrong codes count towards the same lockout as wrong passwords.
+    Wrong codes count towards the account lockout (LOGIN_FAILURE_LIMIT).
     """
     source = check_login_rate(session, request, settings)
     user = mfa.mfa_user(session, mfa_token, settings)
@@ -449,172 +399,4 @@ def logout(session: Session, request: Request, raw: str | None) -> None:
             )
             revoke_sessions(session, user, token.session_id)
             audit(session, request, "logout", actor=user)
-    session.commit()
-
-
-def issue_verification(user: User, settings: Settings) -> str:
-    raw = new_token()
-    user.verification_token_hash = token_hash(raw)
-    user.verification_expires_at = datetime.now(UTC) + timedelta(
-        hours=settings.verification_token_hours
-    )
-    return raw
-
-
-def register(
-    session: Session,
-    request: Request,
-    email: str,
-    password: str,
-    display_name: str,
-    settings: Settings,
-    sender: EmailSender,
-) -> User:
-    user = User(
-        email=email.lower(),
-        password_hash=hash_password(password),
-        role="agent",
-        status="pending",
-    )
-    raw = issue_verification(user, settings)
-    session.add(user)
-    try:
-        session.flush()
-    except IntegrityError:
-        session.rollback()
-        raise HTTPException(
-            409, "Registration cannot be completed for this email"
-        ) from None
-    create_agent_profile(session, user, display_name)
-    audit(session, request, "agent_registered", actor=user)
-    session.commit()
-    send_token_email(sender, settings, user.email, "verification", raw)
-    return user
-
-
-def verify_email(session: Session, request: Request, raw: str) -> None:
-    user = session.scalar(
-        select(User)
-        .where(User.verification_token_hash == token_hash(raw))
-        .with_for_update()
-    )
-    if (
-        user is None
-        or user.verification_expires_at is None
-        or user.verification_expires_at <= datetime.now(UTC)
-    ):
-        raise HTTPException(400, "Verification token is invalid or expired")
-    user.email_verified_at = datetime.now(UTC)
-    user.verification_token_hash = None
-    user.verification_expires_at = None
-    audit(session, request, "email_verified", actor=user)
-    session.commit()
-
-
-def resend_verification(
-    session: Session,
-    request: Request,
-    email: str,
-    settings: Settings,
-    sender: EmailSender,
-) -> None:
-    user = session.scalar(
-        select(User).where(User.email == email.lower()).with_for_update()
-    )
-    if user is not None and user.is_active and user.email_verified_at is None:
-        raw = issue_verification(user, settings)
-        audit(session, request, "verification_requested", target=user)
-        session.commit()
-        send_token_email(sender, settings, user.email, "verification", raw)
-
-
-def forgot_password(
-    session: Session,
-    request: Request,
-    email: str,
-    settings: Settings,
-    sender: EmailSender,
-) -> None:
-    user = session.scalar(
-        select(User).where(User.email == email.lower()).with_for_update()
-    )
-    # Firebase-only accounts reset their password through Firebase.
-    if user is not None and user.is_active and user.password_hash is not None:
-        session.execute(
-            update(PasswordResetToken)
-            .where(
-                PasswordResetToken.user_id == user.id,
-                PasswordResetToken.used_at.is_(None),
-            )
-            .values(used_at=datetime.now(UTC))
-        )
-        raw = new_token()
-        session.add(
-            PasswordResetToken(
-                user_id=user.id,
-                token_hash=token_hash(raw),
-                expires_at=datetime.now(UTC)
-                + timedelta(minutes=settings.reset_token_minutes),
-            )
-        )
-        audit(session, request, "password_reset_requested", target=user)
-        session.commit()
-        send_token_email(sender, settings, user.email, "reset", raw)
-
-
-def reset_password(session: Session, request: Request, raw: str, password: str) -> None:
-    candidate = session.scalar(
-        select(PasswordResetToken).where(
-            PasswordResetToken.token_hash == token_hash(raw)
-        )
-    )
-    if candidate is None:
-        raise HTTPException(400, "Reset token is invalid or expired")
-    user = session.scalar(
-        select(User).where(User.id == candidate.user_id).with_for_update()
-    )
-    token = session.scalar(
-        select(PasswordResetToken)
-        .where(PasswordResetToken.id == candidate.id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
-    if (
-        token.used_at is not None
-        or token.expires_at <= datetime.now(UTC)
-        or not user.is_active
-    ):
-        raise HTTPException(400, "Reset token is invalid or expired")
-    token.used_at = datetime.now(UTC)
-    user.password_hash = hash_password(password)
-    user.failed_login_attempts = 0
-    user.locked_until = None
-    revoke_sessions(session, user)
-    audit(session, request, "password_reset", actor=user)
-    session.commit()
-
-
-def change_password(
-    session: Session, request: Request, user: User, current: str, replacement: str
-) -> None:
-    user = session.scalar(
-        select(User)
-        .where(User.id == user.id)
-        .with_for_update()
-        .execution_options(populate_existing=True)
-    )
-    if not verify_password(current, user.password_hash):
-        audit(session, request, "password_change", "failure", actor=user)
-        session.commit()
-        raise HTTPException(400, "Current password is incorrect")
-    user.password_hash = hash_password(replacement)
-    session.execute(
-        update(PasswordResetToken)
-        .where(
-            PasswordResetToken.user_id == user.id, PasswordResetToken.used_at.is_(None)
-        )
-        .values(used_at=datetime.now(UTC))
-    )
-    revoke_sessions(session, user)
-    audit(session, request, "password_change", actor=user)
     session.commit()
