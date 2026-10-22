@@ -37,7 +37,6 @@ export function renderPage(
     user,
     isLoading: false,
     startSession: async () => user as AuthUser,
-    legacyLogin: async () => user as AuthUser,
     logout: async () => undefined,
     logoutAll: async () => undefined,
     clearSession: () => undefined,

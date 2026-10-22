@@ -26,7 +26,6 @@ function authValue(
     user: null,
     isLoading: false,
     startSession: vi.fn(async () => user),
-    legacyLogin: vi.fn(async () => user),
     logout: vi.fn(async () => undefined),
     logoutAll: vi.fn(async () => undefined),
     clearSession: vi.fn(),

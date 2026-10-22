@@ -51,15 +51,6 @@ export async function verifyMfa(mfaToken: string, code: string) {
   return data;
 }
 
-/** Old SalesMesh password login: the fallback until local passwords are removed. */
-export async function legacyLogin(email: string, password: string) {
-  const { data } = await api.post<AccessTokenResponse>("/auth/login", {
-    email,
-    password,
-  });
-  return data;
-}
-
 export async function getMe() {
   const { data } = await api.get<AuthUser>("/auth/me");
   return data;

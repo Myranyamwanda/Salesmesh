@@ -50,11 +50,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }
 
-  async function legacyLogin(email: string, password: string) {
-    const tokens = await authApi.legacyLogin(email, password);
-    return startSession(tokens.access_token);
-  }
-
   async function signOut() {
     try {
       await authApi.logout();
@@ -86,7 +81,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
         user,
         isLoading,
         startSession,
-        legacyLogin,
         logout: signOut,
         logoutAll: signOutAll,
         clearSession,

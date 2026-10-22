@@ -44,7 +44,6 @@ const authValue: AuthContextValue = {
   user: adminUser,
   isLoading: false,
   startSession: vi.fn(async () => adminUser),
-  legacyLogin: vi.fn(async () => adminUser),
   logout: vi.fn(async () => undefined),
   logoutAll: vi.fn(async () => undefined),
   clearSession: vi.fn(),
