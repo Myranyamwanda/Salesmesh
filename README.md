@@ -116,6 +116,20 @@ $env:COMPOSE_PROJECT_NAME = "salesmesh2"
 
 Only one clone can run at a time, because both use the same ports.
 
+> **A second clone shares the same Firebase project.** Each clone has its own
+> database, but the Firebase accounts are shared. In a second clone:
+>
+> - **Never run `reset-demo`.** It deletes the demo users' Firebase accounts,
+>   which the main install's demo users use too. Run `seed-demo` only: it
+>   reuses the existing demo accounts.
+> - Use the **same `DEMO_PASSWORD`** as the main install, because `seed-demo`
+>   sets the demo accounts' Firebase password.
+> - Run `create-admin` with an address that has **no** Firebase account yet
+>   (for example another plus-address). For an existing address, the printed
+>   link changes that person's password for both installs.
+> - Do not deactivate real accounts there: deactivating disables the shared
+>   Firebase account.
+
 ### 3. Configure `.env`
 
 ```powershell
