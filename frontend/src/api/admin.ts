@@ -35,6 +35,14 @@ export async function createUser(input: {
   return data;
 }
 
+/** Make sure the user has a Firebase account before Firebase emails them. */
+export async function preparePasswordEmail(userId: string) {
+  const { data } = await api.post<AuthUser>(
+    `/admin/users/${userId}/password-email`,
+  );
+  return data;
+}
+
 export async function approveAgent(userId: string) {
   const { data } = await api.post<AuthUser>(`/admin/users/${userId}/approve`);
   return data;
