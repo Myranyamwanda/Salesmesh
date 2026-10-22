@@ -52,6 +52,10 @@ class User(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    @property
+    def firebase_linked(self) -> bool:
+        return self.firebase_uid is not None
+
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
