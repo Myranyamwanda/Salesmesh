@@ -9,9 +9,9 @@ the model itself (data, fairness, precision, drift) are in the
 
 | Area | Limitation |
 | --- | --- |
-| Email | Emails are written to the API log, not sent. Customer email addresses are not checked (no MX or disposable-address check) |
-| Authentication | Password sign-in only: no managed identity provider, no social sign-in, and no multi-factor authentication for admins |
-| Deployment | Development setup only (Docker Compose on one machine, plain HTTP). In LAN mode, browsers drop the `Secure` refresh cookie, so signing in on a phone lasts only until a reload |
+| Email | Firebase sends the authentication emails from its own address, so they may land in spam; the free Spark plan limits how many it sends per day. The email check refuses only disposable and mail-less domains; it cannot tell whether a mailbox exists |
+| Authentication | Deactivating a user only in the Firebase console does not end a running SalesMesh session (use User management). Agents and clients have no second factor; only admins use TOTP |
+| Deployment | Development setup only (Docker Compose on one machine, plain HTTP). In LAN mode only the public `/join` page works on a phone: Firebase sign-in needs an authorized domain such as `localhost`, and browsers drop the `Secure` refresh cookie on plain HTTP |
 | Decisions | A review is final: agents and customers cannot appeal a decision |
 | Country check | `foreign_request` is always missing, because no IP-to-country provider is configured |
 | Device signal | The device ID is kept in the browser's `localStorage`. Clearing it or using a private window gives a new ID, so the device rule is a signal, not proof |
@@ -23,13 +23,13 @@ the model itself (data, fairness, precision, drift) are in the
 
 ## Future Work
 
-### Managed authentication and real email delivery
+### Authentication follow-ups
 
-Replace the development email log with a transactional email service, and
-consider a managed identity provider such as Firebase Authentication for
-sign-in, Google sign-in, and admin multi-factor authentication (TOTP). Check
-customer email addresses at registration (MX record and disposable-domain
-checks) as an extra onboarding signal.
+Firebase Authentication, Google sign-in, admin TOTP, and the MX and
+disposable-domain checks were added in v1.1.0 (see
+[Authentication](authentication.md)). Next steps: a custom email domain for
+Firebase's emails (better delivery), an optional second factor for agents and
+clients, and asking Firebase about disabled users at each session refresh.
 
 ### Agent appeals
 

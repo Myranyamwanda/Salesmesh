@@ -4,7 +4,7 @@
 
 Use Windows PowerShell, Git, Docker Desktop with Linux containers, Python 3.14,
 Node.js 22.13 or newer, and npm. From the repository root, prepare the local
-environment and generate the signing key:
+environment and generate the secrets (`JWT_SECRET` and `TOTP_ENCRYPTION_KEY`):
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
@@ -14,10 +14,11 @@ notepad .env
 backend/.venv/Scripts/python.exe backend/manage.py init-secret
 ```
 
-Set a unique PostgreSQL password and a `DEMO_PASSWORD` in `.env` before
-starting the stack, and download the model files with
-`.\scripts\dev.ps1 fetch-model` (see the README for the full clean-clone
-setup). To install the host frontend tools and Git hooks, run:
+Set a unique PostgreSQL password, a `DEMO_PASSWORD`, and all six Firebase
+variables in `.env` before starting the stack (see
+[Firebase setup](authentication.md#firebase-setup-for-a-new-developer)), and
+download the model files with `.\scripts\dev.ps1 fetch-model` (see the README
+for the full clean-clone setup). To install the host frontend tools and Git hooks, run:
 
 ```powershell
 Push-Location frontend
@@ -52,7 +53,9 @@ Useful commands:
 ```powershell
 .\scripts\dev.ps1 down
 .\scripts\dev.ps1 migrate
-.\scripts\dev.ps1 create-admin -Email admin@example.com
+.\scripts\dev.ps1 create-admin -Email you+admin@gmail.com
+.\scripts\dev.ps1 reset-mfa -Email you+admin@gmail.com
+.\scripts\dev.ps1 deactivate-user -Email old-admin@example.com
 .\scripts\dev.ps1 fetch-model
 .\scripts\dev.ps1 seed-demo
 .\scripts\dev.ps1 reset-demo
@@ -61,15 +64,19 @@ Useful commands:
 .\scripts\dev.ps1 lint
 ```
 
+`create-admin` creates an admin in SalesMesh and Firebase and prints a
+one-time set-password link; `reset-mfa` removes an admin's authenticator;
+`deactivate-user` deactivates an account but never the last usable admin.
 `fetch-model` downloads the model files and checks their SHA-256; `seed-demo`
-and `reset-demo` create and remove the demo data; `up-lan` makes the app
-reachable from a phone on the same Wi-Fi (see the README).
+and `reset-demo` create and remove the demo data, including the demo Firebase
+accounts; `up-lan` makes the `/join` page reachable from a phone on the same
+Wi-Fi (sign-in works only on `localhost`; see the README).
 
 `down` preserves the named database volume. The first `test` run creates the
 separate database named by `TEST_POSTGRES_DB`; tests run migrations and data
 cleanup only against that disposable database. Never point it at the development
-or production database. The `create-admin` command prompts for the password
-without echoing it.
+or production database. Tests never call Firebase or DNS: they use the
+fakes in `backend/tests/conftest.py`.
 
 To run the frontend checks directly on the host:
 

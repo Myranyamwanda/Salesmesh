@@ -11,9 +11,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import * as adminApi from "../api/admin";
 import { AuthContext, type AuthContextValue } from "../auth/context";
+import * as firebase from "../auth/firebase";
 import { AdminAuditLogPage } from "./AdminAuditLogPage";
 import { AdminUserManagementPage } from "./AdminUserManagementPage";
 import type { AuthUser } from "../types/auth";
+
+vi.mock("../auth/firebase", () => ({
+  sendPasswordReset: vi.fn(async () => undefined),
+}));
 
 const adminUser: AuthUser = {
   id: "admin-id",
@@ -22,6 +27,7 @@ const adminUser: AuthUser = {
   status: "approved",
   is_active: true,
   email_verified_at: "2026-01-01T00:00:00Z",
+  firebase_linked: true,
   created_at: "2026-01-01T00:00:00Z",
 };
 
@@ -32,13 +38,14 @@ const pendingAgent: AuthUser = {
   status: "pending",
   is_active: true,
   email_verified_at: null,
+  firebase_linked: true,
   created_at: "2026-02-01T00:00:00Z",
 };
 
 const authValue: AuthContextValue = {
   user: adminUser,
   isLoading: false,
-  login: vi.fn(async () => adminUser),
+  startSession: vi.fn(async () => adminUser),
   logout: vi.fn(async () => undefined),
   logoutAll: vi.fn(async () => undefined),
   clearSession: vi.fn(),
@@ -99,6 +106,7 @@ describe("admin user management", () => {
       id: "new-admin-id",
       email: "new-admin@example.com",
       email_verified_at: null,
+      firebase_linked: true,
     });
     vi.spyOn(adminApi, "approveAgent").mockResolvedValue(pendingAgent);
     vi.spyOn(adminApi, "rejectAgent").mockResolvedValue(pendingAgent);
@@ -114,10 +122,8 @@ describe("admin user management", () => {
       screen.getByLabelText("Email address"),
       "new-admin@example.com",
     );
-    await interaction.type(
-      screen.getByLabelText("Temporary password"),
-      "Strong-Passphrase123!",
-    );
+    // No password field: the person sets their own from Firebase's email.
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     const createButtons = screen.getAllByRole("button", {
       name: "Create account",
     });
@@ -127,9 +133,91 @@ describe("admin user management", () => {
       expect(create).toHaveBeenCalledWith({
         email: "new-admin@example.com",
         role: "client",
-        password: "Strong-Passphrase123!",
       }),
     );
+    expect(firebase.sendPasswordReset).toHaveBeenCalledWith(
+      "new-admin@example.com",
+    );
+    expect(
+      await screen.findByText(/“set your password” email was sent/),
+    ).toBeInTheDocument();
+  });
+
+  it("reports a created account whose password email failed", async () => {
+    vi.spyOn(adminApi, "listUsers").mockResolvedValue({
+      items: [adminUser],
+      total: 1,
+    });
+    vi.spyOn(adminApi, "createUser").mockResolvedValue({
+      ...adminUser,
+      id: "new-client-id",
+      email: "client@example.com",
+      role: "client",
+      email_verified_at: null,
+      firebase_linked: true,
+    });
+    vi.mocked(firebase.sendPasswordReset).mockRejectedValueOnce(
+      new Error("network"),
+    );
+    renderAdmin(<AdminUserManagementPage />);
+    const interaction = userEvent.setup();
+    await interaction.click(
+      await screen.findByRole("button", { name: "Create account" }),
+    );
+    await interaction.type(
+      screen.getByLabelText("Email address"),
+      "client@example.com",
+    );
+    const createButtons = screen.getAllByRole("button", {
+      name: "Create account",
+    });
+    await interaction.click(createButtons[createButtons.length - 1]);
+    expect(
+      await screen.findByText(/password email could not be sent/),
+    ).toBeInTheDocument();
+  });
+
+  it("creates a missing Firebase account before sending a password email", async () => {
+    // Verified before Firebase existed, but never linked to a Firebase account.
+    const legacyClient: AuthUser = {
+      ...adminUser,
+      id: "legacy-id",
+      email: "legacy@example.com",
+      role: "client",
+      firebase_linked: false,
+    };
+    vi.spyOn(adminApi, "listUsers").mockResolvedValue({
+      items: [adminUser, legacyClient],
+      total: 2,
+    });
+    const prepare = vi
+      .spyOn(adminApi, "preparePasswordEmail")
+      .mockResolvedValue({ ...legacyClient, firebase_linked: true });
+    renderAdmin(<AdminUserManagementPage />);
+    const interaction = userEvent.setup();
+    await interaction.click(
+      await screen.findByRole("button", {
+        name: "Send password email to legacy@example.com",
+      }),
+    );
+    await waitFor(() =>
+      expect(firebase.sendPasswordReset).toHaveBeenCalledWith(
+        "legacy@example.com",
+      ),
+    );
+    expect(prepare).toHaveBeenCalledWith("legacy-id");
+    expect(prepare.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(firebase.sendPasswordReset).mock.invocationCallOrder[0],
+    );
+    // A linked, verified account does not need one.
+    expect(
+      screen.queryByRole("button", {
+        name: "Send password email to admin@example.com",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("Password email sent to legacy@example.com."),
+    ).toBeInTheDocument();
   });
 
   it("changes an account role and activation state through admin APIs", async () => {

@@ -4,6 +4,10 @@
 > dataset has been selected" describe the project at that time; for the
 > current system see [architecture](architecture.md) and
 > [ML integration](ml-integration.md).
+>
+> Since v1.1.0, passwords, email verification, and password resets are handled
+> by Firebase Authentication, and the local password endpoints described here
+> were removed. See [Authentication](authentication.md) for the current design.
 
 ## Scope and Decisions
 
