@@ -11,6 +11,11 @@ service as the API.
 fraud_bool (the dataset's true label) is used only to give fraudulent agents
 their fraud rows and for the automatic demo reviews. It is never stored as a
 feature, and neither is customer_age.
+
+Every demo user also gets a Firebase account (verified, DEMO_PASSWORD), and the
+demo admin gets an authenticator secret. Firebase calls never use the seeded
+random generator, so the customers, scores, and reviews do not change. Only
+@demo.example.com addresses are ever created or deleted in Firebase.
 """
 
 import csv
@@ -21,16 +26,19 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import pyotp
 from faker import Faker
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
-from app.core.config import ROOT_DIR
-from app.core.security import hash_password, validate_password
+from app.core.config import ROOT_DIR, Settings
+from app.core.security import validate_password
 from app.ml.features import ASSISTED_UNKNOWN, FEATURE_NAMES
 from app.ml.model_service import ModelService
 from app.models import AgentProfile, Customer, ScoringConfig, User
 from app.services.agents import create_agent_profile
+from app.services.firebase import FirebaseAuth
+from app.services.mfa import encrypt_secret, provisioning_uri
 from app.services.reputation import agent_reputations
 from app.services.reviews import apply_review
 from app.services.scoring import score_customer
@@ -79,6 +87,11 @@ class DemoSummary:
     reviewed: Counter = field(default_factory=Counter)
     pending: int = 0
     bands: Counter = field(default_factory=Counter)
+    # Firebase accounts created new vs. reused from an earlier run.
+    firebase: Counter = field(default_factory=Counter)
+    # Shown once so the presenter can add the demo admin to an authenticator.
+    admin_totp_secret: str | None = None
+    admin_otpauth_uri: str | None = None
 
 
 def demo_email(local_part: str) -> str:
@@ -98,6 +111,22 @@ def client_email(number: int) -> str:
 
 
 ADMIN_EMAIL = demo_email("admin")
+
+
+def planned_emails(plan: DemoPlan) -> list[str]:
+    """Every demo account a plan creates: admin, clients, then agents."""
+    return [
+        ADMIN_EMAIL,
+        *(client_email(number) for number in range(1, plan.clients + 1)),
+        *(agent_email(number) for number in range(1, plan.agents + 1)),
+    ]
+
+
+def require_demo_email(email: str) -> str:
+    """The last guard before Firebase changes: never touch a real account."""
+    if not is_demo_email(email):
+        raise ValueError(f"Refusing to change a non-demo account in Firebase: {email}")
+    return email
 
 
 def parse_value(name: str, value: str) -> Any:
@@ -153,11 +182,12 @@ def is_demo_present(session: Session) -> bool:
     return session.scalar(select(User.id).where(User.email == ADMIN_EMAIL)) is not None
 
 
-def new_user(email: str, role: str, password_hash: str, now: datetime) -> User:
+def new_user(email: str, role: str, uids: dict[str, str], now: datetime) -> User:
     # Demo emails cannot receive mail, so accounts start verified and approved.
+    # They sign in through Firebase only; there is no local password.
     return User(
         email=email,
-        password_hash=password_hash,
+        firebase_uid=uids[email],
         role=role,
         status="approved",
         is_active=True,
@@ -169,13 +199,17 @@ def seed_demo(
     session: Session,
     model_service: ModelService,
     password: str,
+    firebase: FirebaseAuth,
+    settings: Settings,
     rows: list[DemoRow] | None = None,
     plan: DemoPlan | None = None,
     now: datetime | None = None,
 ) -> DemoSummary:
     """Create the demo data once. A second run changes nothing.
 
-    Runs in one transaction: it either completes or leaves nothing behind.
+    The database part runs in one transaction: it either completes or leaves
+    nothing behind. Firebase accounts are created first; if the database part
+    then fails, a rerun reuses them instead of failing.
     """
     plan = plan or DemoPlan()
     validate_password(password)
@@ -185,20 +219,33 @@ def seed_demo(
         session.rollback()
         return DemoSummary(created=False)
 
+    summary = DemoSummary(created=True)
+    uids = {}
+    for email in planned_emails(plan):
+        uid, created = firebase.upsert_password_user(
+            require_demo_email(email), password
+        )
+        uids[email] = uid
+        summary.firebase["created" if created else "reused"] += 1
+
     now = now or datetime.now(UTC)
     rng = random.Random(plan.seed)
     fake = Faker("en_KE")
     fake.seed_instance(plan.seed)
-    # One hash for every demo account: they share the published demo password.
-    password_hash = hash_password(password)
 
-    admin = new_user(ADMIN_EMAIL, "admin", password_hash, now)
+    admin = new_user(ADMIN_EMAIL, "admin", uids, now)
+    # The demo admin signs in like a real one, with an authenticator code.
+    secret = pyotp.random_base32()
+    admin.totp_secret_encrypted = encrypt_secret(secret, settings)
+    admin.totp_enabled_at = now
+    summary.admin_totp_secret = secret
+    summary.admin_otpauth_uri = provisioning_uri(admin, secret)
     clients = [
-        new_user(client_email(number), "client", password_hash, now)
+        new_user(client_email(number), "client", uids, now)
         for number in range(1, plan.clients + 1)
     ]
     agents = {
-        number: new_user(agent_email(number), "agent", password_hash, now)
+        number: new_user(agent_email(number), "agent", uids, now)
         for number in range(1, plan.agents + 1)
     }
     session.add_all([admin, *clients, *agents.values()])
@@ -208,7 +255,6 @@ def seed_demo(
         profile.client_id = clients[(number - 1) % plan.clients].id
     session.flush()
 
-    summary = DemoSummary(created=True)
     customer_number = 0
     for number, agent_rows in assign_rows(rows or read_sample(), plan, rng).items():
         for row in agent_rows:
@@ -264,14 +310,50 @@ def seed_demo(
     return summary
 
 
-def reset_demo(session: Session) -> dict[str, int]:
-    """Delete only demo data: demo users and the customers of demo agents.
+def delete_demo_firebase_users(
+    session: Session, firebase: FirebaseAuth, plan: DemoPlan
+) -> int:
+    """Delete the Firebase accounts of demo users; return how many were deleted.
 
-    Assessments and reviews go with their customers (ON DELETE CASCADE), and
-    agent profiles with their users. Audit entries stay, with their links to
-    demo users cleared (ON DELETE SET NULL).
+    Safe in every state: a demo user without a stored uid is looked up by
+    email, a missing account is skipped, and the planned demo addresses are
+    checked too, so accounts left by an interrupted seed are removed. A stored
+    uid is deleted only if Firebase confirms it belongs to a demo address.
+    """
+    deleted = 0
+    stored = session.execute(
+        select(User.email, User.firebase_uid).where(User.email.like(f"%@{DEMO_DOMAIN}"))
+    ).all()
+    seen = set()
+    for email, uid in stored:
+        require_demo_email(email)
+        seen.add(email)
+        owner = firebase.email_of(uid) if uid else None
+        if owner is None or not is_demo_email(owner):
+            uid = firebase.find_uid(email)
+        if uid is not None:
+            firebase.delete_user(uid)
+            deleted += 1
+    for email in planned_emails(plan):
+        if email not in seen and (uid := firebase.find_uid(require_demo_email(email))):
+            firebase.delete_user(uid)
+            deleted += 1
+    return deleted
+
+
+def reset_demo(
+    session: Session, firebase: FirebaseAuth, plan: DemoPlan | None = None
+) -> dict[str, int]:
+    """Delete only demo data: demo users, their Firebase accounts, and the
+    customers of demo agents.
+
+    Firebase accounts go first: if that fails, nothing in the database has
+    changed and a rerun starts again. Assessments and reviews go with their
+    customers (ON DELETE CASCADE), and agent profiles with their users. Audit
+    entries stay, with their links to demo users cleared (ON DELETE SET NULL).
     """
     session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": DEMO_LOCK})
+    firebase_deleted = delete_demo_firebase_users(session, firebase, plan or DemoPlan())
     demo_users = select(User.id).where(User.email.like(f"%@{DEMO_DOMAIN}"))
     customers = session.scalar(
         select(func.count())
@@ -285,4 +367,4 @@ def reset_demo(session: Session) -> dict[str, int]:
     session.execute(delete(AgentProfile).where(AgentProfile.user_id.in_(demo_users)))
     session.execute(delete(User).where(User.id.in_(demo_users)))
     session.commit()
-    return {"customers": customers, "users": users}
+    return {"customers": customers, "users": users, "firebase": firebase_deleted}

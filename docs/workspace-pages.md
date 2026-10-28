@@ -20,7 +20,8 @@ remains the authority for every permission.
 | `/agent` | Agent | Referral link with share buttons and QR code |
 | `/agent/customers` | Agent | My customers |
 | `/client` | Client | Registration quality dashboard |
-| `/profile`, `/change-password` | Signed in | Account pages |
+| `/profile`, `/change-password` | Signed in | Account pages; the password is changed in Firebase (Google accounts change it in Google) |
+| `/login`, `/register`, `/forgot-password`, `/registration-pending` | Public | Firebase sign-in (password or Google), agent sign-up, Firebase reset email, and the approval waiting page. Admins enter or set up their authenticator code inside the sign-in page |
 
 ## Public Join Page
 
