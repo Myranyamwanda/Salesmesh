@@ -195,7 +195,10 @@ def test_admin_approval_rejection_and_user_management(auth_context):
     for role in ("client", "admin"):
         email = f"new-{role}@example.com"
         created = client.post(
-            "/admin/users", json={"email": email, "role": role}, headers=admin_headers
+            "/admin/users",
+            json={"email": email, "role": role}
+            | ({"organisation_name": "Acme Bank"} if role == "client" else {}),
+            headers=admin_headers,
         )
         assert created.status_code == 201
         assert created.json()["role"] == role
@@ -283,7 +286,11 @@ def test_admin_failed_user_actions_are_audited(auth_context):
     client, session, _, _ = auth_context
     add_user(session, role="admin", email="admin@example.com")
     headers = bearer_headers(sign_in(client, "admin@example.com"))
-    payload = {"email": "admin@example.com", "role": "client"}
+    payload = {
+        "email": "admin@example.com",
+        "role": "client",
+        "organisation_name": "Acme Bank",
+    }
     assert client.post("/admin/users", headers=headers, json=payload).status_code == 409
     assert client.get(f"/admin/users/{uuid4()}", headers=headers).status_code == 404
     failures = session.scalars(

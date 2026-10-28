@@ -1,13 +1,25 @@
 from datetime import datetime
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    EmailStr,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
 type Role = Literal["admin", "agent", "client"]
 # Shown to customers on the public /join page, so keep it short and trimmed.
 type DisplayName = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=2, max_length=100)
+]
+
+# A client's organisation, shown on the /join page and named in the consent text.
+type OrganisationName = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=2, max_length=200)
 ]
 
 
@@ -77,6 +89,16 @@ class MessageResponse(BaseModel):
 class CreateUserInput(EmailInput):
     # No password: the person sets one from Firebase's password-reset email.
     role: Literal["admin", "client"]
+    # Required for clients: their agents' /join links need it.
+    organisation_name: OrganisationName | None = None
+
+    @model_validator(mode="after")
+    def check_organisation(self) -> Self:
+        if self.role == "client" and self.organisation_name is None:
+            raise ValueError("A client needs an organisation name")
+        if self.role != "client" and self.organisation_name is not None:
+            raise ValueError("Only clients have an organisation name")
+        return self
 
 
 class ActiveInput(BaseModel):

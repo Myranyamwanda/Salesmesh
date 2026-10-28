@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.auth import DisplayName
+from app.services.pipeline import RegistrationStatus
 
 type Decision = Literal["confirmed_real", "confirmed_fake"]
 type CustomerStatus = Literal["pending_review", "verified", "rejected"]
@@ -47,6 +48,7 @@ class QueuePage(BaseModel):
 class CustomerDetail(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
+    reference: str
     full_name: str
     email: str
     mobile_phone: str
@@ -70,6 +72,7 @@ class AssessmentDetail(BaseModel):
     features: dict[str, Any]
     created_at: datetime
     customer: CustomerDetail
+    registration_status: RegistrationStatus
     agent: AgentSummary
     review: ReviewRead | None
 
@@ -77,6 +80,7 @@ class AssessmentDetail(BaseModel):
 class ClientSummary(BaseModel):
     id: UUID
     email: str
+    organisation_name: str | None
 
 
 class AgentRanking(BaseModel):
@@ -87,6 +91,8 @@ class AgentRanking(BaseModel):
     status: str
     is_active: bool
     client: ClientSummary | None
+    # False when customers cannot use the referral link (see link_is_active).
+    link_active: bool
     n_users: int
     flags: int
     confirmed_fake: int
@@ -99,9 +105,11 @@ class AgentRanking(BaseModel):
 
 class AgentCustomer(BaseModel):
     id: UUID
+    reference: str
     full_name: str
     created_at: datetime
     status: CustomerStatus
+    registration_status: RegistrationStatus
     assisted: bool
     assessment_id: UUID | None
     probability: float | None
