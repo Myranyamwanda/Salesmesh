@@ -27,6 +27,7 @@ const adminUser: AuthUser = {
   status: "approved",
   is_active: true,
   email_verified_at: "2026-01-01T00:00:00Z",
+  firebase_linked: true,
   created_at: "2026-01-01T00:00:00Z",
 };
 
@@ -37,6 +38,7 @@ const pendingAgent: AuthUser = {
   status: "pending",
   is_active: true,
   email_verified_at: null,
+  firebase_linked: true,
   created_at: "2026-02-01T00:00:00Z",
 };
 
@@ -104,6 +106,7 @@ describe("admin user management", () => {
       id: "new-admin-id",
       email: "new-admin@example.com",
       email_verified_at: null,
+      firebase_linked: true,
     });
     vi.spyOn(adminApi, "approveAgent").mockResolvedValue(pendingAgent);
     vi.spyOn(adminApi, "rejectAgent").mockResolvedValue(pendingAgent);
@@ -151,6 +154,7 @@ describe("admin user management", () => {
       email: "client@example.com",
       role: "client",
       email_verified_at: null,
+      firebase_linked: true,
     });
     vi.mocked(firebase.sendPasswordReset).mockRejectedValueOnce(
       new Error("network"),
@@ -170,6 +174,49 @@ describe("admin user management", () => {
     await interaction.click(createButtons[createButtons.length - 1]);
     expect(
       await screen.findByText(/password email could not be sent/),
+    ).toBeInTheDocument();
+  });
+
+  it("creates a missing Firebase account before sending a password email", async () => {
+    // Verified before Firebase existed, but never linked to a Firebase account.
+    const legacyClient: AuthUser = {
+      ...adminUser,
+      id: "legacy-id",
+      email: "legacy@example.com",
+      role: "client",
+      firebase_linked: false,
+    };
+    vi.spyOn(adminApi, "listUsers").mockResolvedValue({
+      items: [adminUser, legacyClient],
+      total: 2,
+    });
+    const prepare = vi
+      .spyOn(adminApi, "preparePasswordEmail")
+      .mockResolvedValue({ ...legacyClient, firebase_linked: true });
+    renderAdmin(<AdminUserManagementPage />);
+    const interaction = userEvent.setup();
+    await interaction.click(
+      await screen.findByRole("button", {
+        name: "Send password email to legacy@example.com",
+      }),
+    );
+    await waitFor(() =>
+      expect(firebase.sendPasswordReset).toHaveBeenCalledWith(
+        "legacy@example.com",
+      ),
+    );
+    expect(prepare).toHaveBeenCalledWith("legacy-id");
+    expect(prepare.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(firebase.sendPasswordReset).mock.invocationCallOrder[0],
+    );
+    // A linked, verified account does not need one.
+    expect(
+      screen.queryByRole("button", {
+        name: "Send password email to admin@example.com",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      await screen.findByText("Password email sent to legacy@example.com."),
     ).toBeInTheDocument();
   });
 

@@ -9,24 +9,25 @@ Run commands in Windows PowerShell from the repository root.
 ## 1. Register and Approve an Agent
 
 1. In a private browser window, open <http://localhost:5173/register> and
-   register an agent with a display name. You are taken to the "registration
-   pending" page.
-2. Development emails are written to the API log instead of being sent. Find
-   the verification link:
-
-   ```powershell
-   docker compose logs backend | Select-String "DEVELOPMENT EMAIL"
-   ```
-
-   Open the `link=` URL in the same private window to verify the email.
-3. As the admin, open **User management**, find the pending agent, and approve
+   create an account with a real address you can read (a Gmail plus-address
+   such as `you+agent1@gmail.com` works), or use **Sign up with Google**.
+2. For an email and password account, Firebase sends a verification email
+   (check the spam folder). Open its link, return to the page, and press
+   **I have verified my email**. Google accounts skip this step.
+3. Enter a display name and press **Request agent access**. You are taken to
+   the "review queue" page. Disposable addresses, and domains without a mail
+   server, are refused with "Use a permanent email address".
+4. As the admin, open **User management**, find the pending agent, and approve
    it.
-4. Sign in as the agent. The agent sees only **Referral link** and **My
+5. Sign in as the agent. The agent sees only **Referral link** and **My
    customers**. Visiting an admin page such as
    <http://localhost:5173/admin/users> shows the 403 page.
 
-Clients are created by an admin in **User management** and verify their email
-the same way. An admin assigns an agent to a client on the agent's detail page.
+Clients (and other admins) are created by an admin in **User management**
+without a password: Firebase emails them a link to set one, and they can also
+use Google sign-in with the same address. Admins also set up an authenticator
+app at their first sign-in. An admin assigns an agent to a client on the
+agent's detail page. See [Authentication](authentication.md) for every flow.
 
 ## 2. Register a Customer
 

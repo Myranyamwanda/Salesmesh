@@ -420,3 +420,94 @@ def test_firebase_outage_leaves_activity_unchanged(auth_context, fake_firebase):
     session.refresh(agent)
     assert agent.is_active is True
     assert audit_actions(session, "failure") == ["user_activity_changed"]
+
+
+def password_email(client, user, headers):
+    return client.post(f"/admin/users/{user.id}/password-email", headers=headers)
+
+
+def test_password_email_creates_a_missing_firebase_account(
+    auth_context,  # noqa: F811
+    fake_firebase,
+):
+    client, session, _, _ = auth_context
+    headers = admin_headers(client, session, fake_firebase)
+    # An account from before Firebase: verified locally, no Firebase user yet.
+    old = add_user(session, role="client", email="client@example.com")
+    assert old.firebase_uid is None
+    listed = client.get("/admin/users", headers=headers).json()["items"]
+    assert {user["email"]: user["firebase_linked"] for user in listed} == {
+        "admin@example.com": True,
+        "client@example.com": False,
+    }
+    response = password_email(client, old, headers)
+    assert response.status_code == 200
+    assert response.json()["firebase_linked"] is True
+    session.refresh(old)
+    account = fake_firebase.users[old.firebase_uid]
+    # Created without a password and unverified: the email link proves ownership.
+    assert account["email"] == "client@example.com"
+    assert account["email_verified"] is False
+    assert "password_email_requested" in audit_actions(session, "success")
+    # Asking again reuses the same Firebase account.
+    assert password_email(client, old, headers).status_code == 200
+    assert len(fake_firebase.users) == 2
+
+
+def test_password_email_reuses_or_replaces_firebase_accounts(
+    auth_context,  # noqa: F811
+    fake_firebase,
+):
+    client, session, _, _ = auth_context
+    headers = admin_headers(client, session, fake_firebase)
+    user = add_user(session, role="client", email="client@example.com")
+    existing = fake_firebase.add_user("client@example.com")
+    assert password_email(client, user, headers).status_code == 200
+    session.refresh(user)
+    assert user.firebase_uid == existing
+    # A stored uid whose Firebase account was deleted is replaced.
+    fake_firebase.users.pop(existing)
+    assert password_email(client, user, headers).status_code == 200
+    session.refresh(user)
+    assert user.firebase_uid != existing
+    assert fake_firebase.users[user.firebase_uid]["email"] == "client@example.com"
+
+
+def test_password_email_refusals(auth_context, fake_firebase):  # noqa: F811
+    client, session, _, _ = auth_context
+    headers = admin_headers(client, session, fake_firebase)
+    # Linked to a live Firebase user with another email: never relinked.
+    linked = add_user(session, role="client", email="client@example.com")
+    linked.firebase_uid = fake_firebase.add_user("someone-else@example.com")
+    inactive = add_user(session, role="client", email="inactive@example.com")
+    inactive.is_active = False
+    session.commit()
+    response = password_email(client, linked, headers)
+    assert (response.status_code, error_code(response)) == (
+        409,
+        "account_link_conflict",
+    )
+    response = password_email(client, inactive, headers)
+    assert (response.status_code, error_code(response)) == (409, "account_inactive")
+    assert fake_firebase.find_uid("inactive@example.com") is None
+    fake_firebase.available = False
+    outage = add_user(session, role="client", email="outage@example.com")
+    assert password_email(client, outage, headers).status_code == 503
+    session.refresh(outage)
+    assert outage.firebase_uid is None
+    assert audit_actions(session, "failure") == ["password_email_requested"] * 3
+
+
+@pytest.mark.parametrize("role", ["agent", "client"])
+def test_only_admins_can_prepare_password_emails(
+    auth_context,  # noqa: F811
+    fake_firebase,
+    role,
+):
+    client, session, _, _ = auth_context
+    add_user(session, role=role, email="user@example.com")
+    target = add_user(session, role="client", email="target@example.com")
+    uid = fake_firebase.add_user("user@example.com")
+    headers = bearer_headers(firebase_sign_in(client, fake_firebase, uid))
+    assert password_email(client, target, headers).status_code == 403
+    assert fake_firebase.find_uid("target@example.com") is None

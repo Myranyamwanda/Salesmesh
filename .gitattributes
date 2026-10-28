@@ -3,6 +3,10 @@
 # core.autocrlf=true setting.
 * text=auto eol=lf
 
+# The notebooks are the research record; count them as documentation so the
+# GitHub language bar shows the application code.
+ml/notebooks/*.ipynb linguist-documentation
+
 # Binary files: never convert line endings or show text diffs.
 *.png binary
 *.jpg binary

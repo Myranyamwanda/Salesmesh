@@ -143,9 +143,20 @@ export function AdminUserManagementPage() {
       setError(apiErrorMessage(cause, "Could not update account role.")),
   });
   const resendMutation = useMutation({
-    mutationFn: (email: string) => sendPasswordReset(email),
-    onSuccess: (_, email) => setNotice(`Password email sent to ${email}.`),
-    onError: () => setError("Could not send the password email. Try again."),
+    // Firebase emails only existing accounts, so the backend first creates
+    // the Firebase account if it is missing (accounts from before Firebase).
+    mutationFn: async (user: AuthUser) => {
+      await adminApi.preparePasswordEmail(user.id);
+      await sendPasswordReset(user.email);
+    },
+    onSuccess: (_, user) => {
+      setNotice(`Password email sent to ${user.email}.`);
+      void refreshUsers();
+    },
+    onError: (cause) =>
+      setError(
+        apiErrorMessage(cause, "Could not send the password email. Try again."),
+      ),
   });
 
   const rows = useMemo(
@@ -271,16 +282,17 @@ export function AdminUserManagementPage() {
               </Button>
             </Stack>
           )}
-          {!row.email_verified_at && row.is_active && (
-            <Button
-              size="small"
-              aria-label={`Send password email to ${row.email}`}
-              onClick={() => resendMutation.mutate(row.email)}
-              disabled={resendMutation.isPending}
-            >
-              Send password email
-            </Button>
-          )}
+          {row.is_active &&
+            (!row.email_verified_at || !row.firebase_linked) && (
+              <Button
+                size="small"
+                aria-label={`Send password email to ${row.email}`}
+                onClick={() => resendMutation.mutate(row)}
+                disabled={resendMutation.isPending}
+              >
+                Send password email
+              </Button>
+            )}
         </div>
       ),
     },

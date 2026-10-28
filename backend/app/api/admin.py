@@ -8,6 +8,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 
 from app.auth import Database, require_roles
+from app.core.errors import CodedHTTPException
 from app.models import AgentProfile, AuditLog, User
 from app.schemas.auth import ActiveInput, CreateUserInput, RoleInput, UserRead
 from app.services.agents import create_agent_profile
@@ -134,6 +135,68 @@ def create_user(
         session.rollback()
         raise failed(409, conflict) from None
     audit(session, request, "user_created", actor=actor, target=target)
+    session.commit()
+    return target
+
+
+@router.post("/users/{user_id}/password-email", response_model=UserRead)
+def prepare_password_email(
+    user_id: UUID,
+    request: Request,
+    session: Database,
+    actor: Admin,
+    firebase: Firebase,
+):
+    """Make sure the user has a Firebase account before a password email is sent.
+
+    Firebase emails only accounts that exist. Accounts from before Firebase
+    have none, so one is created here without a password and linked. The
+    frontend then asks Firebase to send the "set your password" email; the
+    person proves they own the address by using it, and signing in still
+    requires a verified email.
+    """
+    target = get_target(session, user_id)
+
+    def failed(status: int, code: str, message: str) -> CodedHTTPException:
+        audit(
+            session,
+            request,
+            "password_email_requested",
+            "failure",
+            actor=actor,
+            target=target,
+        )
+        session.commit()
+        return CodedHTTPException(status, code, message)
+
+    if not target.is_active:
+        raise failed(409, "account_inactive", "Activate the account first")
+    try:
+        uid = firebase.ensure_user(target.email)
+        # A stored uid whose Firebase account was deleted is replaced.
+        stale = target.firebase_uid not in (None, uid) and (
+            firebase.email_of(target.firebase_uid) is None
+        )
+    except FirebaseUnavailable:
+        raise failed(503, "firebase_unavailable", unavailable().detail) from None
+    if target.firebase_uid is None or stale:
+        target.firebase_uid = uid
+    elif target.firebase_uid != uid:
+        raise failed(
+            409,
+            "account_link_conflict",
+            "This account is linked to a different Firebase user",
+        )
+    try:
+        session.flush()
+    except IntegrityError:
+        session.rollback()
+        raise failed(
+            409,
+            "account_link_conflict",
+            "This Firebase user is linked to another account",
+        ) from None
+    audit(session, request, "password_email_requested", actor=actor, target=target)
     session.commit()
     return target
 

@@ -7,6 +7,8 @@ export type AuthUser = {
   status: "pending" | "approved" | "rejected";
   is_active: boolean;
   email_verified_at: string | null;
+  /** The account has a Firebase user (signed in, or created by an admin). */
+  firebase_linked: boolean;
   created_at: string;
 };
 

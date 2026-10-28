@@ -35,10 +35,13 @@ the agents who work for them.
 - **Privacy.** Admins can erase a customer's data on request; the erasure is
   audited without personal data. Agents and customers never see probabilities
   or reasons.
-- **Secure authentication.** Argon2id password hashing, short-lived JWT access
-  tokens, rotating refresh tokens in httpOnly cookies with reuse detection,
-  email verification, admin approval of agents, rate limiting, account
-  lockout, role-based access control, and an audit log.
+- **Secure authentication.** Firebase Authentication for sign-in (email and
+  password, or Google), email verification, and password resets; SalesMesh
+  keeps roles, agent approval, sessions, and the audit log. Admins confirm
+  every sign-in with an authenticator app (TOTP) and have one-time recovery
+  codes. Short-lived JWT access tokens, rotating refresh tokens in httpOnly
+  cookies with reuse detection, rate limiting, role-based access control, and
+  checks that refuse disposable or mail-less email addresses.
 - **Automation.** One-command Docker Compose startup, demo data with a single
   command, pre-commit hooks, GitHub Actions CI, and Dependabot.
 
@@ -48,6 +51,8 @@ the agents who work for them.
 flowchart LR
     customer["Customer's phone<br/>/join page"] --> api
     browser["Admin, agent, and client<br/>React + MUI SPA"] -- "JSON, Bearer token,<br/>refresh cookie" --> api
+    browser -- "sign-in, verification,<br/>password emails" --> firebase[["Firebase<br/>Authentication"]]
+    api -- "verify ID tokens,<br/>manage users" --> firebase
 
     subgraph api ["FastAPI backend"]
         routes["API routes<br/>role-based access"]
@@ -65,8 +70,8 @@ flowchart LR
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 19, Vite, TypeScript, MUI, React Router, TanStack Query, axios, react-hook-form, zod, Recharts, qrcode.react |
-| Backend | FastAPI, pydantic-settings, SQLAlchemy 2.0, Alembic, Argon2, PyJWT, phonenumbers |
+| Frontend | React 19, Vite, TypeScript, MUI, React Router, TanStack Query, axios, react-hook-form, zod, Recharts, qrcode.react, Firebase Auth SDK |
+| Backend | FastAPI, pydantic-settings, SQLAlchemy 2.0, Alembic, firebase-admin, PyJWT, pyotp, cryptography, dnspython, phonenumbers |
 | Machine learning | scikit-learn 1.7.2, pandas, numpy, joblib (training in Jupyter notebooks) |
 | Database | PostgreSQL 16 (Docker) |
 | Tooling | Docker Compose, Ruff, pytest, ESLint, Prettier, Vitest, pre-commit, GitHub Actions, Dependabot |
@@ -86,6 +91,9 @@ Run every command in **Windows PowerShell** from the repository root.
 | Docker Desktop (Linux containers, Compose v2) | any recent | `docker compose version` |
 | Python | 3.14 | `python --version` |
 | Node.js and npm (only for frontend checks on the host) | 22.13 or newer | `node --version` |
+| A Google account | for the free Firebase project (Spark plan) | <https://console.firebase.google.com/> opens |
+| An authenticator app | Google or Microsoft Authenticator on a phone, or an authenticator browser extension | needed for every admin sign-in |
+| An email address that can receive mail | for your admin account (a Gmail plus-address works) | |
 
 Start Docker Desktop and wait until it says the engine is running.
 
@@ -111,6 +119,20 @@ $env:COMPOSE_PROJECT_NAME = "salesmesh2"
 
 Only one clone can run at a time, because both use the same ports.
 
+> **A second clone shares the same Firebase project.** Each clone has its own
+> database, but the Firebase accounts are shared. In a second clone:
+>
+> - **Never run `reset-demo`.** It deletes the demo users' Firebase accounts,
+>   which the main install's demo users use too. Run `seed-demo` only: it
+>   reuses the existing demo accounts.
+> - Use the **same `DEMO_PASSWORD`** as the main install, because `seed-demo`
+>   sets the demo accounts' Firebase password.
+> - Run `create-admin` with an address that has **no** Firebase account yet
+>   (for example another plus-address). For an existing address, the printed
+>   link changes that person's password for both installs.
+> - Do not deactivate real accounts there: deactivating disables the shared
+>   Firebase account.
+
 ### 3. Configure `.env`
 
 ```powershell
@@ -127,12 +149,29 @@ In `.env`, set at least:
   for example `DEMO_PASSWORD=Demo-Salesmesh-2026!`.
 - `POSTGRES_PORT`: if PostgreSQL is installed directly on Windows, it already
   uses port 5432, so set `POSTGRES_PORT=5433` (or another free port).
+- **All six Firebase variables. They are required: sign-in does not work
+  without them.** Create the Firebase project first by following
+  [Firebase setup for a new developer](docs/authentication.md#firebase-setup-for-a-new-developer):
+
+  | Variable | Value |
+  | --- | --- |
+  | `VITE_FIREBASE_API_KEY` | Web app `apiKey` |
+  | `VITE_FIREBASE_AUTH_DOMAIN` | Web app `authDomain` |
+  | `VITE_FIREBASE_PROJECT_ID` | Web app `projectId` |
+  | `VITE_FIREBASE_APP_ID` | Web app `appId` |
+  | `FIREBASE_PROJECT_ID` | The same Project ID (read by the backend) |
+  | `FIREBASE_CREDENTIALS_PATH` | Path of the service-account key file, **outside the repository**, with forward slashes, for example `C:/Users/<you>/secrets/salesmesh-firebase-admin.json` |
+
+  Keep the `VITE_` prefix on the first four: the browser receives only `VITE_*`
+  variables. The key file is a secret; Docker mounts it read-only, so `.env`
+  keeps the Windows path.
 
 There is **no separate frontend `.env`**: the frontend reads the same root
-`.env` (`VITE_API_URL` and `VITE_PRIVACY_CONTACT_EMAIL`, both with working
-defaults). Every setting is explained in `.env.example`. Never commit `.env`.
+`.env` (the four `VITE_FIREBASE_*` values, plus `VITE_API_URL` and
+`VITE_PRIVACY_CONTACT_EMAIL`, which have working defaults). Every setting is
+explained in `.env.example`. Never commit `.env` or the key file.
 
-### 4. Backend tools and the JWT secret
+### 4. Backend tools and the secrets
 
 ```powershell
 python -m venv backend/.venv
@@ -142,7 +181,9 @@ backend/.venv/Scripts/python.exe backend/manage.py init-secret
 
 The `pip install` takes **about 6 minutes** the first time, because it
 installs the ML packages (scikit-learn, numpy, pandas, scipy). `init-secret`
-writes a random `JWT_SECRET` into `.env` without printing it.
+writes a random `JWT_SECRET` and a `TOTP_ENCRYPTION_KEY` (which encrypts the
+admins' authenticator secrets) into `.env` without printing them, and leaves
+existing values unchanged.
 
 ### 5. Model files
 
@@ -180,14 +221,21 @@ minutes. Later starts use Docker's build cache and are much faster.
 
 ### 7. First admin
 
+Use an address that can receive email; a Gmail plus-address such as
+`you+admin@gmail.com` works.
+
 ```powershell
-.\scripts\dev.ps1 create-admin -Email admin@example.com
+.\scripts\dev.ps1 create-admin -Email you+admin@gmail.com
 ```
 
-Type the password twice when prompted (12–128 characters with upper and lower
-case, a number, and a symbol); run it in an interactive PowerShell window,
-because the password prompt needs a keyboard. This works only while no admin
-exists.
+The command creates the admin in SalesMesh and Firebase and prints a one-time
+link. Open it to set the password (12+ characters with upper and lower case,
+a number, and a symbol), and do not share it. Then sign in at
+<http://localhost:5173> with that email and password: the first sign-in asks
+you to scan a QR code with an authenticator app and shows 10 recovery codes
+once. Save them outside the repository. `create-admin` also works when other
+admins exist. A plus-address admin signs in with email and password, not
+Google (see [Authentication](docs/authentication.md#replacing-an-admin-whose-email-cannot-receive-mail)).
 
 ### 8. Demo data
 
@@ -197,18 +245,22 @@ exists.
 
 This takes about two minutes. It creates a demo admin, 3 clients, and 40
 agents (4 of them fraudulent) with about 3,300 customers scored by the real
-model, and prints the logins. Running it again adds nothing;
-`.\scripts\dev.ps1 reset-demo` removes only the demo data.
+model, creates the 44 demo users in Firebase, and prints the logins. It also
+prints the **demo admin's authenticator setup key once**: add it to your
+authenticator app ("Enter a setup key") straight away. Running it again adds
+nothing; `.\scripts\dev.ps1 reset-demo` removes only the demo data and the
+demo Firebase accounts, never any other account.
 
 | Role | Email | Password |
 | --- | --- | --- |
-| Admin | `admin@demo.example.com` | `DEMO_PASSWORD` from `.env` |
+| Admin | `admin@demo.example.com` | `DEMO_PASSWORD` from `.env`, plus the authenticator code |
 | Agent (honest) | `agent01@demo.example.com` | same |
 | Agent (fraudulent) | `agent04@demo.example.com` | same |
 | Clients | `client1@demo.example.com`, `client2@…`, `client3@…` | same |
 
 Demo emails use the reserved `example.com` domain and can never receive mail,
-so demo accounts are created already verified and approved.
+so demo accounts are created already verified and approved, in SalesMesh and
+in Firebase.
 
 ### 9. Checks
 
@@ -244,10 +296,12 @@ large files and private keys.
 | `.\scripts\dev.ps1 up-lan` | Same, but reachable from a phone on the same Wi-Fi (development only; see below) |
 | `.\scripts\dev.ps1 down` | Stop all services (the database volume is kept) |
 | `.\scripts\dev.ps1 migrate` | Apply Alembic migrations |
-| `.\scripts\dev.ps1 create-admin -Email <address>` | Create the first admin account |
+| `.\scripts\dev.ps1 create-admin -Email <address>` | Create an admin in SalesMesh and Firebase; prints a one-time set-password link |
+| `.\scripts\dev.ps1 reset-mfa -Email <address>` | Remove an admin's authenticator (lost phone); the next sign-in sets up a new one |
+| `.\scripts\dev.ps1 deactivate-user -Email <address>` | Deactivate an account (kept for audit history); refuses to leave no usable admin |
 | `.\scripts\dev.ps1 fetch-model` | Download the model v1 files from the GitHub Release `model-v1` and verify their SHA-256 (no `.env` needed) |
-| `.\scripts\dev.ps1 seed-demo` | Create demo users and about 3,300 scored demo customers (needs `DEMO_PASSWORD` in `.env`; safe to rerun) |
-| `.\scripts\dev.ps1 reset-demo` | Delete only the demo data |
+| `.\scripts\dev.ps1 seed-demo` | Create demo users (in SalesMesh and Firebase) and about 3,300 scored demo customers (needs `DEMO_PASSWORD` and the Firebase settings; safe to rerun) |
+| `.\scripts\dev.ps1 reset-demo` | Delete only the demo data and the demo Firebase accounts |
 | `.\scripts\dev.ps1 test` | Run backend tests against the separate test database |
 | `.\scripts\dev.ps1 lint` | Run Ruff and ESLint |
 | `npm test` / `npm run build` (in `frontend/`) | Run frontend tests / production build |
@@ -260,9 +314,11 @@ during development or a demonstration.
 1. Connect the computer and the phone to the same Wi-Fi.
 2. Run `.\scripts\dev.ps1 up-lan`. It finds this computer's LAN IP address
    (for example `192.168.100.41`) and prints the address to use.
-3. Open `http://<LAN-IP>:5173` on the computer too, and sign in there.
-   Referral links and QR codes now use the LAN address, so the phone can open
-   them.
+3. On the phone, open `http://<LAN-IP>:5173/join/<referral code>`. Take the
+   code from the agent's **Referral link** page in normal `localhost` mode
+   first: **signing in does not work in LAN mode**, because Firebase accepts
+   sign-ins only from authorized domains such as `localhost`, not from a LAN
+   IP address. The `/join` page needs no sign-in.
 4. Run `.\scripts\dev.ps1 up` to return to normal `localhost` mode.
 
 How it works: `docker-compose.lan.yml` publishes ports 5173 and 8000 on all
@@ -284,16 +340,61 @@ only on a trusted network, and switch back with `up` afterwards.
 | `up` fails with "ports are not available … 5432 … forbidden by its access permissions" or "port is already allocated" | Another program, usually a PostgreSQL installed on Windows, uses port 5432. Set `POSTGRES_PORT=5433` (or another free port) in `.env` and run `up` again. Check with `Get-NetTCPConnection -LocalPort 5432 -State Listen` |
 | A second clone uses the first clone's database | Set `$env:COMPOSE_PROJECT_NAME` to a different name in that window (see step 2) |
 | API exits with a `JWT_SECRET` error | Run `init-secret` (step 4), then `up` again |
+| `up` says `Set FIREBASE_CREDENTIALS_PATH in .env`, or the bind mount's source path does not exist | Set `FIREBASE_CREDENTIALS_PATH` to the key file's full path with forward slashes, and check that the file exists outside the repository |
+| Sign-in says "Sign-in is not configured" (503), or `seed-demo` asks for the Firebase credentials | One of the six Firebase variables is missing; set all six (step 3), then `up` |
+| The sign-in page says Firebase is not configured | The browser values must be named `VITE_FIREBASE_*` (with the prefix). After fixing `.env`, run `up` |
+| Every sign-in fails at once with "Sign-in failed. Try again." | The `VITE_FIREBASE_*` values are probably still the `replace_with_…` placeholders from `.env.example`. Copy the real web app values (step 3), then run `up` |
+| An existing user (from before Firebase) cannot sign in with a password | Use **Send password email** for them in User management: it creates their Firebase account and Firebase emails a link to set the password. Or they sign in with Google |
+| "Admin sign-in is not configured: run the init-secret command" | `TOTP_ENCRYPTION_KEY` is missing: run `init-secret` (step 4), then `up` |
+| Firebase sign-in does not work at `http://<LAN-IP>:5173` (`auth/unauthorized-domain`) | Expected: a LAN IP is not an authorized Firebase domain. Sign in at `http://localhost:5173`; on a phone use only the `/join` page (see Testing on a Phone) |
+| A verification or "set your password" email does not arrive | Check the spam folder: Firebase sends from `noreply@<project>.firebaseapp.com`. Admins can resend with **Send password email** in User management |
 | `/health` shows `"model": "failed"` | Run `.\scripts\dev.ps1 fetch-model`, then `up`; or check `MODEL_SOURCE` |
 | `seed-demo` says `Set DEMO_PASSWORD` or rejects the password | Add a `DEMO_PASSWORD` that meets the password policy to `.env`, then run `up` (the API reads `.env` only when its container is created) and `seed-demo` again |
 | `seed-demo` says demo data already exists | Expected; nothing is duplicated. Use `reset-demo` first to start again |
-| Sign-in fails for a new account | The account must be email-verified and, for agents, approved by an admin. Development emails are written to `docker compose logs backend` |
+| Sign-in fails for a new account | The email must be verified through Firebase's link, and agents must be approved by an admin. The page shows which step is missing |
+| An admin lost the authenticator app | Sign in with a recovery code instead of the 6-digit code; with no recovery codes left, run `.\scripts\dev.ps1 reset-mfa -Email <address>` |
+| "Too many wrong codes" for an admin | Wait `ACCOUNT_LOCKOUT_MINUTES` (default 15), then use a fresh code |
 | The phone cannot open the LAN address | Windows Firewall blocks it on a network marked **Public**. Set the Wi-Fi profile to **Private** (Settings > Network & internet > Wi-Fi > your network) or allow Docker Desktop through the firewall. Some public Wi-Fi isolates devices; a phone hotspot works as a fallback |
 | Signed out after reloading the page on the phone | Expected in LAN mode: the refresh cookie is `Secure` and browsers keep it only on `https` or `localhost`. The `/join` page needs no sign-in |
 | Scripts are blocked by the execution policy | Run `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` once |
 
 To delete all local data and start again, run `docker compose down -v`; this
-removes the database volume permanently.
+removes the database volume permanently. Firebase accounts are not affected.
+
+## Backing Up and Restoring the Database
+
+Back up before risky changes, such as a migration that drops data. The dump is
+written inside the PostgreSQL container and copied out byte for byte (a
+PowerShell pipe would corrupt it):
+
+```powershell
+$file = "C:\Users\<you>\salesmesh-backups\salesmesh-dev-$(Get-Date -Format yyyyMMdd-HHmmss).dump"
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Fc -f /tmp/salesmesh-backup.dump'
+docker compose cp postgres:/tmp/salesmesh-backup.dump $file
+docker compose exec -T postgres rm /tmp/salesmesh-backup.dump
+"SELECT version_num FROM alembic_version;" | docker compose exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -t -A'
+git rev-parse --short HEAD
+```
+
+Write down the migration version and the commit that the last two commands
+print, next to the dump file.
+
+To restore, **check out the commit that matches the backup's migration**, not
+`develop`. The backend runs `alembic upgrade head` when it starts, so code
+with newer migrations would immediately change the restored database again.
+
+```powershell
+$file = "C:\Users\<you>\salesmesh-backups\salesmesh-dev-YYYYMMDD-HHMMSS.dump"
+git checkout <commit noted with the backup>
+docker compose stop backend frontend
+docker compose cp $file postgres:/tmp/salesmesh-restore.dump
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner --single-transaction /tmp/salesmesh-restore.dump'
+docker compose exec -T postgres rm /tmp/salesmesh-restore.dump
+.\scripts\dev.ps1 up
+```
+
+`--single-transaction` makes the restore all or nothing. Restoring the
+database does not restore Firebase accounts, which live in Firebase.
 
 ## Project Structure
 
@@ -307,13 +408,14 @@ salesmesh/
 │   │   ├── ml/           model service, feature builder, explanations
 │   │   ├── models/       SQLAlchemy tables
 │   │   ├── schemas/      Pydantic request and response models
-│   │   ├── services/     registration, scoring, reviews, reputation, erasure, audit, email
+│   │   ├── services/     registration, scoring, reviews, reputation, erasure, audit, firebase, mfa, email checks
+│   │   ├── data/         vendored disposable-email-domain list
 │   │   ├── demo.py       demo data (seed-demo, reset-demo)
 │   │   └── cli.py        terminal commands
-│   ├── alembic/          database migrations 0001–0004
+│   ├── alembic/          database migrations 0001–0007
 │   ├── models/v1/        model files (downloaded, ignored by Git)
 │   ├── tests/            pytest suite
-│   └── manage.py         init-secret, create-admin, seed-demo, reset-demo
+│   └── manage.py         init-secret, create-admin, reset-mfa, deactivate-user, seed-demo, reset-demo
 ├── frontend/src/
 │   ├── api/  auth/  components/  hooks/  layouts/  routes/  types/  utils/
 │   └── pages/            admin/, agent/, client/, JoinPage, auth and account pages
@@ -343,12 +445,12 @@ salesmesh/
 | [Scoring data model](docs/scoring-data-model.md) | Tables and design decisions (ER diagram) |
 | [Workspace pages](docs/workspace-pages.md) | Public join page and the admin, agent, and client pages |
 | [API summary](docs/api-summary.md) | Endpoints, access rules, and error format |
-| [Authentication overview](docs/authentication.md) | Login, refresh, verification, and role diagrams |
+| [Authentication](docs/authentication.md) | Firebase and SalesMesh roles, sign-in and admin MFA diagrams, account creation, Firebase setup |
 | [Limitations and future work](docs/limitations-and-future-work.md) | What the system does not do yet, and what comes next |
 | [Development workflow](docs/development-workflow.md) | Compose, hooks, CI, and branch protection |
 | [Backend foundation](docs/backend-foundation.md) | Phase 2: settings, database, logging, and tests |
-| [Backend authentication](docs/backend-authentication.md) | Phase 3: security design and settings |
-| [Frontend authentication](docs/frontend-authentication.md) | Phase 4: session handling and auth pages |
+| [Backend authentication](docs/backend-authentication.md) | Phase 3 (historical, before Firebase): security design and settings |
+| [Frontend authentication](docs/frontend-authentication.md) | Phase 4 (historical, before Firebase): session handling and auth pages |
 
 ## Branches
 
@@ -404,6 +506,16 @@ with its contract, and the agent reputation simulation.
 5. Frontend pages
 6. Demo data, end-to-end test, model card, and integration docs
 
-**Release preparation**: confirmed-only client view, Dependabot safety, model
-download with checksums, customer erasure and drift monitoring, housekeeping
-and code splitting, and this documentation update.
+**Release preparation (v1.0.0)**: confirmed-only client view, Dependabot
+safety, model download with checksums, customer erasure and drift monitoring,
+housekeeping and code splitting, and a documentation update.
+
+**Firebase authentication (v1.1.0)**
+
+1. Firebase sign-in on the backend: ID token exchange, account linking, user sync
+2. Admin MFA (TOTP with recovery codes) and the admin terminal commands
+3. Real-email checks (MX records and disposable domains)
+4. Frontend: Firebase sign-in, Google, agent sign-up, MFA pages
+5. Demo users in Firebase, with the demo admin's authenticator
+6. Removal of local passwords and the old password endpoints
+7. This documentation

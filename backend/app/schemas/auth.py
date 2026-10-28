@@ -54,6 +54,8 @@ class UserRead(BaseModel):
     status: Literal["pending", "approved", "rejected"]
     is_active: bool
     email_verified_at: datetime | None
+    # True once the account has a Firebase user (signed in, or created by an admin).
+    firebase_linked: bool
     created_at: datetime
 
 
