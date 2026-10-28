@@ -13,8 +13,8 @@ flowchart LR
     customer["Customer's phone<br/>/join/:code (public)"]
     browser["Browser<br/>React + MUI SPA<br/>admin, agent, client"]
     api["FastAPI API<br/>localhost:8000"]
-    db[("PostgreSQL 16<br/>users, tokens, audit_logs,<br/>agent_profiles, customers,<br/>risk_assessments, reviews,<br/>scoring_config, model_versions")]
-    email["Email service<br/>(development: logs links)"]
+    db[("PostgreSQL 16<br/>users, refresh tokens, MFA recovery<br/>codes, audit_logs, agent_profiles,<br/>customers, risk_assessments, reviews,<br/>scoring_config, model_versions")]
+    firebase[["Firebase Authentication<br/>sign-in, verification and<br/>password emails"]]
     model["Model service<br/>model.joblib in memory"]
     files[["backend/models/v1/<br/>from GitHub Release model-v1<br/>(SHA-256 checked) or S3"]]
     notebooks["ml/notebooks/<br/>EDA → preprocessing → training →<br/>evaluation → export → simulation"]
@@ -22,8 +22,9 @@ flowchart LR
     customer -->|"registration form"| api
     browser -- "JSON over HTTP<br/>Bearer access token" --> api
     browser -- "httpOnly refresh cookie<br/>(/auth only)" --> api
+    browser -- "Firebase JS SDK<br/>(sign-in, Google)" --> firebase
+    api -- "verify ID tokens,<br/>create/disable users" --> firebase
     api -- "SQLAlchemy sessions" --> db
-    api --> email
     api --> model
     files -->|"loaded at startup:<br/>version + golden checks"| model
     notebooks -.->|"exported once"| files
@@ -38,7 +39,7 @@ The registration flow, step by step, is shown as a sequence diagram in
 flowchart TB
     routes["api/<br/>health, auth, admin, join, agent (/me),<br/>client, model, scoring_admin"]
     deps["auth.py<br/>current user, require_roles(...)"]
-    services["services/<br/>auth, registration, scoring, reviews, reputation,<br/>erasure, agents, audit, email, geoip"]
+    services["services/<br/>auth, firebase, mfa, email_checks, registration,<br/>scoring, reviews, reputation, erasure, agents,<br/>audit, geoip"]
     ml["ml/<br/>model_service, features, explain"]
     core["core/<br/>settings, security, errors, logging"]
     models["models/ + schemas/<br/>SQLAlchemy tables, Pydantic I/O"]
@@ -55,7 +56,8 @@ flowchart TB
 
 Routes stay thin: they validate input with Pydantic schemas and call a service
 function. Services hold the rules (scoring, review decisions, reputation,
-token rotation, lockout), so they can be tested without HTTP. `ml/` contains
+token rotation, admin MFA), so they can be tested without HTTP. All calls to
+Firebase go through `services/firebase.py`, which tests replace with a fake. `ml/` contains
 everything that knows about the model: loading and checking it, building the
 13 features from a registration, and explaining a score. Keeping all settings
 in one `Settings` class means every configurable value is read from `.env` and
@@ -71,7 +73,7 @@ flowchart TB
     pages["pages/<br/>auth, admin/, agent/, client/, JoinPage<br/>(loaded on demand)"]
     components["components/<br/>tables, badges, review and erase dialogs,<br/>monitoring card"]
     api["api/<br/>axios client with refresh-and-retry"]
-    auth["auth/<br/>access token held in memory"]
+    auth["auth/<br/>access token held in memory,<br/>Firebase client (firebase.ts)"]
 
     main --> routes --> layouts --> pages
     pages --> components

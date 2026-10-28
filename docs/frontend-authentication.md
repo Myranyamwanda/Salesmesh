@@ -4,6 +4,10 @@
 > dataset has been selected" describe the project at that time; for the
 > current system see [architecture](architecture.md) and
 > [ML integration](ml-integration.md).
+>
+> Since v1.1.0, the sign-in, registration, and password pages use Firebase
+> Authentication, and admins also enter an authenticator code. See
+> [Authentication](authentication.md) for the current design.
 
 ## Scope
 

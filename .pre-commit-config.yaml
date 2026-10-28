@@ -20,6 +20,12 @@ repos:
       - id: detect-private-key
   - repo: local
     hooks:
+      # detect-private-key also catches the key inside; this blocks the file name.
+      - id: forbid-firebase-keys
+        name: Block Firebase service-account key files
+        entry: Firebase service-account keys must stay outside the repository
+        language: fail
+        files: firebase-admin[^/]*\.json$
       - id: prettier
         name: Prettier
         entry: node frontend/node_modules/prettier/bin/prettier.cjs --check
