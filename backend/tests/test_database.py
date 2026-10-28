@@ -13,14 +13,13 @@ from sqlalchemy.exc import IntegrityError
 from app.core.config import get_settings
 from app.db.session import get_db
 from app.main import create_app
-from app.models import AuditLog, PasswordResetToken, RefreshToken, User
+from app.models import AuditLog, MfaRecoveryCode, RefreshToken, User
 
 
 def test_schema_has_only_approved_tables(test_engine):
     assert set(inspect(test_engine).get_table_names()) == {
         "users",
         "refresh_tokens",
-        "password_reset_tokens",
         "audit_logs",
         "agent_profiles",
         "customers",
@@ -28,6 +27,8 @@ def test_schema_has_only_approved_tables(test_engine):
         "reviews",
         "scoring_config",
         "model_versions",
+        # v1.1.0 admin MFA: hashes of one-time recovery codes.
+        "mfa_recovery_codes",
         "alembic_version",
     }
 
@@ -41,9 +42,7 @@ def test_health_uses_real_test_database(db_session):
 
 
 def test_authentication_storage(db_session):
-    user = User(
-        email=f"{uuid4()}@example.test", password_hash="hash-only", role="agent"
-    )
+    user = User(email=f"{uuid4()}@example.test", role="agent")
     db_session.add(user)
     db_session.flush()
     assert user.status == "pending"
@@ -57,9 +56,7 @@ def test_authentication_storage(db_session):
                 token_hash="a" * 64,
                 expires_at=expires,
             ),
-            PasswordResetToken(
-                user_id=user.id, token_hash="b" * 64, expires_at=expires
-            ),
+            MfaRecoveryCode(user_id=user.id, code_hash="b" * 64),
             AuditLog(
                 actor_user_id=user.id,
                 target_user_id=user.id,
@@ -70,25 +67,21 @@ def test_authentication_storage(db_session):
     )
     db_session.commit()
     assert db_session.scalar(select(RefreshToken)).user_id == user.id
-    assert db_session.scalar(select(PasswordResetToken)).used_at is None
+    assert db_session.scalar(select(MfaRecoveryCode)).used_at is None
     assert db_session.scalar(select(AuditLog)).actor_user_id == user.id
 
 
 @pytest.mark.parametrize("role", ["unknown", "ADMIN"])
 def test_database_rejects_invalid_roles(db_session, role):
-    db_session.add(User(email="invalid@example.test", password_hash="hash", role=role))
+    db_session.add(User(email="invalid@example.test", role=role))
     with pytest.raises(IntegrityError):
         db_session.flush()
 
 
 def test_database_rejects_duplicate_email(db_session):
-    db_session.add(
-        User(email="unique@example.test", password_hash="hash", role="client")
-    )
+    db_session.add(User(email="unique@example.test", role="client"))
     db_session.flush()
-    db_session.add(
-        User(email="unique@example.test", password_hash="hash", role="admin")
-    )
+    db_session.add(User(email="unique@example.test", role="admin"))
     with pytest.raises(IntegrityError):
         db_session.flush()
 
@@ -105,7 +98,6 @@ def test_database_rejects_invalid_status(db_session):
     db_session.add(
         User(
             email="status@example.test",
-            password_hash="hash",
             role="agent",
             status="unknown",
         )
@@ -115,24 +107,18 @@ def test_database_rejects_invalid_status(db_session):
 
 
 def test_tokens_require_existing_user(db_session):
-    db_session.add(
-        PasswordResetToken(
-            user_id=uuid4(), token_hash="c" * 64, expires_at=datetime.now(UTC)
-        )
-    )
+    db_session.add(MfaRecoveryCode(user_id=uuid4(), code_hash="c" * 64))
     with pytest.raises(IntegrityError):
         db_session.flush()
 
 
 def test_user_deletion_removes_tokens_but_retains_audit(db_session):
-    user = User(email="delete@example.test", password_hash="hash", role="client")
+    user = User(email="delete@example.test", role="client")
     db_session.add(user)
     db_session.flush()
     db_session.add_all(
         [
-            PasswordResetToken(
-                user_id=user.id, token_hash="d" * 64, expires_at=datetime.now(UTC)
-            ),
+            MfaRecoveryCode(user_id=user.id, code_hash="d" * 64),
             RefreshToken(
                 user_id=user.id,
                 session_id=uuid4(),
@@ -151,7 +137,7 @@ def test_user_deletion_removes_tokens_but_retains_audit(db_session):
     db_session.delete(user)
     db_session.flush()
     db_session.expire_all()
-    assert db_session.scalar(select(PasswordResetToken)) is None
+    assert db_session.scalar(select(MfaRecoveryCode)) is None
     assert db_session.scalar(select(RefreshToken)) is None
     audit = db_session.scalar(select(AuditLog))
     assert audit.actor_user_id is None

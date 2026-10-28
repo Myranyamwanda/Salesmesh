@@ -10,11 +10,9 @@ from app.core.config import get_settings
 from app.core.security import (
     access_token,
     decode_access_token,
-    hash_password,
     new_token,
     token_hash,
     validate_password,
-    verify_password,
 )
 
 
@@ -27,13 +25,8 @@ def test_password_policy(password):
         validate_password(password)
 
 
-def test_argon2_hash_and_verify():
-    password = "Correct-Passphrase123!"
-    hashed = hash_password(password)
-    assert hashed.startswith("$argon2id$")
-    assert verify_password(password, hashed)
-    assert not verify_password("Incorrect-password123!", hashed)
-    assert not verify_password(password, "invalid-hash")
+def test_password_policy_accepts_a_strong_password():
+    assert validate_password("Correct-Passphrase123!") == "Correct-Passphrase123!"
 
 
 def test_tokens_are_random_and_stored_as_hashes():
