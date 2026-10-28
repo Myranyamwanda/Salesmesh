@@ -16,6 +16,10 @@ export type Band = "High risk" | "Watch" | "Low risk" | "Insufficient data";
 
 export type CustomerStatus = "pending_review" | "verified" | "rejected";
 
+/** Derived from the score and the review; see backend/app/services/pipeline.py. */
+export type RegistrationStatus =
+  "received" | "clear" | "under_review" | "verified" | "rejected";
+
 export type Decision = "confirmed_real" | "confirmed_fake";
 
 export type AgentSummary = { id: string; display_name: string };
@@ -40,6 +44,7 @@ export type Review = {
 
 export type CustomerDetail = {
   id: string;
+  reference: string;
   full_name: string;
   email: string;
   mobile_phone: string;
@@ -63,8 +68,15 @@ export type AssessmentDetail = {
   features: Record<string, string | number | null>;
   created_at: string;
   customer: CustomerDetail;
+  registration_status: RegistrationStatus;
   agent: AgentSummary;
   review: Review | null;
+};
+
+export type ClientSummary = {
+  id: string;
+  email: string;
+  organisation_name: string | null;
 };
 
 export type AgentRanking = {
@@ -74,7 +86,9 @@ export type AgentRanking = {
   referral_code: string;
   status: string;
   is_active: boolean;
-  client: { id: string; email: string } | null;
+  client: ClientSummary | null;
+  /** False when customers cannot use the referral link (no or unnamed client). */
+  link_active: boolean;
   n_users: number;
   flags: number;
   confirmed_fake: number;
@@ -87,9 +101,11 @@ export type AgentRanking = {
 
 export type AgentCustomer = {
   id: string;
+  reference: string;
   full_name: string;
   created_at: string;
   status: CustomerStatus;
+  registration_status: RegistrationStatus;
   assisted: boolean;
   assessment_id: string | null;
   probability: number | null;
@@ -161,6 +177,12 @@ export type Quality = {
   under_review: number;
   trend: MonthQuality[];
 };
+
+/** Public: the agent's display name and the client's organisation name. */
+export type JoinLink = { display_name: string; client_name: string };
+
+/** The reference is shown to the customer; it reveals nothing about the score. */
+export type RegistrationReceived = { message: string; reference: string };
 
 export type JoinRegistration = {
   full_name: string;

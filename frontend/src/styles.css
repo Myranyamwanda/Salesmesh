@@ -1290,6 +1290,13 @@ a:hover {
   font-size: 48px !important;
 }
 
+/* Monospace so 2/Z and 5/S stay easy to read aloud and copy. */
+.registration-reference {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace !important;
+  letter-spacing: 0.08em;
+  user-select: all;
+}
+
 .public-footer {
   padding: 16px 20px;
   border-top: 1px solid var(--line);

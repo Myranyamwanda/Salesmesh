@@ -33,21 +33,34 @@ async function fillRequiredFields() {
 beforeEach(() => {
   vi.spyOn(portalApi, "getJoinLink").mockResolvedValue({
     display_name: "Amina Otieno",
+    client_name: "Acme Bank",
   });
   vi.spyOn(portalApi, "registerCustomer").mockResolvedValue({
     message: "Registration received",
+    reference: "SM-7K3Q-9XPA",
   });
 });
 
 afterEach(cleanup);
 
 describe("public join page", () => {
-  it("shows the agent's display name", async () => {
+  it("names the client and the agent", async () => {
     renderJoin();
     expect(
-      await screen.findByText("Registering with Amina Otieno"),
+      await screen.findByText(
+        "You are registering for Acme Bank with agent Amina Otieno",
+      ),
     ).toBeInTheDocument();
     expect(portalApi.getJoinLink).toHaveBeenCalledWith(CODE);
+  });
+
+  it("says in the consent text that details are shared with the client", async () => {
+    renderJoin();
+    expect(
+      await screen.findByLabelText(
+        /share my details with Acme Bank for onboarding/,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("shows a friendly page for an inactive link", async () => {
@@ -58,6 +71,7 @@ describe("public join page", () => {
     expect(
       await screen.findByRole("heading", { name: "This link is not active" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("Contact your agent.")).toBeInTheDocument();
     expect(screen.queryByLabelText("Full name")).not.toBeInTheDocument();
   });
 
@@ -83,7 +97,10 @@ describe("public join page", () => {
     expect(dialog).toHaveTextContent(
       "register your account and to prevent fraud",
     );
-    expect(dialog).toHaveTextContent("not see them");
+    expect(dialog).toHaveTextContent(
+      "Your details are shared with Acme Bank, the organisation you are registering for",
+    );
+    expect(dialog).toHaveTextContent("sees only your name");
     expect(dialog).toHaveTextContent("privacy@example.com");
   });
 
@@ -116,6 +133,7 @@ describe("public join page", () => {
     expect(
       await screen.findByRole("heading", { name: "Registration received" }),
     ).toBeInTheDocument();
+    expect(screen.getByText("SM-7K3Q-9XPA")).toBeInTheDocument();
     // The neutral message never hints at a score or status.
     expect(document.body).not.toHaveTextContent(/flag|risk|review|score/i);
   });
@@ -141,7 +159,9 @@ describe("public join page", () => {
       link: "http://localhost:5173/join/AGT-OTHERAGT",
     });
     renderJoin(makeUser("agent"));
-    await screen.findByText("Registering with Amina Otieno");
+    await screen.findByText(
+      "You are registering for Acme Bank with agent Amina Otieno",
+    );
     await waitFor(() => expect(portalApi.getMyReferral).toHaveBeenCalled());
     expect(
       screen.queryByLabelText("I am registering this customer on my device"),
