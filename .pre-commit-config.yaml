@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.16.10
+    rev: v0.17.2
     hooks:
       # Python files only: the Jupyter notebooks in ml/notebooks are a research
       # record and must not be linted or reformatted.
