@@ -53,6 +53,7 @@ const assessment: AssessmentDetail = {
   created_at: "2026-10-10T08:00:00Z",
   customer: {
     id: "customer-1",
+    reference: "SM-7K3Q-9XPA",
     full_name: "Wanjiru Kamau",
     email: "wanjiru@gmail.com",
     mobile_phone: "0712345678",
@@ -65,6 +66,7 @@ const assessment: AssessmentDetail = {
     status: "pending_review",
     created_at: "2026-10-10T08:00:00Z",
   },
+  registration_status: "under_review",
   agent: { id: "agent-1", display_name: "Amina Otieno" },
   review: null,
 };
@@ -77,7 +79,12 @@ function agent(overrides: Partial<AgentRanking>): AgentRanking {
     referral_code: "AGT-7K3Q9XMD",
     status: "approved",
     is_active: true,
-    client: null,
+    client: {
+      id: "client-1",
+      email: "client@example.com",
+      organisation_name: "Acme Bank",
+    },
+    link_active: true,
     n_users: 40,
     flags: 2,
     confirmed_fake: 1,
@@ -241,11 +248,37 @@ describe("agents ranking", () => {
     await input.click(screen.getByRole("option", { name: "Watch" }));
     expect(rowNames()).toEqual(["Brian"]);
   });
+
+  it("lists agents without a client and marks inactive links", async () => {
+    vi.spyOn(scoringApi, "listAgents").mockResolvedValue([
+      ...agents,
+      agent({
+        id: "e",
+        display_name: "Esther",
+        client: null,
+        link_active: false,
+      }),
+    ]);
+    renderPage(<AgentsPage />, { user: admin });
+
+    const warning = await screen.findByRole("alert");
+    expect(warning).toHaveTextContent("Agents without a client");
+    expect(
+      within(warning).getByRole("link", { name: "Esther" }),
+    ).toHaveAttribute("href", "/admin/agents/e");
+    expect(within(warning).queryByText("Amina")).not.toBeInTheDocument();
+    const table = screen.getByRole("table");
+    expect(within(table).getAllByText("Link inactive")).toHaveLength(1);
+    expect(within(table).getByText("No client")).toBeInTheDocument();
+    expect(
+      within(table).getAllByText("Acme Bank (client@example.com)"),
+    ).toHaveLength(4);
+  });
 });
 
 describe("agent detail", () => {
   const detail: AgentDetail = {
-    ...agent({ client: null }),
+    ...agent({ client: null, link_active: false }),
     customers: [],
     customers_total: 0,
   };
@@ -253,10 +286,14 @@ describe("agent detail", () => {
   it("assigns and removes a client", async () => {
     const input = userEvent.setup();
     vi.spyOn(scoringApi, "getAgent").mockResolvedValue(detail);
-    vi.spyOn(adminApi, "listUsers").mockResolvedValue({
-      items: [admin, makeUser("client", { id: "client-1" })],
-      total: 2,
-    });
+    vi.spyOn(adminApi, "listClients").mockResolvedValue([
+      {
+        id: "client-1",
+        email: "client@example.com",
+        is_active: true,
+        organisation_name: "Acme Bank",
+      },
+    ]);
     const update = vi
       .spyOn(scoringApi, "updateAgent")
       .mockResolvedValue(detail);
@@ -267,14 +304,17 @@ describe("agent detail", () => {
     });
 
     await screen.findByRole("heading", { name: "Amina Otieno" });
+    expect(
+      screen.getByText(/Registration link not active/),
+    ).toBeInTheDocument();
     await input.click(screen.getByRole("combobox", { name: "Client" }));
     const options = await screen.findAllByRole("option");
     expect(options.map((option) => option.textContent)).toEqual([
       "No client",
-      "client@example.com",
+      "Acme Bank (client@example.com)",
     ]);
     await input.click(
-      screen.getByRole("option", { name: "client@example.com" }),
+      screen.getByRole("option", { name: "Acme Bank (client@example.com)" }),
     );
     await input.click(screen.getByRole("button", { name: "Save profile" }));
     await waitFor(() =>

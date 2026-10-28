@@ -19,7 +19,7 @@ import {
   KpiCard,
   PageError,
   PageHeader,
-  StatusChip,
+  RegistrationStatusChip,
   type DataColumn,
 } from "../../components/DataComponents";
 import { ReviewDialog } from "../../components/ReviewDialog";
@@ -36,9 +36,8 @@ function ProfileForm({ agent }: { agent: AgentDetail }) {
   const [clientId, setClientId] = useState(agent.client?.id ?? NO_CLIENT);
   const [notice, setNotice] = useState("");
   const clientsQuery = useQuery({
-    queryKey: ["admin", "users", "clients"],
-    queryFn: () => adminApi.listUsers(0, 100),
-    select: (page) => page.items.filter((user) => user.role === "client"),
+    queryKey: ["admin", "clients"],
+    queryFn: adminApi.listClients,
   });
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -79,19 +78,21 @@ function ProfileForm({ agent }: { agent: AgentDetail }) {
           label="Client"
           value={clientId}
           onChange={(event) => setClientId(event.target.value)}
-          helperText="The client this agent works for. The client sees only their agents' registration quality."
+          helperText="The client this agent works for. Customers see its organisation name on the registration link, and the client sees only their agents' registration quality."
         >
           <MenuItem value={NO_CLIENT}>No client</MenuItem>
           {(clientsQuery.data ?? []).map((client) => (
             <MenuItem key={client.id} value={client.id}>
-              {client.email}
+              {adminApi.clientLabel(client)}
             </MenuItem>
           ))}
           {agent.client &&
             !clientsQuery.data?.some(
               (client) => client.id === agent.client?.id,
             ) && (
-              <MenuItem value={agent.client.id}>{agent.client.email}</MenuItem>
+              <MenuItem value={agent.client.id}>
+                {adminApi.clientLabel(agent.client)}
+              </MenuItem>
             )}
         </TextField>
         {saveMutation.isError && (
@@ -124,6 +125,7 @@ export function AgentDetailPage() {
   const agent = agentQuery.data;
 
   const columns: DataColumn<AgentCustomer>[] = [
+    { key: "reference", label: "Reference", render: (row) => row.reference },
     { key: "name", label: "Customer", render: (row) => row.full_name },
     {
       key: "date",
@@ -133,7 +135,9 @@ export function AgentDetailPage() {
     {
       key: "status",
       label: "Status",
-      render: (row) => <StatusChip status={row.status} />,
+      render: (row) => (
+        <RegistrationStatusChip status={row.registration_status} />
+      ),
     },
     {
       key: "probability",
@@ -180,6 +184,13 @@ export function AgentDetailPage() {
       />
       {agent && (
         <>
+          {!agent.link_active && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Registration link not active. Customers can register only when the
+              agent is approved, active, and email-verified and works for an
+              active client that has an organisation name.
+            </Alert>
+          )}
           <section className="kpi-grid" aria-label="Agent reputation">
             <KpiCard
               label="Reputation"

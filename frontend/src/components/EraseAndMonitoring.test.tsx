@@ -25,6 +25,7 @@ function assessment(status: CustomerStatus): AssessmentDetail {
     created_at: "2026-10-10T08:00:00Z",
     customer: {
       id: "customer-1",
+      reference: "SM-7K3Q-9XPA",
       full_name: "Wanjiru Kamau",
       email: "wanjiru@gmail.com",
       mobile_phone: "0712345678",
@@ -37,6 +38,7 @@ function assessment(status: CustomerStatus): AssessmentDetail {
       status,
       created_at: "2026-10-10T08:00:00Z",
     },
+    registration_status: status === "verified" ? "verified" : "under_review",
     agent: { id: "agent-1", display_name: "Amina Otieno" },
     review: null,
   };
