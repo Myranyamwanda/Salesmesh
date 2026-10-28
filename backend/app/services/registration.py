@@ -12,6 +12,7 @@ from app.ml.model_service import ModelService
 from app.models import AgentProfile, Customer, User
 from app.schemas.join import JoinRegistrationInput
 from app.services.auth import active_user, client_address, hash_ip
+from app.services.email_checks import check_permanent_email
 from app.services.geoip import CountryLookup, request_country
 from app.services.scoring import score_customer
 
@@ -87,6 +88,8 @@ def register_customer(
 
     now = datetime.now(UTC)
     email = str(payload.email).lower()
+    # After the rate limit, so the DNS lookup cannot be used freely.
+    check_permanent_email(email, settings)
     data = RegistrationData(
         full_name=payload.full_name,
         email=email,

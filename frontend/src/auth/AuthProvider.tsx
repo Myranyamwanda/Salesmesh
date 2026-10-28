@@ -37,9 +37,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
-  async function signIn(email: string, password: string) {
-    const tokens = await authApi.login(email, password);
-    setAccessToken(tokens.access_token);
+  async function startSession(accessToken: string) {
+    setAccessToken(accessToken);
     try {
       const current = await authApi.getMe();
       setUser(current);
@@ -70,6 +69,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
   function clearSession() {
     setAccessToken(null);
     setUser(null);
+    // Loaded on demand so public pages such as /join never download Firebase.
+    void import("./firebase")
+      .then(({ signOutOfFirebase }) => signOutOfFirebase())
+      .catch(() => undefined);
   }
 
   return (
@@ -77,7 +80,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       value={{
         user,
         isLoading,
-        login: signIn,
+        startSession,
         logout: signOut,
         logoutAll: signOutAll,
         clearSession,

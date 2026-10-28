@@ -4,10 +4,16 @@ SQLAlchemy==2.0.54
 alembic==1.20.0
 pydantic-settings==2.15.0
 psycopg[binary]==3.3.6
-argon2-cffi==25.1.0
 PyJWT==2.15.1
 email-validator==2.3.0
 python-dotenv==1.2.4
+# Authentication: verifies Firebase ID tokens and manages Firebase users.
+firebase-admin==7.7.0
+# Admin multi-factor authentication: TOTP codes and encryption of TOTP secrets.
+pyotp==2.10.0
+cryptography==50.0.2
+# Real-email check: MX record lookups.
+dnspython==2.9.0
 
 # Fraud model. scikit-learn must match metadata.json "sklearn_version" exactly;
 # numpy, pandas, and joblib are pinned to the versions the golden test passed with.

@@ -26,12 +26,20 @@ export async function getUser(userId: string) {
   return data;
 }
 
+/** Creates the SalesMesh and Firebase account; there is no password yet. */
 export async function createUser(input: {
   email: string;
-  password: string;
   role: "admin" | "client";
 }) {
   const { data } = await api.post<AuthUser>("/admin/users", input);
+  return data;
+}
+
+/** Make sure the user has a Firebase account before Firebase emails them. */
+export async function preparePasswordEmail(userId: string) {
+  const { data } = await api.post<AuthUser>(
+    `/admin/users/${userId}/password-email`,
+  );
   return data;
 }
 
