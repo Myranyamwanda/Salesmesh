@@ -29,6 +29,8 @@ def test_schema_has_only_approved_tables(test_engine):
         "model_versions",
         # v1.1.0 admin MFA: hashes of one-time recovery codes.
         "mfa_recovery_codes",
+        # v1.2.0: a client's organisation name, shown on the /join page.
+        "client_profiles",
         "alembic_version",
     }
 
