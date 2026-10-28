@@ -7,3 +7,11 @@ export function apiErrorMessage(error: unknown, fallback: string) {
   }
   return fallback;
 }
+
+/** The API's stable error code, such as "account_pending", or "". */
+export function apiErrorCode(error: unknown) {
+  if (axios.isAxiosError<ApiErrorBody>(error)) {
+    return error.response?.data.error?.code ?? "";
+  }
+  return "";
+}

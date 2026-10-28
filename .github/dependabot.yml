@@ -17,11 +17,27 @@ updates:
       - dependency-name: numpy
       - dependency-name: pandas
       - dependency-name: joblib
+    groups:
+      # Test and tooling packages from requirements-dev.txt, one PR per month.
+      # Ruff is left out on purpose: its minor releases can add lint rules, so
+      # it keeps its own PR.
+      dev-tools:
+        patterns: ["pytest", "pre-commit", "httpx2", "faker"]
+        update-types: ["minor", "patch"]
   - package-ecosystem: npm
     directory: /frontend
     target-branch: develop
     schedule:
       interval: monthly
+    groups:
+      # React and its type packages must stay on the same version. This group
+      # comes first, so the @types packages are not taken by the dev group.
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
+      # Lint, test, and build tools: minor and patch updates in one PR.
+      dev-dependencies:
+        dependency-type: development
+        update-types: ["minor", "patch"]
   - package-ecosystem: github-actions
     directory: /
     target-branch: develop

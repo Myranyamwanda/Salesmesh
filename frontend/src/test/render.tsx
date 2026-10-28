@@ -13,6 +13,7 @@ export function makeUser(role: UserRole, overrides: Partial<AuthUser> = {}) {
     status: "approved",
     is_active: true,
     email_verified_at: "2026-01-01T00:00:00Z",
+    firebase_linked: true,
     created_at: "2026-01-01T00:00:00Z",
     ...overrides,
   } satisfies AuthUser;
@@ -36,7 +37,7 @@ export function renderPage(
   const auth: AuthContextValue = {
     user,
     isLoading: false,
-    login: async () => user as AuthUser,
+    startSession: async () => user as AuthUser,
     logout: async () => undefined,
     logoutAll: async () => undefined,
     clearSession: () => undefined,
@@ -56,9 +57,13 @@ export function renderPage(
 }
 
 /** An axios-like error with an HTTP status, as the API helpers would throw. */
-export function httpError(status: number, message = "Request failed") {
+export function httpError(
+  status: number,
+  message = "Request failed",
+  code = `http_${status}`,
+) {
   return Object.assign(new Error(message), {
     isAxiosError: true,
-    response: { status, data: { error: { message } } },
+    response: { status, data: { error: { code, message } } },
   });
 }

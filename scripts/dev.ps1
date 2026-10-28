@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "fetch-model", "seed-demo", "reset-demo", "test", "lint")]
+    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "reset-mfa", "deactivate-user", "fetch-model", "seed-demo", "reset-demo", "test", "lint")]
     [string]$Command,
     [string]$Email
 )
@@ -52,20 +52,26 @@ try {
             docker compose exec backend alembic upgrade head
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
-        "create-admin" {
+        { $_ -in "create-admin", "reset-mfa", "deactivate-user" } {
+            # create-admin: new admin in SalesMesh and Firebase; prints a set-password link.
+            # reset-mfa: removes an admin's authenticator app (lost phone).
+            # deactivate-user: keeps the account for audit history; never the last usable admin.
             if ([string]::IsNullOrWhiteSpace($Email)) {
-                throw "Pass -Email with the new administrator's email address."
+                throw "Pass -Email with the account's email address."
             }
-            docker compose exec backend python manage.py create-admin --email $Email
+            docker compose exec backend python manage.py $Command --email $Email
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
         "seed-demo" {
-            # Demo accounts use @demo.example.com and DEMO_PASSWORD from .env.
+            # Demo accounts use @demo.example.com and DEMO_PASSWORD from .env, in
+            # SalesMesh and Firebase. Prints the demo admin's authenticator key once.
+            # Runs in the Linux container, so names and dates match on every machine.
             docker compose exec backend python manage.py seed-demo
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
         "reset-demo" {
-            # Deletes only demo users and the customers of demo agents.
+            # Deletes only demo users, their Firebase accounts, and the customers
+            # of demo agents. Never touches other accounts.
             docker compose exec backend python manage.py reset-demo
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
