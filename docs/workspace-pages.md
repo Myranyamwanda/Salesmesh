@@ -28,21 +28,26 @@ remains the authority for every permission.
 `PublicLayout` is a single, mobile-first column without the sidebar, built for
 phones from 320 px wide up to laptops. The page:
 
-- shows "Registering with {display name}", or a friendly "This link is not
-  active" page for any unknown or inactive link;
+- shows "You are registering for {client name} with agent {display name}",
+  or a friendly "This link is not active. Contact your agent." page for any
+  unknown or inactive link (including an agent without a named, active
+  client);
 - collects only the fields the model needs (see
   [ML model service](ml-scoring.md)), with the country as a short East African
   list plus a few others, defaulting to Kenya;
 - requires a consent checkbox under the Kenya Data Protection Act 2019, next to
   a "How we use your data" dialog: the data is used for registration and fraud
-  prevention, it is seen by SalesMesh administrators and not by the agent, and
+  prevention and shared with the named client for onboarding (consent version
+  2), SalesMesh administrators also see it, the agent sees only the name and
+  registration date, and
   the customer can ask for access or deletion at `VITE_PRIVACY_CONTACT_EMAIL`;
 - sends the minutes from opening the form to submitting it, a random device ID
   kept in `localStorage` (missing if storage is blocked), and the browser user
   agent;
 - offers "I am registering this customer on my device" only to the signed-in
   agent who owns the link;
-- shows the same neutral "Registration received" message whatever the score.
+- shows the same neutral "Registration received" message and a reference
+  number whatever the score.
 
 ## Agent Area
 

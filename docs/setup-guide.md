@@ -27,17 +27,21 @@ Clients (and other admins) are created by an admin in **User management**
 without a password: Firebase emails them a link to set one, and they can also
 use Google sign-in with the same address. Admins also set up an authenticator
 app at their first sign-in. An admin assigns an agent to a client on the
-agent's detail page. See [Authentication](authentication.md) for every flow.
+agent's detail page. A client needs an organisation name (asked for when the
+client account is created, or set later in User management): an agent's link
+works only for an active client that has one. See
+[Authentication](authentication.md) for every flow.
 
 ## 2. Register a Customer
 
 1. As the agent, open **Referral link** and copy the link (or show the QR
    code).
-2. In another private window, open the link. The page shows "Registering with
-   <agent name>".
-3. Fill in the form, tick the consent box (the "How we use your data" link
-   explains the processing), and submit. The customer always sees
-   "Registration received".
+2. In another private window, open the link. The page shows "You are
+   registering for <client name> with agent <agent name>".
+3. Fill in the form, tick the consent box (it says the details are shared
+   with that client for onboarding; the "How we use your data" link explains
+   the processing), and submit. The customer always sees "Registration
+   received" and a reference number such as SM-7K3Q-9XPA.
 4. As the agent, **My customers** now lists the customer by name, date, and
    assisted flag only.
 
