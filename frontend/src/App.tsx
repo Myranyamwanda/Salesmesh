@@ -29,9 +29,6 @@ const ForgotPasswordPage = named(authPages, "ForgotPasswordPage");
 const LoginPage = named(authPages, "LoginPage");
 const RegistrationPage = named(authPages, "RegistrationPage");
 const RegistrationPendingPage = named(authPages, "RegistrationPendingPage");
-const ResendVerificationPage = named(authPages, "ResendVerificationPage");
-const ResetPasswordPage = named(authPages, "ResetPasswordPage");
-const VerifyEmailPage = named(authPages, "VerifyEmailPage");
 const AdminAuditLogPage = named(
   () => import("./pages/AdminAuditLogPage"),
   "AdminAuditLogPage",
@@ -137,13 +134,7 @@ function AppRoutes() {
               path="/registration-pending"
               element={<RegistrationPendingPage />}
             />
-            <Route path="/verify-email" element={<VerifyEmailPage />} />
-            <Route
-              path="/resend-verification"
-              element={<ResendVerificationPage />}
-            />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
           </Route>
           {/* Public: customers register without signing in. */}
           <Route element={<PublicLayout />}>

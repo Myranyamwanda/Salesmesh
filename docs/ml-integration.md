@@ -93,7 +93,8 @@ sequenceDiagram
 
 `.\scripts\dev.ps1 seed-demo` creates a demo admin, 3 clients, and 40 agents
 (4 fraudulent) on `@demo.example.com`, all verified, approved, and active,
-with `DEMO_PASSWORD` from `.env`. About 3,300 rows of
+in SalesMesh and in Firebase, with `DEMO_PASSWORD` from `.env`. The demo admin
+also gets an authenticator; its setup key is printed once. About 3,300 rows of
 `ml/model_contract/demo_sample.csv` become customers spread over the last 12
 months.
 
@@ -111,7 +112,9 @@ months.
   `fraud_bool` is never stored.
 - The command runs in one transaction, adds nothing if demo data exists, and
   prints the demo logins. `.\scripts\dev.ps1 reset-demo` deletes only demo
-  users and their customers.
+  users, their Firebase accounts, and their customers. Firebase calls never
+  use the seeded random generator, so the customers, scores, and reviews are
+  the same as before v1.1.0.
 - The device rule never fires on demo rows, because no BAF row has more than
   2 emails per device. Register 3 different emails from one browser on a
   `/join` link to show it live.

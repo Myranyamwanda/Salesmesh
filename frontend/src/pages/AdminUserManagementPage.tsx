@@ -26,7 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import * as adminApi from "../api/admin";
-import { resendVerification } from "../api/auth";
+import { sendPasswordReset } from "../auth/firebase";
 import {
   DataTable,
   PageError,
@@ -34,7 +34,6 @@ import {
   PageHeader,
   type DataColumn,
 } from "../components/DataComponents";
-import { PasswordField } from "../components/PasswordField";
 import { useAuth } from "../hooks/useAuth";
 import type { AuthUser, UserRole } from "../types/auth";
 import { apiErrorMessage } from "../utils/errors";
@@ -42,14 +41,6 @@ import { apiErrorMessage } from "../utils/errors";
 const createSchema = z.object({
   email: z.string().trim().email("Enter a valid email address").max(320),
   role: z.enum(["admin", "client"]),
-  password: z
-    .string()
-    .min(12, "Use at least 12 characters")
-    .max(128, "Use no more than 128 characters")
-    .regex(/[a-z]/, "Add a lowercase letter")
-    .regex(/[A-Z]/, "Add an uppercase letter")
-    .regex(/\d/, "Add a number")
-    .regex(/[^a-zA-Z0-9\s]/, "Add a symbol"),
 });
 
 type CreateValues = z.infer<typeof createSchema>;
@@ -60,8 +51,9 @@ function userStatus(user: AuthUser) {
     return { label: "Pending", color: "warning" as const };
   if (user.status === "rejected")
     return { label: "Rejected", color: "error" as const };
+  // Set at the first sign-in with a Firebase-verified email.
   if (!user.email_verified_at)
-    return { label: "Verify email", color: "info" as const };
+    return { label: "Not signed in yet", color: "info" as const };
   return { label: "Active", color: "success" as const };
 }
 
@@ -85,12 +77,26 @@ export function AdminUserManagementPage() {
     queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
 
   const createMutation = useMutation({
-    mutationFn: (input: CreateValues) => adminApi.createUser(input),
-    onSuccess: (created) => {
-      setCreateOpen(false);
-      setNotice(
-        `Account created. A verification link was sent for ${created.email}.`,
+    mutationFn: async (input: CreateValues) => {
+      const created = await adminApi.createUser(input);
+      // Firebase emails the person a link to set their password.
+      const emailed = await sendPasswordReset(created.email).then(
+        () => true,
+        () => false,
       );
+      return { created, emailed };
+    },
+    onSuccess: ({ created, emailed }) => {
+      setCreateOpen(false);
+      if (emailed) {
+        setNotice(
+          `Account created. A “set your password” email was sent to ${created.email}.`,
+        );
+      } else {
+        setError(
+          `Account created, but the password email could not be sent. Use “Send password email” for ${created.email}.`,
+        );
+      }
       void refreshUsers();
     },
     onError: (cause) =>
@@ -137,10 +143,20 @@ export function AdminUserManagementPage() {
       setError(apiErrorMessage(cause, "Could not update account role.")),
   });
   const resendMutation = useMutation({
-    mutationFn: (email: string) => resendVerification(email),
-    onSuccess: (result) => setNotice(result.message),
+    // Firebase emails only existing accounts, so the backend first creates
+    // the Firebase account if it is missing (accounts from before Firebase).
+    mutationFn: async (user: AuthUser) => {
+      await adminApi.preparePasswordEmail(user.id);
+      await sendPasswordReset(user.email);
+    },
+    onSuccess: (_, user) => {
+      setNotice(`Password email sent to ${user.email}.`);
+      void refreshUsers();
+    },
     onError: (cause) =>
-      setError(apiErrorMessage(cause, "Could not resend verification.")),
+      setError(
+        apiErrorMessage(cause, "Could not send the password email. Try again."),
+      ),
   });
 
   const rows = useMemo(
@@ -266,15 +282,17 @@ export function AdminUserManagementPage() {
               </Button>
             </Stack>
           )}
-          {!row.email_verified_at && row.is_active && (
-            <Button
-              size="small"
-              onClick={() => resendMutation.mutate(row.email)}
-              disabled={resendMutation.isPending}
-            >
-              Resend verification
-            </Button>
-          )}
+          {row.is_active &&
+            (!row.email_verified_at || !row.firebase_linked) && (
+              <Button
+                size="small"
+                aria-label={`Send password email to ${row.email}`}
+                onClick={() => resendMutation.mutate(row)}
+                disabled={resendMutation.isPending}
+              >
+                Send password email
+              </Button>
+            )}
         </div>
       ),
     },
@@ -331,7 +349,7 @@ export function AdminUserManagementPage() {
             <MenuItem value="all">All statuses</MenuItem>
             <MenuItem value="active">Active</MenuItem>
             <MenuItem value="pending">Pending</MenuItem>
-            <MenuItem value="verify-email">Verify email</MenuItem>
+            <MenuItem value="not-signed-in-yet">Not signed in yet</MenuItem>
             <MenuItem value="inactive">Inactive</MenuItem>
             <MenuItem value="rejected">Rejected</MenuItem>
           </Select>
@@ -419,7 +437,7 @@ function CreateAccountDialog({
 }) {
   const form = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { email: "", role: "client", password: "" },
+    defaultValues: { email: "", role: "client" },
   });
   const {
     register,
@@ -438,8 +456,10 @@ function CreateAccountDialog({
         <DialogTitle>Create an authentication account</DialogTitle>
         <DialogContent className="dialog-form-content">
           <Typography color="text.secondary">
-            Admin and client accounts are approved on creation. Email
-            verification is still required before sign-in.
+            Admin and client accounts are approved on creation. The person gets
+            an email with a link to set their password; Google sign-in also
+            works for the same address. Admins set up an authenticator app at
+            their first sign-in.
           </Typography>
           <TextField
             label="Email address"
@@ -461,13 +481,6 @@ function CreateAccountDialog({
                 </Select>
               </FormControl>
             )}
-          />
-          <PasswordField
-            label="Temporary password"
-            autoComplete="new-password"
-            registration={register("password")}
-            error={errors.password?.message}
-            hint="12–128 characters with upper, lower, number, and symbol"
           />
           {error && <Alert severity="error">{error}</Alert>}
         </DialogContent>
