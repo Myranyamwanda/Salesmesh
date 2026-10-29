@@ -1,5 +1,10 @@
 import { useId, type ReactNode } from "react";
-import type { Band, CustomerStatus, ReasonSource } from "../types/scoring";
+import type {
+  Band,
+  CustomerStatus,
+  ReasonSource,
+  RegistrationStatus,
+} from "../types/scoring";
 import {
   Alert,
   Box,
@@ -153,6 +158,24 @@ const statusLabels = {
 
 export function StatusChip({ status }: { status: CustomerStatus }) {
   const { label, color } = statusLabels[status];
+  return <Chip size="small" variant="outlined" color={color} label={label} />;
+}
+
+const registrationLabels = {
+  received: { label: "Received", color: "default" },
+  clear: { label: "Clear", color: "success" },
+  under_review: { label: "Under review", color: "warning" },
+  verified: { label: "Verified", color: "success" },
+  rejected: { label: "Rejected", color: "error" },
+} as const;
+
+/** Admin only: the registration pipeline status (it reveals the flag). */
+export function RegistrationStatusChip({
+  status,
+}: {
+  status: RegistrationStatus;
+}) {
+  const { label, color } = registrationLabels[status];
   return <Chip size="small" variant="outlined" color={color} label={label} />;
 }
 

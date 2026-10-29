@@ -1,3 +1,4 @@
+import re
 from datetime import date, timedelta
 from uuid import uuid4
 
@@ -10,7 +11,8 @@ from test_model_service import REAL_MODEL_DIR
 from app.core.config import get_settings
 from app.ml.features import ASSISTED_UNKNOWN, FEATURE_NAMES
 from app.ml.model_service import ModelService, load_folder
-from app.models import Customer, RiskAssessment
+from app.models import AgentProfile, ClientProfile, Customer, RiskAssessment, User
+from app.models.customer import CONSENT_VERSION
 from app.services.agents import create_agent_profile
 
 NEVER_FLAG = 1.0
@@ -18,11 +20,26 @@ ALWAYS_FLAG = 0.0
 WINDOWS = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/141.0 Safari/537.36"
 
 
+REFERENCE = re.compile(r"^SM-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}$")
+
+
+def add_client(session, email="client@example.com", organisation="Acme Bank"):
+    """A client account with an organisation name, as v1.2.0 join links need."""
+    client_user = add_user(session, role="client", email=email)
+    if organisation is not None:
+        session.add(
+            ClientProfile(user_id=client_user.id, organisation_name=organisation)
+        )
+        session.commit()
+    return client_user
+
+
 @pytest.fixture
 def join(auth_context):  # noqa: F811
     client, session, _, settings = auth_context
     agent = add_user(session, role="agent", email="agent@example.com")
     profile = create_agent_profile(session, agent, "Amina Otieno")
+    profile.client_id = add_client(session).id
     session.commit()
     use_model(client, NEVER_FLAG)
     return client, session, settings, agent, profile.referral_code
@@ -55,16 +72,29 @@ def count(session, model):
     return session.scalar(select(func.count()).select_from(model))
 
 
-def test_join_link_returns_display_name_only(join):
+def test_join_link_returns_agent_and_client_names_only(join):
     client, _, _, _, code = join
     response = client.get(f"/join/{code}")
     assert response.status_code == 200
-    assert response.json() == {"display_name": "Amina Otieno"}
+    assert response.json() == {
+        "display_name": "Amina Otieno",
+        "client_name": "Acme Bank",
+    }
     assert client.get(f"/join/{code.lower()}").status_code == 200
 
 
 def make_inactive(session, agent, case):
-    if case == "pending":
+    profile = session.get(AgentProfile, agent.id)
+    client_user = session.get(User, profile.client_id)
+    if case == "no_client":
+        profile.client_id = None
+    elif case == "client_deactivated":
+        client_user.is_active = False
+    elif case == "client_role_changed":
+        client_user.role = "admin"
+    elif case == "client_without_organisation":
+        session.delete(session.get(ClientProfile, client_user.id))
+    elif case == "pending":
         agent.status = "pending"
     elif case == "deactivated":
         agent.is_active = False
@@ -76,7 +106,18 @@ def make_inactive(session, agent, case):
 
 
 @pytest.mark.parametrize(
-    "case", ["unknown_code", "pending", "deactivated", "role_changed", "unverified"]
+    "case",
+    [
+        "unknown_code",
+        "pending",
+        "deactivated",
+        "role_changed",
+        "unverified",
+        "no_client",
+        "client_deactivated",
+        "client_role_changed",
+        "client_without_organisation",
+    ],
 )
 def test_inactive_links_give_the_same_neutral_response(join, case):
     client, session, _, agent, code = join
@@ -93,7 +134,7 @@ def test_inactive_links_give_the_same_neutral_response(join, case):
         error = response.json()["error"]
         assert (error["code"], error["message"]) == (
             "http_404",
-            "This link is not active",
+            "This link is not active. Contact your agent.",
         )
     assert count(session, Customer) == 0
 
@@ -104,9 +145,16 @@ def test_registration_saves_customer_and_assessment(join):
     response = client.post(f"/join/{code}/register", json=form())
 
     assert response.status_code == 201
-    assert response.json() == {"message": "Registration received"}
     customer = session.scalar(select(Customer))
+    assert response.json() == {
+        "message": "Registration received",
+        "reference": customer.reference,
+    }
+    assert REFERENCE.match(customer.reference)
     assert customer.agent_id == agent.id
+    # The client and consent wording the customer agreed to are recorded.
+    assert customer.client_id == session.get(AgentProfile, agent.id).client_id
+    assert customer.consent_version == CONSENT_VERSION == 2
     assert customer.email == "wanjiru.kamau@gmail.com"
     assert customer.country == "KE"
     assert customer.secondary_phone is None
@@ -131,7 +179,7 @@ def test_flagged_registration_waits_for_review(join):
 
     response = client.post(f"/join/{code}/register", json=form())
 
-    assert response.json() == {"message": "Registration received"}
+    assert response.json()["message"] == "Registration received"
     assert session.scalar(select(Customer)).status == "pending_review"
     assessment = session.scalar(select(RiskAssessment))
     assert assessment.flagged is True
@@ -196,7 +244,9 @@ def test_assisted_registration_requires_the_owning_agent(join):
         == 403
     )
     other = add_user(session, role="agent", email="other@example.com")
-    create_agent_profile(session, other, "Other Agent")
+    create_agent_profile(session, other, "Other Agent").client_id = add_client(
+        session, "other-client@example.com"
+    ).id
     session.commit()
     headers = bearer_headers(sign_in(client, "other@example.com"))
     response = client.post(
@@ -251,7 +301,9 @@ def test_registration_response_never_contains_scores(join):
     client, _, _, _, code = join
     use_model(client, ALWAYS_FLAG)
     response = client.post(f"/join/{code}/register", json=form())
-    for word in ("probability", "flag", "reason", "pending", "score"):
+    # A flagged registration gets exactly the same fields as a clear one.
+    assert set(response.json()) == {"message", "reference"}
+    for word in ("probability", "flag", "reason", "pending", "score", "review"):
         assert word not in response.text.lower()
 
 
@@ -263,7 +315,7 @@ def test_third_email_on_one_device_is_flagged_by_rule(join):
             f"/join/{code}/register",
             json=form(email=f"person{i}@gmail.com", device_id=device),
         )
-        assert response.json() == {"message": "Registration received"}
+        assert response.json()["message"] == "Registration received"
 
     # Customers get their created_at from Python, so they order reliably even
     # inside one test transaction.

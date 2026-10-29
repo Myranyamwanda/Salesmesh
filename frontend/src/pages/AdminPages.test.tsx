@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import * as adminApi from "../api/admin";
 import { AuthContext, type AuthContextValue } from "../auth/context";
@@ -70,6 +70,10 @@ afterEach(() => {
 });
 
 describe("admin user management", () => {
+  beforeEach(() => {
+    vi.spyOn(adminApi, "listClients").mockResolvedValue([]);
+  });
+
   it("lists authentication accounts and approves a pending agent", async () => {
     vi.spyOn(adminApi, "listUsers").mockResolvedValue({
       items: [adminUser, pendingAgent],
@@ -122,6 +126,10 @@ describe("admin user management", () => {
       screen.getByLabelText("Email address"),
       "new-admin@example.com",
     );
+    await interaction.type(
+      screen.getByLabelText("Organisation name"),
+      " Acme Bank ",
+    );
     // No password field: the person sets their own from Firebase's email.
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     const createButtons = screen.getAllByRole("button", {
@@ -133,6 +141,7 @@ describe("admin user management", () => {
       expect(create).toHaveBeenCalledWith({
         email: "new-admin@example.com",
         role: "client",
+        organisation_name: "Acme Bank",
       }),
     );
     expect(firebase.sendPasswordReset).toHaveBeenCalledWith(
@@ -167,6 +176,10 @@ describe("admin user management", () => {
     await interaction.type(
       screen.getByLabelText("Email address"),
       "client@example.com",
+    );
+    await interaction.type(
+      screen.getByLabelText("Organisation name"),
+      "Acme Bank",
     );
     const createButtons = screen.getAllByRole("button", {
       name: "Create account",
@@ -285,5 +298,100 @@ describe("admin audit log", () => {
     expect(screen.getByText(adminUser.id)).toBeInTheDocument();
     expect(screen.queryByText("private-ip-hash")).not.toBeInTheDocument();
     expect(screen.queryByText("hidden-password")).not.toBeInTheDocument();
+  });
+});
+
+describe("client organisation names", () => {
+  const client: AuthUser = {
+    ...adminUser,
+    id: "client-id",
+    email: "client@example.com",
+    role: "client",
+  };
+
+  it("requires an organisation name for a client but not for an admin", async () => {
+    vi.spyOn(adminApi, "listUsers").mockResolvedValue({
+      items: [adminUser],
+      total: 1,
+    });
+    vi.spyOn(adminApi, "listClients").mockResolvedValue([]);
+    const create = vi
+      .spyOn(adminApi, "createUser")
+      .mockResolvedValue({ ...adminUser, id: "new-id" });
+    renderAdmin(<AdminUserManagementPage />);
+    const interaction = userEvent.setup();
+    await interaction.click(
+      await screen.findByRole("button", { name: "Create account" }),
+    );
+    await interaction.type(
+      screen.getByLabelText("Email address"),
+      "new@example.com",
+    );
+    const submit = () => {
+      const buttons = screen.getAllByRole("button", { name: "Create account" });
+      return interaction.click(buttons[buttons.length - 1]);
+    };
+    await submit();
+    expect(
+      await screen.findByText("Enter the organisation name"),
+    ).toBeInTheDocument();
+    expect(create).not.toHaveBeenCalled();
+
+    await interaction.click(screen.getByRole("combobox", { name: "Role" }));
+    await interaction.click(screen.getByRole("option", { name: "Admin" }));
+    expect(
+      screen.queryByLabelText("Organisation name"),
+    ).not.toBeInTheDocument();
+    await submit();
+    await waitFor(() =>
+      expect(create).toHaveBeenCalledWith({
+        email: "new@example.com",
+        role: "admin",
+      }),
+    );
+  });
+
+  it("shows a missing organisation name and lets the admin set it", async () => {
+    vi.spyOn(adminApi, "listUsers").mockResolvedValue({
+      items: [adminUser, client],
+      total: 2,
+    });
+    vi.spyOn(adminApi, "listClients").mockResolvedValue([
+      {
+        id: client.id,
+        email: client.email,
+        is_active: true,
+        organisation_name: null,
+      },
+    ]);
+    const save = vi.spyOn(adminApi, "setClientOrganisation").mockResolvedValue({
+      id: client.id,
+      email: client.email,
+      is_active: true,
+      organisation_name: "Acme Bank",
+    });
+    renderAdmin(<AdminUserManagementPage />);
+    const interaction = userEvent.setup();
+
+    expect(await screen.findByText("No organisation name")).toBeInTheDocument();
+    await interaction.click(
+      screen.getByRole("button", {
+        name: "Set organisation name for client@example.com",
+      }),
+    );
+    const dialog = await screen.findByRole("dialog");
+    await interaction.type(
+      within(dialog).getByLabelText("Organisation name"),
+      "  Acme Bank ",
+    );
+    await interaction.click(
+      within(dialog).getByRole("button", { name: "Save" }),
+    );
+    await waitFor(() =>
+      expect(save).toHaveBeenCalledWith("client-id", "Acme Bank"),
+    );
+    expect(
+      await screen.findByText("Organisation name saved."),
+    ).toBeInTheDocument();
   });
 });

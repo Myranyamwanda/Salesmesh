@@ -4,10 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.auth import Configuration, Database, OptionalUser
 from app.ml.model_service import ModelService, ModelUnavailableError, get_model_service
-from app.schemas.auth import MessageResponse
-from app.schemas.join import JoinAgentRead, JoinRegistrationInput
+from app.schemas.join import (
+    JoinAgentRead,
+    JoinRegistrationInput,
+    RegistrationReceived,
+)
 from app.services.geoip import CountryLookup, get_country_lookup
-from app.services.registration import active_agent_profile, register_customer
+from app.services.registration import active_join_link, register_customer
 
 router = APIRouter(prefix="/join", tags=["Public registration"])
 type Models = Annotated[ModelService, Depends(get_model_service)]
@@ -16,11 +19,14 @@ type Lookup = Annotated[CountryLookup, Depends(get_country_lookup)]
 
 @router.get("/{code}", response_model=JoinAgentRead)
 def read_join_link(code: str, session: Database) -> JoinAgentRead:
-    """Public: the agent's display name only."""
-    return JoinAgentRead(display_name=active_agent_profile(session, code).display_name)
+    """Public: the agent's display name and the client's organisation name only."""
+    link = active_join_link(session, code)
+    return JoinAgentRead(
+        display_name=link.profile.display_name, client_name=link.organisation_name
+    )
 
 
-@router.post("/{code}/register", response_model=MessageResponse, status_code=201)
+@router.post("/{code}/register", response_model=RegistrationReceived, status_code=201)
 def register(
     code: str,
     payload: JoinRegistrationInput,
@@ -30,10 +36,14 @@ def register(
     model_service: Models,
     lookup: Lookup,
     signed_in: OptionalUser,
-) -> MessageResponse:
-    """Public: register a customer. The response never contains the score."""
+) -> RegistrationReceived:
+    """Public: register a customer. The response never contains the score.
+
+    The reference lets the customer quote their registration; it reveals
+    nothing about the score or the review.
+    """
     try:
-        register_customer(
+        customer = register_customer(
             session,
             request,
             settings,
@@ -48,4 +58,6 @@ def register(
         raise HTTPException(
             503, "Registration is temporarily unavailable. Please try again later."
         ) from None
-    return MessageResponse(message="Registration received")
+    return RegistrationReceived(
+        message="Registration received", reference=customer.reference
+    )

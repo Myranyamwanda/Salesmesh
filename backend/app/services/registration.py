@@ -1,41 +1,106 @@
 """Public customer registration through an agent's referral link."""
 
+import secrets
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException, Request
 from sqlalchemy import func, select, text
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, aliased
 
 from app.core.config import Settings
 from app.ml.features import RegistrationData, build_features
 from app.ml.model_service import ModelService
-from app.models import AgentProfile, Customer, User
+from app.models import AgentProfile, ClientProfile, Customer, User
+from app.models.agent import REFERRAL_ALPHABET
+from app.models.customer import (
+    CONSENT_VERSION,
+    REFERENCE_GROUP_LENGTH,
+    REFERENCE_PREFIX,
+)
 from app.schemas.join import JoinRegistrationInput
 from app.services.auth import active_user, client_address, hash_ip
 from app.services.email_checks import check_permanent_email
 from app.services.geoip import CountryLookup, request_country
 from app.services.scoring import score_customer
 
-INACTIVE_LINK = "This link is not active"
+INACTIVE_LINK = "This link is not active. Contact your agent."
 # Separates these advisory locks from the login rate-limit locks.
 JOIN_LOCK_NAMESPACE = 2
 
 
-def active_agent_profile(session: Session, code: str) -> AgentProfile:
-    """Return the profile behind a referral code, or raise one neutral 404.
+@dataclass(frozen=True)
+class JoinLink:
+    profile: AgentProfile
+    client: User
+    organisation_name: str
 
-    The link works only for an agent who is approved, active, and verified
-    (the same check as login). Every other case gives the same response, so
-    the page never reveals why a link stopped working.
+
+def link_is_active(
+    agent: User, client: User | None, client_profile: ClientProfile | None
+) -> bool:
+    """The rule for a working referral link, shared with the admin Agents page.
+
+    The agent must be approved, active, and verified (the same check as login)
+    and still have the agent role. The agent must also work for an active
+    client with an organisation name, because the consent text names that
+    client as the organisation the customer's details are shared with.
     """
+    return (
+        agent.role == "agent"
+        and active_user(agent)
+        and client is not None
+        and client.role == "client"
+        and client.is_active
+        and client_profile is not None
+    )
+
+
+def active_join_link(session: Session, code: str) -> JoinLink:
+    """Return the agent and client behind a referral code, or one neutral 404.
+
+    Every inactive case gives the same response, so the page never reveals why
+    a link stopped working.
+    """
+    client = aliased(User)
     row = session.execute(
-        select(AgentProfile, User)
+        select(AgentProfile, User, client, ClientProfile)
         .join(User, User.id == AgentProfile.user_id)
+        .outerjoin(client, client.id == AgentProfile.client_id)
+        .outerjoin(ClientProfile, ClientProfile.user_id == AgentProfile.client_id)
         .where(AgentProfile.referral_code == code.upper())
     ).first()
-    if row is None or row.User.role != "agent" or not active_user(row.User):
+    if row is None or not link_is_active(row[1], row[2], row[3]):
         raise HTTPException(404, INACTIVE_LINK)
-    return row.AgentProfile
+    profile, _, client_user, client_profile = row
+    return JoinLink(profile, client_user, client_profile.organisation_name)
+
+
+def new_reference() -> str:
+    """Return a random reference such as SM-7K3Q-9XPA.
+
+    secrets (not random) makes references unpredictable, and the demo seed's
+    random generator is never touched, so seeded data stays reproducible.
+    """
+    groups = (
+        "".join(
+            secrets.choice(REFERRAL_ALPHABET) for _ in range(REFERENCE_GROUP_LENGTH)
+        )
+        for _ in range(2)
+    )
+    return REFERENCE_PREFIX + "-".join(groups)
+
+
+def unique_reference(session: Session) -> str:
+    # About 8.5 * 10^11 references; the unique constraint is the final guard.
+    for _ in range(5):
+        reference = new_reference()
+        taken = session.scalar(
+            select(Customer.id).where(Customer.reference == reference)
+        )
+        if taken is None:
+            return reference
+    raise RuntimeError("Could not generate a unique registration reference")
 
 
 def check_join_rate(session: Session, ip_hash: str, settings: Settings) -> None:
@@ -72,7 +137,8 @@ def register_customer(
 
     Raises ModelUnavailableError (nothing is saved) when the model is not ok.
     """
-    profile = active_agent_profile(session, code)
+    link = active_join_link(session, code)
+    profile = link.profile
     if payload.assisted and (signed_in is None or signed_in.id != profile.user_id):
         raise HTTPException(
             403, "Assisted registration requires the agent to be signed in"
@@ -115,6 +181,8 @@ def register_customer(
     )
     customer = Customer(
         agent_id=profile.user_id,
+        client_id=link.client.id,
+        reference=unique_reference(session),
         full_name=payload.full_name,
         email=email,
         mobile_phone=payload.mobile_phone,
@@ -127,6 +195,7 @@ def register_customer(
         ip_address_hash=ip_hash,
         assisted=payload.assisted,
         consent_at=now,
+        consent_version=CONSENT_VERSION,
         created_at=now,
     )
     session.add(customer)

@@ -99,9 +99,11 @@ function submitMessage(error: unknown) {
 export function PrivacyDialog({
   open,
   onClose,
+  clientName,
 }: {
   open: boolean;
   onClose: () => void;
+  clientName: string;
 }) {
   return (
     <Dialog open={open} onClose={onClose} aria-labelledby="privacy-title">
@@ -112,8 +114,10 @@ export function PrivacyDialog({
           to prevent fraud, under the Kenya Data Protection Act 2019.
         </Typography>
         <Typography sx={{ mb: 2 }}>
-          Your details are seen by SalesMesh administrators only. The agent who
-          shared this link does not see them.
+          Your details are shared with {clientName}, the organisation you are
+          registering for, so that it can complete your onboarding. SalesMesh
+          administrators also see them. The agent who shared this link sees only
+          your name and the date you registered.
         </Typography>
         <Typography>
           You can ask to see or delete your data at any time by writing to{" "}
@@ -137,14 +141,12 @@ function InactiveLink() {
       <Typography component="h1" variant="h5">
         This link is not active
       </Typography>
-      <Typography color="text.secondary">
-        Please ask the person who shared it for a new registration link.
-      </Typography>
+      <Typography color="text.secondary">Contact your agent.</Typography>
     </section>
   );
 }
 
-function RegistrationReceived() {
+function RegistrationReceived({ reference }: { reference: string }) {
   return (
     <section className="public-state" role="status">
       <CheckCircleOutlined className="public-state-icon" aria-hidden="true" />
@@ -153,6 +155,18 @@ function RegistrationReceived() {
       </Typography>
       <Typography color="text.secondary">
         Thank you. Your details have been submitted.
+      </Typography>
+      <Typography sx={{ mt: 2 }}>Your reference number</Typography>
+      <Typography
+        component="p"
+        variant="h5"
+        className="registration-reference"
+        aria-label={`Reference number ${reference}`}
+      >
+        {reference}
+      </Typography>
+      <Typography color="text.secondary">
+        Keep it if you need to contact us about this registration.
       </Typography>
     </section>
   );
@@ -229,8 +243,9 @@ export function JoinPage() {
     return <InactiveLink />;
   }
   if (submitMutation.isSuccess) {
-    return <RegistrationReceived />;
+    return <RegistrationReceived reference={submitMutation.data.reference} />;
   }
+  const { display_name: agentName, client_name: clientName } = linkQuery.data;
 
   return (
     <>
@@ -240,7 +255,7 @@ export function JoinPage() {
           Create your account
         </Typography>
         <Typography className="form-description">
-          Registering with {linkQuery.data.display_name}
+          You are registering for {clientName} with agent {agentName}
         </Typography>
       </div>
       <form
@@ -349,6 +364,8 @@ export function JoinPage() {
             )}
           />
         )}
+        {/* Consent version 2 (backend/app/models/customer.py CONSENT_VERSION):
+            change both together. */}
         <div className="consent-block">
           <Controller
             name="consent"
@@ -361,7 +378,7 @@ export function JoinPage() {
                     onChange={(event) => field.onChange(event.target.checked)}
                   />
                 }
-                label="I agree that SalesMesh may process my personal data for registration and fraud prevention (Kenya Data Protection Act 2019)."
+                label={`I agree that SalesMesh may process my personal data for registration and fraud prevention, and share my details with ${clientName} for onboarding (Kenya Data Protection Act 2019).`}
               />
             )}
           />
@@ -389,7 +406,11 @@ export function JoinPage() {
           {submitMutation.isPending ? "Submitting…" : "Register"}
         </Button>
       </form>
-      <PrivacyDialog open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
+      <PrivacyDialog
+        open={privacyOpen}
+        onClose={() => setPrivacyOpen(false)}
+        clientName={clientName}
+      />
     </>
   );
 }

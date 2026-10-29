@@ -45,12 +45,13 @@ token from `/auth/firebase`, not an access token. See
 
 | Method and Path | Access | Body / Purpose |
 | --- | --- | --- |
-| GET /join/{code} | Public | The agent's `display_name` only |
-| POST /join/{code}/register | Public (agent token for assisted mode) | Registration form plus `consent: true`, `session_length_minutes`, `device_id`, `user_agent`, and `assisted`; scores the customer and returns only `{"message": "Registration received"}` |
+| GET /join/{code} | Public | The agent's `display_name` and the client's `client_name` only |
+| POST /join/{code}/register | Public (agent token for assisted mode) | Registration form plus `consent: true`, `session_length_minutes`, `device_id`, `user_agent`, and `assisted`; scores the customer and returns only `{"message": "Registration received", "reference": "SM-7K3Q-9XPA"}` |
 
-Both endpoints return the same 404 "This link is not active" for an unknown
-code and for an agent who is not approved, active, and verified, or no longer
-has the agent role. `assisted: true` requires the owning agent's access token
+Both endpoints return the same 404 "This link is not active. Contact your
+agent." for an unknown code, for an agent who is not approved, active, and
+verified or no longer has the agent role, and for an agent without an active
+client that has an organisation name. `assisted: true` requires the owning agent's access token
 (otherwise 403). Non-assisted registrations are limited per IP address (429).
 A disposable address, or a domain without a mail server, gets 422
 `email_not_permanent` ("Use a permanent email address"); if the model is
@@ -62,7 +63,9 @@ unavailable the endpoint returns 503 and saves nothing.
 | --- | --- | --- |
 | GET /admin/users | Admin | Paginated user list |
 | GET /admin/users/{id} | Admin | User detail |
-| POST /admin/users | Admin | email, role (`admin` or `client`); creates the user in SalesMesh and Firebase without a password (the browser then sends Firebase's "set your password" email) |
+| POST /admin/users | Admin | email, role (`admin` or `client`), and `organisation_name` (required for a client, not allowed for an admin); creates the user in SalesMesh and Firebase without a password (the browser then sends Firebase's "set your password" email) |
+| GET /admin/clients | Admin | Every client: id, email, is_active, organisation_name (null until set) |
+| PUT /admin/clients/{id}/organisation | Admin | organisation_name; audited as `client_organisation_updated` |
 | POST /admin/users/{id}/password-email | Admin | Makes sure the user has a Firebase account (creates and links one without a password if missing) so the browser can then send Firebase's password email; 409 for an inactive or conflicting account |
 | POST /admin/users/{id}/approve | Admin | Approve a pending agent |
 | POST /admin/users/{id}/reject | Admin | Reject a pending agent |
@@ -72,10 +75,10 @@ unavailable the endpoint returns 503 and saves nothing.
 | GET /admin/model | Admin | Model status, version, metrics, threshold, and golden-check result |
 | POST /admin/model/reload | Admin | Reload and re-check the model; on failure the current model stays (409) |
 | GET /admin/review-queue | Admin | Paginated flagged, unreviewed assessments, oldest first |
-| GET /admin/assessments/{id} | Admin | Probability, threshold, flag, reasons, features, customer, agent, review |
+| GET /admin/assessments/{id} | Admin | Probability, threshold, flag, reasons, features, customer (with reference), registration_status, agent, review |
 | POST /admin/assessments/{id}/review | Admin | decision (`confirmed_real` or `confirmed_fake`), notes; once per assessment (409 after) |
-| GET /admin/agents | Admin | Every agent with n_users, flags, assisted share, reputation, risk score, band; worst first |
-| GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with scores |
+| GET /admin/agents | Admin | Every agent with n_users, flags, assisted share, reputation, risk score, band, client (with organisation name), and `link_active`; worst first |
+| GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with reference, registration_status, and scores |
 | PATCH /admin/agents/{id} | Admin | display_name and/or client_id (a client account, or null to unassign) |
 | GET /admin/scoring-config | Admin | Reputation and rule settings |
 | PUT /admin/scoring-config | Admin | p0, k, min_users_for_band, high_risk_below, watch_below, device_email_rule_min |
@@ -88,8 +91,12 @@ own role, and an admin cannot be deactivated or demoted if no other usable
 admin (active, verified, linked to Firebase, with an authenticator) would
 remain (409).
 
-Reviews, scoring-config changes, agent profile changes, and model reloads are
-written to the audit log.
+Reviews, scoring-config changes, agent profile changes, client organisation
+changes, and model reloads are written to the audit log.
+
+`registration_status` is `received`, `clear` (not flagged), `under_review`
+(flagged, not reviewed), `verified` (confirmed real), or `rejected` (confirmed
+fake). It reveals the flag, so only admins see it.
 
 ### Agent (`/me`)
 

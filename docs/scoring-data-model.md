@@ -10,6 +10,8 @@ erDiagram
     users ||--o| agent_profiles : "agent has"
     users ||--o{ agent_profiles : "client employs"
     users ||--o{ customers : "agent registers"
+    users ||--o{ customers : "client at registration"
+    users ||--o| client_profiles : "client has"
     customers ||--o{ risk_assessments : "scored by"
     model_versions ||--o{ risk_assessments : "produced"
     risk_assessments ||--o| reviews : "decided by"
@@ -22,15 +24,22 @@ erDiagram
         string display_name
         uuid client_id FK
     }
+    client_profiles {
+        uuid user_id PK
+        string organisation_name
+    }
     customers {
         uuid id PK
         uuid agent_id FK
+        uuid client_id FK
+        string reference UK
         string email
         date date_of_birth
         uuid device_id
         string ip_address_hash
         bool assisted
         string status
+        int consent_version
     }
     risk_assessments {
         uuid id PK
@@ -67,7 +76,8 @@ erDiagram
 | Table | Purpose and key rules |
 | --- | --- |
 | `agent_profiles` | One row per agent. `referral_code` is `AGT-` plus 8 random symbols from an alphabet without 0, O, 1, I, and L (about 8.5 x 10^11 codes). `display_name` is shown on the public join page. `client_id` links the agent to the one client they work for; deleting the client unassigns the agent. |
-| `customers` | People registered through a referral link. `email` is not unique, because a repeated email is a fraud signal. `date_of_birth` is stored only for a model feature. The request IP is stored as an HMAC-SHA256 hash, never in raw form. `status` is `pending_review`, `verified`, or `rejected`. |
+| `client_profiles` | Migration `0008`. One row per client with the `organisation_name` shown on the public join page and named in the consent text. A client without one has no working agent links. Deleted with the client user. |
+| `customers` | People registered through a referral link. `email` is not unique, because a repeated email is a fraud signal. `date_of_birth` is stored only for a model feature. The request IP is stored as an HMAC-SHA256 hash, never in raw form. `status` is `pending_review`, `verified`, or `rejected`. Migration `0008` adds `reference` (unique, for example `SM-7K3Q-9XPA`), `consent_version` (1 = the v1.0-v1.1 wording, 2 = details also shared with the client), and `client_id`, the client the agent worked for at registration. |
 | `risk_assessments` | One model score: probability, threshold, flag, the top reasons, and a JSON snapshot of the 13 features that produced it. |
 | `reviews` | An admin's final decision (`confirmed_real` or `confirmed_fake`). Only one review is allowed per assessment, so the reputation rule always has a single answer. |
 | `scoring_config` | The reputation and rule settings. A `CHECK (id = 1)` constraint keeps it to one row, created by the migration with p0 = 0.0539, k = 10, min_users_for_band = 30, high_risk_below = 90, watch_below = 92. Migration `0004` adds `device_email_rule_min` (default 3, CHECK >= 3), the threshold of the device email rule described in [ML model service](ml-scoring.md). |
@@ -89,5 +99,17 @@ erDiagram
   whose role is changed to agent gets a profile with the placeholder name
   "SalesMesh agent"; a user who stops being an agent keeps their profile and
   code, so their history stays linked.
+- **Registration status is derived.** The pipeline status (received, clear,
+  under_review, verified, rejected) comes from the assessment's flag and the
+  review decision (`backend/app/services/pipeline.py`) instead of a stored
+  column, so it cannot disagree with them and `customers.status`, which
+  reputation reads, is unchanged.
+- **Client recorded at registration.** `customers.client_id` keeps the client
+  named in the customer's consent, so reassigning the agent later does not
+  show the customer to a new client. Migration `0008` fills it for existing
+  customers from the agent's current client; they keep consent version 1.
+- **Reference numbers.** Generated with `secrets` from the referral-code
+  alphabet (about 8.5 x 10^11 values), so they cannot be guessed and the demo
+  seed's random generator is not used.
 - **Audit subject.** `audit_logs.subject` names what a non-user action was
   about, for example `assessment:<uuid>` or `model_version:v1`.

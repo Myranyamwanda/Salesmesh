@@ -23,7 +23,7 @@ import Check from "@mui/icons-material/Check";
 import Close from "@mui/icons-material/Close";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import * as adminApi from "../api/admin";
 import { sendPasswordReset } from "../auth/firebase";
@@ -38,10 +38,29 @@ import { useAuth } from "../hooks/useAuth";
 import type { AuthUser, UserRole } from "../types/auth";
 import { apiErrorMessage } from "../utils/errors";
 
-const createSchema = z.object({
-  email: z.string().trim().email("Enter a valid email address").max(320),
-  role: z.enum(["admin", "client"]),
-});
+const organisationName = z
+  .string()
+  .trim()
+  .min(2, "Enter the organisation name")
+  .max(200, "Use 200 characters or fewer");
+
+const createSchema = z
+  .object({
+    email: z.string().trim().email("Enter a valid email address").max(320),
+    role: z.enum(["admin", "client"]),
+    organisationName: z.string(),
+  })
+  .superRefine((values, context) => {
+    if (values.role !== "client") return;
+    const result = organisationName.safeParse(values.organisationName);
+    if (!result.success) {
+      context.addIssue({
+        code: "custom",
+        path: ["organisationName"],
+        message: result.error.issues[0].message,
+      });
+    }
+  });
 
 type CreateValues = z.infer<typeof createSchema>;
 
@@ -68,6 +87,7 @@ export function AdminUserManagementPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [organisationFor, setOrganisationFor] = useState<AuthUser | null>(null);
 
   const usersQuery = useQuery({
     queryKey: ["admin", "users", page, limit],
@@ -75,10 +95,27 @@ export function AdminUserManagementPage() {
   });
   const refreshUsers = () =>
     queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
+  // Organisation names live in client profiles, not on the user account.
+  const clientsQuery = useQuery({
+    queryKey: ["admin", "clients"],
+    queryFn: adminApi.listClients,
+  });
+  const organisations = new Map(
+    (clientsQuery.data ?? []).map((client) => [
+      client.id,
+      client.organisation_name,
+    ]),
+  );
+  const refreshClients = () =>
+    queryClient.invalidateQueries({ queryKey: ["admin", "clients"] });
 
   const createMutation = useMutation({
-    mutationFn: async (input: CreateValues) => {
-      const created = await adminApi.createUser(input);
+    mutationFn: async ({ email, role, organisationName }: CreateValues) => {
+      const created = await adminApi.createUser(
+        role === "client"
+          ? { email, role, organisation_name: organisationName.trim() }
+          : { email, role },
+      );
       // Firebase emails the person a link to set their password.
       const emailed = await sendPasswordReset(created.email).then(
         () => true,
@@ -98,9 +135,22 @@ export function AdminUserManagementPage() {
         );
       }
       void refreshUsers();
+      void refreshClients();
     },
     onError: (cause) =>
       setError(apiErrorMessage(cause, "Could not create the account.")),
+  });
+  const organisationMutation = useMutation({
+    mutationFn: ({ id, name }: { id: string; name: string }) =>
+      adminApi.setClientOrganisation(id, name),
+    onSuccess: () => {
+      setOrganisationFor(null);
+      setNotice("Organisation name saved.");
+      void refreshClients();
+      void queryClient.invalidateQueries({ queryKey: ["admin", "agents"] });
+    },
+    onError: (cause) =>
+      setError(apiErrorMessage(cause, "Could not save the organisation name.")),
   });
   const approveMutation = useMutation({
     mutationFn: (userId: string) => adminApi.approveAgent(userId),
@@ -182,6 +232,18 @@ export function AdminUserManagementPage() {
       render: (row) => (
         <div className="account-cell">
           <strong>{row.email}</strong>
+          {row.role === "client" && (
+            <span>
+              {organisations.get(row.id) ?? (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color="warning"
+                  label="No organisation name"
+                />
+              )}
+            </span>
+          )}
           <span>{row.id}</span>
         </div>
       ),
@@ -281,6 +343,15 @@ export function AdminUserManagementPage() {
                 Reject
               </Button>
             </Stack>
+          )}
+          {row.role === "client" && (
+            <Button
+              size="small"
+              aria-label={`Set organisation name for ${row.email}`}
+              onClick={() => setOrganisationFor(row)}
+            >
+              Organisation name
+            </Button>
           )}
           {row.is_active &&
             (!row.email_verified_at || !row.firebase_linked) && (
@@ -405,6 +476,17 @@ export function AdminUserManagementPage() {
           }
         />
       )}
+      {organisationFor && (
+        <OrganisationDialog
+          email={organisationFor.email}
+          initial={organisations.get(organisationFor.id) ?? ""}
+          busy={organisationMutation.isPending}
+          onClose={() => setOrganisationFor(null)}
+          onSubmit={(name) =>
+            organisationMutation.mutate({ id: organisationFor.id, name })
+          }
+        />
+      )}
       <Snackbar
         open={Boolean(notice)}
         autoHideDuration={6000}
@@ -415,6 +497,67 @@ export function AdminUserManagementPage() {
         </Alert>
       </Snackbar>
     </>
+  );
+}
+
+function OrganisationDialog({
+  email,
+  initial,
+  busy,
+  onClose,
+  onSubmit,
+}: {
+  email: string;
+  initial: string;
+  busy: boolean;
+  onClose: () => void;
+  onSubmit: (name: string) => void;
+}) {
+  const [name, setName] = useState(initial);
+  const result = organisationName.safeParse(name);
+  return (
+    <Dialog open onClose={onClose} fullWidth maxWidth="sm">
+      <form
+        noValidate
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (result.success) onSubmit(result.data);
+        }}
+      >
+        <DialogTitle>Organisation name</DialogTitle>
+        <DialogContent className="dialog-form-content">
+          <Typography color="text.secondary">
+            Customers see this name on the registration links of {email}â€™s
+            agents, and the consent text says their details are shared with it.
+            Links stay inactive until it is set.
+          </Typography>
+          <TextField
+            label="Organisation name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            error={name !== "" && !result.success}
+            helperText={
+              name !== "" && !result.success
+                ? result.error.issues[0].message
+                : undefined
+            }
+            slotProps={{ htmlInput: { maxLength: 200 } }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={busy || !result.success}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </form>
+    </Dialog>
   );
 }
 
@@ -437,7 +580,7 @@ function CreateAccountDialog({
 }) {
   const form = useForm<CreateValues>({
     resolver: zodResolver(createSchema),
-    defaultValues: { email: "", role: "client" },
+    defaultValues: { email: "", role: "client", organisationName: "" },
   });
   const {
     register,
@@ -446,6 +589,7 @@ function CreateAccountDialog({
     reset,
     formState: { errors },
   } = form;
+  const role = useWatch({ control, name: "role" });
   function close() {
     reset();
     onClose();
@@ -482,6 +626,17 @@ function CreateAccountDialog({
               </FormControl>
             )}
           />
+          {role === "client" && (
+            <TextField
+              label="Organisation name"
+              {...register("organisationName")}
+              error={Boolean(errors.organisationName)}
+              helperText={
+                errors.organisationName?.message ??
+                "Shown to customers on this client's agents' registration links"
+              }
+            />
+          )}
           {error && <Alert severity="error">{error}</Alert>}
         </DialogContent>
         <DialogActions>

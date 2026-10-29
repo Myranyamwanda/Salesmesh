@@ -342,7 +342,11 @@ def test_admin_creates_users_in_firebase(auth_context, fake_firebase):  # noqa: 
     existing = fake_firebase.add_user("client@example.com")
     response = client.post(
         "/admin/users",
-        json={"email": "Client@Example.com", "role": "client"},
+        json={
+            "email": "Client@Example.com",
+            "role": "client",
+            "organisation_name": "Acme Bank",
+        },
         headers=headers,
     )
     assert response.status_code == 201
@@ -357,7 +361,11 @@ def test_firebase_outage_creates_nothing(auth_context, fake_firebase):  # noqa: 
     fake_firebase.available = False
     response = client.post(
         "/admin/users",
-        json={"email": "new@example.com", "role": "client"},
+        json={
+            "email": "new@example.com",
+            "role": "client",
+            "organisation_name": "Acme Bank",
+        },
         headers=headers,
     )
     assert response.status_code == 503

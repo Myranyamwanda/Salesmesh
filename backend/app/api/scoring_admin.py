@@ -10,6 +10,7 @@ from sqlalchemy.orm import aliased
 from app.auth import Database, require_roles
 from app.models import (
     AgentProfile,
+    ClientProfile,
     Customer,
     Review,
     RiskAssessment,
@@ -35,6 +36,8 @@ from app.schemas.scoring import (
 )
 from app.services.audit import audit
 from app.services.erasure import erase_customer
+from app.services.pipeline import registration_status
+from app.services.registration import link_is_active
 from app.services.reputation import AgentReputation, agent_reputations
 from app.services.reviews import review_assessment
 
@@ -97,6 +100,9 @@ def read_assessment(
         features=assessment.features,
         created_at=assessment.created_at,
         customer=CustomerDetail.model_validate(customer),
+        registration_status=registration_status(
+            assessment.flagged, review.decision if review else None
+        ),
         agent=AgentSummary(id=profile.user_id, display_name=profile.display_name),
         review=ReviewRead.model_validate(review) if review else None,
     )
@@ -123,12 +129,13 @@ def config_row(session) -> ScoringConfig:
 
 
 def agent_rows(session, agent_id: UUID | None = None):
-    """Agent profiles with their user account and assigned client."""
+    """Agent profiles with their user account, assigned client, and its profile."""
     client = aliased(User)
     query = (
-        select(AgentProfile, User, client)
+        select(AgentProfile, User, client, ClientProfile)
         .join(User, User.id == AgentProfile.user_id)
         .outerjoin(client, client.id == AgentProfile.client_id)
+        .outerjoin(ClientProfile, ClientProfile.user_id == AgentProfile.client_id)
         .where(User.role == "agent")
     )
     if agent_id is not None:
@@ -136,7 +143,9 @@ def agent_rows(session, agent_id: UUID | None = None):
     return session.execute(query).all()
 
 
-def ranking(profile, user, client, stats: AgentReputation) -> AgentRanking:
+def ranking(
+    profile, user, client, client_profile, stats: AgentReputation
+) -> AgentRanking:
     return AgentRanking(
         id=profile.user_id,
         display_name=profile.display_name,
@@ -144,7 +153,16 @@ def ranking(profile, user, client, stats: AgentReputation) -> AgentRanking:
         referral_code=profile.referral_code,
         status=user.status,
         is_active=user.is_active,
-        client=ClientSummary(id=client.id, email=client.email) if client else None,
+        client=ClientSummary(
+            id=client.id,
+            email=client.email,
+            organisation_name=(
+                client_profile.organisation_name if client_profile else None
+            ),
+        )
+        if client
+        else None,
+        link_active=link_is_active(user, client, client_profile),
         n_users=stats.n_users,
         flags=stats.flags,
         confirmed_fake=stats.confirmed_fake,
@@ -160,10 +178,7 @@ def ranking(profile, user, client, stats: AgentReputation) -> AgentRanking:
 def list_agents(session: Database, _: Admin) -> list[AgentRanking]:
     """Every agent with reputation, lowest (most at risk) first."""
     stats = agent_reputations(session, config_row(session))
-    rows = [
-        ranking(profile, user, client, stats[profile.user_id])
-        for profile, user, client in agent_rows(session)
-    ]
+    rows = [ranking(*row, stats[row[0].user_id]) for row in agent_rows(session)]
     return sorted(rows, key=lambda row: (row.reputation, row.display_name))
 
 
@@ -178,11 +193,12 @@ def find_agent(session, agent_id: UUID):
 def read_agent(
     agent_id: UUID, session: Database, _: Admin, offset: Offset = 0, limit: Limit = 25
 ) -> AgentDetail:
-    profile, user, client = find_agent(session, agent_id)
+    row = find_agent(session, agent_id)
     stats = agent_reputations(session, config_row(session), [agent_id])[agent_id]
     rows = session.execute(
-        select(Customer, RiskAssessment)
+        select(Customer, RiskAssessment, Review.decision)
         .outerjoin(RiskAssessment, RiskAssessment.customer_id == Customer.id)
+        .outerjoin(Review, Review.assessment_id == RiskAssessment.id)
         .where(Customer.agent_id == agent_id)
         .order_by(Customer.created_at.desc(), Customer.id)
         .offset(offset)
@@ -191,18 +207,22 @@ def read_agent(
     customers = [
         AgentCustomer(
             id=customer.id,
+            reference=customer.reference,
             full_name=customer.full_name,
             created_at=customer.created_at,
             status=customer.status,
+            registration_status=registration_status(
+                assessment.flagged if assessment else None, decision
+            ),
             assisted=customer.assisted,
             assessment_id=assessment.id if assessment else None,
             probability=assessment.probability if assessment else None,
             flagged=assessment.flagged if assessment else None,
         )
-        for customer, assessment in rows
+        for customer, assessment, decision in rows
     ]
     return AgentDetail(
-        **ranking(profile, user, client, stats).model_dump(),
+        **ranking(*row, stats).model_dump(),
         customers=customers,
         customers_total=stats.n_users,
     )
@@ -217,7 +237,7 @@ def update_agent(
     actor: Admin,
 ) -> AgentDetail:
     """Change the display name and/or the client the agent works for."""
-    profile, user, _ = find_agent(session, agent_id)
+    profile, user, _, _ = find_agent(session, agent_id)
     changes = payload.model_fields_set
     if "display_name" in changes:
         if payload.display_name is None:

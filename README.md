@@ -412,7 +412,7 @@ salesmesh/
 │   │   ├── data/         vendored disposable-email-domain list
 │   │   ├── demo.py       demo data (seed-demo, reset-demo)
 │   │   └── cli.py        terminal commands
-│   ├── alembic/          database migrations 0001–0007
+│   ├── alembic/          database migrations 0001–0008
 │   ├── models/v1/        model files (downloaded, ignored by Git)
 │   ├── tests/            pytest suite
 │   └── manage.py         init-secret, create-admin, reset-mfa, deactivate-user, seed-demo, reset-demo

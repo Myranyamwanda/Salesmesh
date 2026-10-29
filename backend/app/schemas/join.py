@@ -37,6 +37,13 @@ type Months = Annotated[int, Field(ge=0, le=1200)]
 
 class JoinAgentRead(BaseModel):
     display_name: str
+    # The client's organisation name: the customer's details are shared with it.
+    client_name: str
+
+
+class RegistrationReceived(BaseModel):
+    message: str
+    reference: str
 
 
 class JoinRegistrationInput(BaseModel):

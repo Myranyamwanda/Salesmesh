@@ -30,9 +30,45 @@ export async function getUser(userId: string) {
 export async function createUser(input: {
   email: string;
   role: "admin" | "client";
+  /** Required for clients, absent for admins. */
+  organisation_name?: string;
 }) {
   const { data } = await api.post<AuthUser>("/admin/users", input);
   return data;
+}
+
+export type ClientAccount = {
+  id: string;
+  email: string;
+  is_active: boolean;
+  /** Null for clients created before v1.2.0; their agents' links stay inactive. */
+  organisation_name: string | null;
+};
+
+export async function listClients() {
+  const { data } = await api.get<ClientAccount[]>("/admin/clients");
+  return data;
+}
+
+export async function setClientOrganisation(
+  userId: string,
+  organisationName: string,
+) {
+  const { data } = await api.put<ClientAccount>(
+    `/admin/clients/${userId}/organisation`,
+    { organisation_name: organisationName },
+  );
+  return data;
+}
+
+/** "Acme Bank (client@example.com)", or the email alone without a name. */
+export function clientLabel(client: {
+  email: string;
+  organisation_name: string | null;
+}) {
+  return client.organisation_name
+    ? `${client.organisation_name} (${client.email})`
+    : client.email;
 }
 
 /** Make sure the user has a Firebase account before Firebase emails them. */
