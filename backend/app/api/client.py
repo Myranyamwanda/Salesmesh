@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 
 from app.auth import Database, require_roles
 from app.models import AgentProfile, Customer, Review, RiskAssessment, User
+from app.services.eligibility import AgentCounts, Counts, eligibility_counts
 from app.services.periods import recent_months, utc_month
 
 router = APIRouter(prefix="/client", tags=["Client"])
@@ -34,6 +35,21 @@ class QualityRead(BaseModel):
     confirmed_fake_percent: float
     under_review: int
     trend: list[MonthQuality]
+
+
+class AgentEligibility(BaseModel):
+    display_name: str
+    eligible: int
+    not_eligible: int
+
+
+class ClientEligibility(BaseModel):
+    eligible: int
+    # A total only: per agent or per month it would show clients which
+    # registrations the model flagged (about 9 in 10 flags are genuine).
+    pending: int
+    not_eligible: int
+    agents: list[AgentEligibility]
 
 
 def percent(part: int, whole: int) -> float:
@@ -77,4 +93,42 @@ def quality(session: Database, client: Client) -> QualityRead:
         confirmed_fake_percent=percent(fake, registrations),
         under_review=under_review,
         trend=trend,
+    )
+
+
+@router.get("/eligibility", response_model=ClientEligibility)
+def eligibility(session: Database, client: Client) -> ClientEligibility:
+    """Commission eligibility of the registrations made for this client.
+
+    Counted by the client recorded at registration (customers.client_id), so
+    an agent's earlier registrations for another client are never included.
+    Agents currently assigned to the client are listed even with no
+    registrations yet.
+    """
+    counts = eligibility_counts(session, client_id=client.id)
+    profiles = session.scalars(
+        select(AgentProfile)
+        .where(
+            (AgentProfile.client_id == client.id)
+            | AgentProfile.user_id.in_(list(counts))
+        )
+        .order_by(AgentProfile.display_name, AgentProfile.user_id)
+    ).all()
+    totals = Counts()
+    agents = []
+    for profile in profiles:
+        agent_totals = counts.get(profile.user_id, AgentCounts()).totals
+        totals.merge(agent_totals)
+        agents.append(
+            AgentEligibility(
+                display_name=profile.display_name,
+                eligible=agent_totals.eligible,
+                not_eligible=agent_totals.not_eligible,
+            )
+        )
+    return ClientEligibility(
+        eligible=totals.eligible,
+        pending=totals.pending,
+        not_eligible=totals.not_eligible,
+        agents=agents,
     )
