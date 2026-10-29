@@ -74,7 +74,7 @@ sequenceDiagram
 | Role | Sees | Never sees |
 | --- | --- | --- |
 | Customer | "Registration received" and a reference number | Probability, flag, status, reasons |
-| Agent | Own referral link; names, dates, and assisted flag of own customers | Customer status, probability, reasons, own reputation |
+| Agent | Own referral link; names, dates, and assisted flag of own customers; one standing label and monthly totals (as of the start of the month) | Customer status, probability, reasons, own reputation score or band |
 | Client | Registrations, confirmed fake % (decided by a reviewer), count under review, monthly trend for their agents | Model flags, probabilities, reasons, features |
 | Admin | Everything above, plus probabilities, reasons, raw features, reputations, settings, model status | — |
 

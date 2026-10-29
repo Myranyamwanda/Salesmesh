@@ -9,17 +9,48 @@ wait for a human review, and the outcome feeds the agent's reputation.
 | Role | Can see |
 | --- | --- |
 | Admin | Review queue, every assessment (probability, reasons, features), agent ranking and detail with reputation, scoring settings, model status |
-| Agent | Their referral link and the list of customers they onboarded (name, registration date, assisted) |
+| Agent | Their referral link, the customers they onboarded (name, registration date, assisted), one standing label, and monthly totals of completed months |
 | Client | Registration quality for the agents assigned to them: registrations, confirmed fake % (decided by a reviewer), the number under review, and a monthly trend |
 
-Agents can see only their referral link and the list of customers they
-onboarded. Reputation is an admin-only decision-support tool. A future
-commission module may show payout status to agents.
+## Agent Standing (a deliberate design decision)
 
-This is a deliberate design decision to stop agents from gaming the system.
-A customer's status is not shown to agents either: an unflagged customer is
-verified at once while a flagged one waits for review, so the status would
-reveal which customers the model flagged.
+SRS 2.2.1, 3.8, and 4.1.1 ask that agents can follow their performance. A
+reputation score, a band, or a customer's status would also show an agent
+which registrations the model flags, and so how to avoid detection: an
+unflagged customer is clear at once while a flagged one waits for review. So
+agents see a coarse, delayed summary instead (`backend/app/services/standing.py`):
+
+| Internal band (admin only) | What the agent sees |
+| --- | --- |
+| Insufficient data (fewer than `min_users_for_band` registrations) | New agent |
+| Low risk or Watch | Good standing |
+| High risk | Account under review |
+
+- **One label.** `GET /me/standing` returns only `standing` and `as_of`. No
+  score, band name, probability, reason, or count is in the response; tests
+  check the exact JSON and a list of forbidden words and fields.
+- **Monthly, not live.** The standing and the totals are calculated as of the
+  start of the current month and cover completed months only, so a single new
+  registration or review cannot be traced to a change.
+- **Totals only.** `GET /me/activity` gives, for each of the last 12 completed
+  months, registrations, eligible, and awaiting verification. A month with
+  fewer than 10 registrations shows the total only, because a small split
+  would reveal individual outcomes. Agents never see a per-customer status,
+  flag, or review state.
+
+**What "Account under review" means for the agent.** An administrator is
+looking at the registrations made through the agent's link. The label itself
+changes nothing: the link keeps working and customers can still register,
+and each registration's eligibility still follows its own review. An
+administrator may contact the agent
+to ask about their registrations, and the agent can contact their
+administrator. The label is recalculated at the start of every month, so it
+changes back to "Good standing" once the reviews and new registrations raise
+the reputation above the High-risk threshold. Any action against an agent
+(for example deactivation) is a separate, audited admin decision.
+
+Reputation remains an admin-only decision-support tool. A future commission
+module may show payout status to agents.
 
 ## Review Workflow
 

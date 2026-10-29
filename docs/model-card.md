@@ -151,8 +151,10 @@ trend gradually.
 **Decision: agents cannot see their reputation.** Reputation is an admin-only
 decision-support tool. Showing it, or even a customer's review status, would
 let an agent learn which registrations get flagged and adjust to avoid
-detection. Agents see only their referral link and the names of the customers
-they onboarded. A future commission module may show payout status to agents.
+detection. Agents see their referral link, the names of the customers they
+onboarded, a monthly standing label (New agent, Good standing, or Account
+under review), and monthly totals of completed months. A future commission
+module may show payout status to agents.
 
 ## Limitations
 
