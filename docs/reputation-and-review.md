@@ -182,6 +182,23 @@ Clients see eligible and not-eligible counts per agent for registrations made
 for them, but pending only as one total: per agent or per month it would show
 which registrations the model flagged, and most flags are genuine customers.
 
+## Integration Points
+
+- **Reputation API.** `GET /api/v1/agents/{id}/reputation` gives other
+  modules (for example task assignment, SRS 3.8) an agent's score, internal
+  band, customer count, and flags. It is admin-only, rate-limited per admin,
+  and audited. A service account for unattended module-to-module calls is a
+  future integration point.
+- **Verified-customer export.** Clients download a CSV of their own
+  customers who are clear or verified, for onboarding in their own systems
+  (SRS 3.9, 4.1.2). Only customers registered for that client
+  (`customers.client_id`) who agreed to the consent text that names the
+  client (version 2) are included, so customers from before v1.2.0 are
+  never exported. Registrations awaiting verification appear once a reviewer
+  confirms them as real; confirmed fakes never do. Once downloaded, the file
+  is the client's responsibility: an erasure in SalesMesh cannot reach copies
+  already exported, and the audit log shows who exported when.
+
 ## Agents and Clients
 
 - `PATCH /admin/agents/{id}` changes an agent's display name and assigns or

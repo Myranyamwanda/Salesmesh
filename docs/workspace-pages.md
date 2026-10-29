@@ -109,7 +109,9 @@ The quality dashboard shows registrations, confirmed fake %, and the number
 of registrations under review for the client's own agents, with a 12-month
 chart (Recharts) and the same figures in a table. A **Commission eligibility**
 section shows eligible and not-eligible registrations per agent and the
-number awaiting verification as a single total. Clients see only outcomes a person has confirmed, never model flags or scores. At the model's precision about 9 in 10 flagged registrations are genuine, so a "flagged %" would overstate fraud and could unfairly harm an agent's standing with their client.
+number awaiting verification as a single total. **Export verified customers**
+downloads the CSV described in the API summary, with a note on what it leaves
+out. Clients see only outcomes a person has confirmed, never model flags or scores. At the model's precision about 9 in 10 flagged registrations are genuine, so a "flagged %" would overstate fraud and could unfairly harm an agent's standing with their client.
 
 ## Accessibility
 
