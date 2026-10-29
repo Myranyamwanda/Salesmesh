@@ -8,6 +8,7 @@ import {
   type DataColumn,
 } from "../../components/DataComponents";
 import type { MonthActivity, Standing } from "../../types/scoring";
+import { formatLongDate } from "../../utils/format";
 
 // Agents see one label and monthly totals only; scores, bands, and customer
 // statuses are admin-only (docs/reputation-and-review.md, "Agent Standing").
@@ -40,15 +41,6 @@ const columns: DataColumn<MonthActivity>[] = [
     render: (row) => row.awaiting_verification ?? HIDDEN,
   },
 ];
-
-function formatMonthStart(value: string) {
-  return new Date(`${value}T00:00:00Z`).toLocaleDateString(undefined, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 export function MyActivityPage() {
   const standingQuery = useQuery({
@@ -88,7 +80,7 @@ export function MyActivityPage() {
           <>
             <Typography>{explanations[standing.standing]}</Typography>
             <Typography color="text.secondary" sx={{ mt: 1 }}>
-              As of {formatMonthStart(standing.as_of)}.
+              As of {formatLongDate(standing.as_of)}.
             </Typography>
           </>
         )}
