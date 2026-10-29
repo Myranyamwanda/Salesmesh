@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from app.schemas.auth import DisplayName
+from app.services.eligibility import Eligibility
 from app.services.pipeline import RegistrationStatus
 
 type Decision = Literal["confirmed_real", "confirmed_fake"]
@@ -110,10 +111,35 @@ class AgentCustomer(BaseModel):
     created_at: datetime
     status: CustomerStatus
     registration_status: RegistrationStatus
+    eligibility: Eligibility
     assisted: bool
     assessment_id: UUID | None
     probability: float | None
     flagged: bool | None
+
+
+class EligibilityCounts(BaseModel):
+    eligible: int
+    pending: int
+    not_eligible: int
+
+
+class MonthEligibility(EligibilityCounts):
+    month: str
+
+
+class AgentEligibility(BaseModel):
+    agent: AgentSummary
+    totals: EligibilityCounts
+    months: list[MonthEligibility]
+
+
+class EligibilityReport(BaseModel):
+    """Admin: totals since the start, monthly counts for the last 12 months."""
+
+    totals: EligibilityCounts
+    months: list[MonthEligibility]
+    agents: list[AgentEligibility]
 
 
 class AgentDetail(AgentRanking):
