@@ -78,7 +78,9 @@ unavailable the endpoint returns 503 and saves nothing.
 | GET /admin/assessments/{id} | Admin | Probability, threshold, flag, reasons, features, customer (with reference), registration_status, agent, review |
 | POST /admin/assessments/{id}/review | Admin | decision (`confirmed_real` or `confirmed_fake`), notes; once per assessment (409 after) |
 | GET /admin/agents | Admin | Every agent with n_users, flags, assisted share, reputation, risk score, band, client (with organisation name), and `link_active`; worst first |
-| GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with reference, registration_status, and scores |
+| GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with reference, registration_status, eligibility, and scores |
+| GET /admin/agents/{id}/kpis | Admin | The last 12 registration months: registrations, flagged, confirmed fake, reviewed, confirmed real, eligible, the four rates (null when nothing to divide), average hours to review, and the reputation at the end of each month (now for the current month; null before the first registration) |
+| GET /admin/kpis | Admin | The same monthly KPIs for the network (without reputation), the network flag rate over the 12 months, and a benchmark of each agent's flag rate against it (`enough_data` false below min_users_for_band registrations) |
 | PATCH /admin/agents/{id} | Admin | display_name and/or client_id (a client account, or null to unassign) |
 | GET /admin/eligibility | Admin | Commission eligibility (eligible, pending, not_eligible): network totals, the last 12 registration months, and the same per agent |
 | GET /admin/scoring-config | Admin | Reputation and rule settings |
@@ -114,7 +116,7 @@ commission module may show payout status to agents.
 
 | Method and Path | Access | Purpose |
 | --- | --- | --- |
-| GET /client/quality | Client | For the client's agents only: registrations, confirmed-fake count and percentage, registrations under review, and a 12-month trend of registrations and confirmed fakes. No model flags or scores. |
+| GET /client/quality | Client | Registrations made for this client (`customers.client_id`): registrations, confirmed-fake count and percentage, registrations under review, and a 12-month trend of registrations, confirmed fakes, and the confirmed-fake percentage (null for a month without registrations). No model flags or scores. |
 | GET /client/eligibility | Client | Registrations made for this client (`customers.client_id`): eligible, pending, and not_eligible totals, and eligible / not_eligible per agent. Pending is a total only. |
 
 See [Reputation and review](reputation-and-review.md) for the rules.

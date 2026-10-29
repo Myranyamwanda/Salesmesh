@@ -467,11 +467,18 @@ def test_client_sees_only_their_agents_customers(api):
         "other_client"
     ].id
     session.commit()
-    add_scored_customer(session, users["agent"], flagged=False)
-    add_scored_customer(session, users["agent"], flagged=False)
-    add_scored_customer(session, users["agent"], flagged=True)
-    _, fake = add_scored_customer(session, users["agent"], flagged=True)
-    add_scored_customer(session, users["other_agent"], flagged=True)
+    # Registration records the client (v1.2.0); quality counts by it.
+    mine = {"client_id": users["client"].id}
+    add_scored_customer(session, users["agent"], flagged=False, **mine)
+    add_scored_customer(session, users["agent"], flagged=False, **mine)
+    add_scored_customer(session, users["agent"], flagged=True, **mine)
+    _, fake = add_scored_customer(session, users["agent"], flagged=True, **mine)
+    add_scored_customer(
+        session,
+        users["other_agent"],
+        flagged=True,
+        client_id=users["other_client"].id,
+    )
     client.post(
         f"/admin/assessments/{fake.id}/review",
         headers=headers["admin"],
@@ -490,7 +497,10 @@ def test_client_sees_only_their_agents_customers(api):
         "month": this_month,
         "registrations": 4,
         "confirmed_fake": 1,
+        "confirmed_fake_percent": 25.0,
     }
+    # Months without registrations have no percentage rather than 0 %.
+    assert body["trend"][0]["confirmed_fake_percent"] is None
     assert sum(month["registrations"] for month in body["trend"]) == 4
     # Only human-confirmed outcomes: no model flags, scores, or reasons.
     for word in ("flag", "probability", "reason", "feature", "reputation"):

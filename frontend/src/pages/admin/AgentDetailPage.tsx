@@ -15,7 +15,9 @@ import * as adminApi from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
 import {
   BandBadge,
+  ChartCard,
   DataTable,
+  EmptyState,
   EligibilityChip,
   KpiCard,
   PageError,
@@ -23,13 +25,71 @@ import {
   RegistrationStatusChip,
   type DataColumn,
 } from "../../components/DataComponents";
+import { KpiTable, MonthlyLineChart } from "../../components/KpiComponents";
 import { ReviewDialog } from "../../components/ReviewDialog";
-import type { AgentCustomer, AgentDetail } from "../../types/scoring";
+import type {
+  AgentCustomer,
+  AgentDetail,
+  AgentMonthKpi,
+} from "../../types/scoring";
 import { apiErrorMessage } from "../../utils/errors";
 import { formatDate, formatPercent } from "../../utils/format";
 
 const PAGE_SIZE = 25;
 const NO_CLIENT = "none";
+
+const reputationColumn: DataColumn<AgentMonthKpi> = {
+  key: "reputation",
+  label: "Reputation at month end",
+  render: (row) => (row.reputation === null ? "—" : row.reputation.toFixed(1)),
+};
+
+function AgentKpiSection({ agentId }: { agentId: string }) {
+  const kpiQuery = useQuery({
+    queryKey: ["admin", "agent-kpis", agentId],
+    queryFn: () => scoringApi.getAgentKpis(agentId),
+  });
+  const months = kpiQuery.data?.months ?? [];
+  const hasData = months.some((month) => month.reputation !== null);
+  return (
+    <section aria-label="Monthly KPIs">
+      {kpiQuery.isError && <PageError message="KPIs could not be loaded." />}
+      <ChartCard
+        title="Reputation at month end"
+        description="Last 12 months. Each point uses only the registrations and reviews known at the end of that month; the current month is as of now."
+      >
+        {kpiQuery.data &&
+          (hasData ? (
+            <MonthlyLineChart
+              rows={months}
+              value={(row) => row.reputation}
+              name="Reputation"
+              format={(value) => value.toFixed(1)}
+            />
+          ) : (
+            <EmptyState
+              title="No registrations yet"
+              description="The trend starts with the agent's first registration."
+            />
+          ))}
+      </ChartCard>
+      <Typography component="h2" variant="h6" sx={{ mt: 3, mb: 1 }}>
+        Monthly KPIs
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 1 }}>
+        Each month counts the registrations made in it and what has happened to
+        them so far. Verification rate is confirmed real out of reviewed; a dash
+        means there was nothing to measure.
+      </Typography>
+      <KpiTable
+        rows={months}
+        extra={[reputationColumn]}
+        loading={kpiQuery.isPending}
+        label="No KPIs yet."
+      />
+    </section>
+  );
+}
 
 function ProfileForm({ agent }: { agent: AgentDetail }) {
   const queryClient = useQueryClient();
@@ -217,6 +277,7 @@ export function AgentDetailPage() {
             />
           </section>
           <ProfileForm key={agent.id} agent={agent} />
+          <AgentKpiSection agentId={agent.id} />
           <Typography component="h2" variant="h6" sx={{ mt: 3, mb: 1 }}>
             Customers
           </Typography>

@@ -27,6 +27,8 @@ class MonthQuality(BaseModel):
     month: str
     registrations: int
     confirmed_fake: int
+    # None for a month without registrations, never a misleading 0 %.
+    confirmed_fake_percent: float | None
 
 
 class QualityRead(BaseModel):
@@ -58,9 +60,11 @@ def percent(part: int, whole: int) -> float:
 
 @router.get("/quality", response_model=QualityRead)
 def quality(session: Database, client: Client) -> QualityRead:
-    """Totals and a monthly trend, only for agents assigned to this client.
+    """Totals and a monthly trend of registrations made for this client.
 
-    Months are calendar months in UTC.
+    Counted by the client recorded at registration (customers.client_id), so
+    an agent's registrations for an earlier client are not included. Months
+    are calendar months in UTC.
     """
     month = utc_month(Customer.created_at)
     rows = session.execute(
@@ -70,23 +74,27 @@ def quality(session: Database, client: Client) -> QualityRead:
             func.count(Customer.id).filter(Review.decision == "confirmed_fake"),
             func.count(Customer.id).filter(Customer.status == "pending_review"),
         )
-        .join(AgentProfile, AgentProfile.user_id == Customer.agent_id)
         .outerjoin(RiskAssessment, RiskAssessment.customer_id == Customer.id)
         .outerjoin(Review, Review.assessment_id == RiskAssessment.id)
-        .where(AgentProfile.client_id == client.id)
+        .where(Customer.client_id == client.id)
         .group_by(month)
     ).all()
     by_month = {start.date(): values for start, *values in rows}
     totals = [sum(values[i] for values in by_month.values()) for i in range(3)]
     registrations, fake, under_review = totals
-    trend = [
-        MonthQuality(
-            month=start.strftime("%Y-%m"),
-            registrations=by_month.get(start, (0, 0, 0))[0],
-            confirmed_fake=by_month.get(start, (0, 0, 0))[1],
+    trend = []
+    for start in recent_months(datetime.now(UTC).date(), TREND_MONTHS):
+        month_registrations, month_fake, _ = by_month.get(start, (0, 0, 0))
+        trend.append(
+            MonthQuality(
+                month=start.strftime("%Y-%m"),
+                registrations=month_registrations,
+                confirmed_fake=month_fake,
+                confirmed_fake_percent=percent(month_fake, month_registrations)
+                if month_registrations
+                else None,
+            )
         )
-        for start in recent_months(datetime.now(UTC).date(), TREND_MONTHS)
-    ]
     return QualityRead(
         registrations=registrations,
         confirmed_fake=fake,

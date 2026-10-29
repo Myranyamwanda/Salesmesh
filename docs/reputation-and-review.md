@@ -102,6 +102,37 @@ Act 2019, see the privacy notice on `/join`).
   retained after case-by-case review under the Kenya Data Protection Act 2019.
   The admin decides whether erasure is appropriate before confirming it.
 
+## KPI Tracking
+
+`backend/app/services/kpis.py` computes monthly KPIs for an agent or the whole
+network (SRS 3.8, 8.3). Each month is a cohort: the registrations made in it
+(UTC), and what has happened to them so far.
+
+| KPI | Definition |
+| --- | --- |
+| Registrations | Customers registered in the month |
+| Flag rate | Flagged (model or rule) / registrations; admins only |
+| Confirmed-fake rate | Confirmed fake / registrations |
+| Verification rate | Confirmed real / reviewed |
+| Average time to review | Mean of review time minus score time |
+| Eligible | Clear or verified registrations |
+| Reputation at month end | The reputation formula using only what was known at the end of the month |
+
+A rate is empty ("—") when its denominator is 0, so a quiet month is never
+shown as 0 %. For the reputation at time T, a registration counts as a flag
+if, before T, an admin confirmed it as fake, or it was flagged and not yet
+confirmed real. At the current time this equals the live, status-based
+reputation, which a test checks. Two limits: the current p0 and k are used
+for every month, because settings changes are not versioned, and erased
+customers disappear from earlier months as well.
+
+The admin Overview compares each agent's flag rate over the last 12 months
+with the network rate. Agents with fewer than `min_users_for_band`
+registrations are listed as "Insufficient data" instead of being compared.
+Clients keep the confirmed-outcomes-only rule: their trend shows
+registrations, confirmed fakes, and the confirmed-fake percentage, never
+flags or confirmed-real counts (which would reveal how many were flagged).
+
 ## Commission Eligibility
 
 SalesMesh provides the eligibility input for a commission module (SRS 3.7);

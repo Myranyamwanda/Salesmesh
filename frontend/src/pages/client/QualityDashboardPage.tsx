@@ -90,6 +90,15 @@ const columns: DataColumn<MonthQuality>[] = [
     label: "Confirmed fake",
     render: (row) => row.confirmed_fake,
   },
+  {
+    key: "fake_percent",
+    label: "Confirmed fake %",
+    // A dash for a month without registrations, never a misleading 0%.
+    render: (row) =>
+      row.confirmed_fake_percent === null
+        ? "—"
+        : `${row.confirmed_fake_percent}%`,
+  },
 ];
 
 export function QualityChart({
@@ -130,7 +139,7 @@ export function QualityDashboardPage() {
       <PageHeader
         eyebrow="CLIENT WORKSPACE"
         title="Registration quality"
-        description="Customers registered by the agents who work for you, over the last 12 months. Fake registrations are counted only after a SalesMesh reviewer has confirmed them."
+        description="Customers registered for you by your agents, with a 12-month trend. Fake registrations are counted only after a SalesMesh reviewer has confirmed them."
       />
       {qualityQuery.isError && (
         <PageError message="Registration quality could not be loaded." />

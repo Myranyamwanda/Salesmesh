@@ -34,6 +34,10 @@ TRANSITIONS = [
     (True, None, "under_review"),
     (True, "confirmed_real", "verified"),
     (True, "confirmed_fake", "rejected"),
+    # An admin may review a registration the model did not flag; the decision
+    # wins, as it does for customers.status.
+    (False, "confirmed_real", "verified"),
+    (False, "confirmed_fake", "rejected"),
 ]
 
 

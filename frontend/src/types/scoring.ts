@@ -139,6 +139,44 @@ export type ClientEligibility = EligibilityCounts & {
   agents: { display_name: string; eligible: number; not_eligible: number }[];
 };
 
+/** One registration month (UTC); rates are null when there is nothing to divide. */
+export type MonthKpi = {
+  month: string;
+  registrations: number;
+  flagged: number;
+  confirmed_fake: number;
+  reviewed: number;
+  confirmed_real: number;
+  eligible: number;
+  flag_rate: number | null;
+  confirmed_fake_rate: number | null;
+  verification_rate: number | null;
+  avg_hours_to_review: number | null;
+};
+
+export type AgentMonthKpi = MonthKpi & {
+  n_users_to_date: number;
+  /** At the end of the month (now for the current month); null before any registration. */
+  reputation: number | null;
+};
+
+export type AgentKpis = { agent: AgentSummary; months: AgentMonthKpi[] };
+
+export type BenchmarkRow = {
+  agent: AgentSummary;
+  registrations: number;
+  flag_rate: number | null;
+  difference: number | null;
+  enough_data: boolean;
+};
+
+export type NetworkKpis = {
+  months: MonthKpi[];
+  network_flag_rate: number | null;
+  min_registrations: number;
+  benchmark: BenchmarkRow[];
+};
+
 export type AgentDetail = AgentRanking & {
   customers: AgentCustomer[];
   customers_total: number;
@@ -195,6 +233,8 @@ export type MonthQuality = {
   month: string;
   registrations: number;
   confirmed_fake: number;
+  /** Null for a month without registrations. */
+  confirmed_fake_percent: number | null;
 };
 
 export type Quality = {

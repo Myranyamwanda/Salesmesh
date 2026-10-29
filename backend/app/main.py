@@ -13,6 +13,7 @@ from app.api.auth import router as auth_router
 from app.api.client import router as client_router
 from app.api.health import router
 from app.api.join import router as join_router
+from app.api.kpis import router as kpis_router
 from app.api.model import router as model_router
 from app.api.scoring_admin import router as scoring_admin_router
 from app.core.config import Settings, get_settings
@@ -70,6 +71,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(model_router)
     app.include_router(join_router)
     app.include_router(scoring_admin_router)
+    app.include_router(kpis_router)
     app.include_router(agent_router)
     app.include_router(client_router)
     return app

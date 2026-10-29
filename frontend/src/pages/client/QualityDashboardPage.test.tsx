@@ -26,8 +26,24 @@ describe("client quality dashboard", () => {
       confirmed_fake_percent: 5,
       under_review: 3,
       trend: [
-        { month: "2026-09", registrations: 15, confirmed_fake: 1 },
-        { month: "2026-10", registrations: 25, confirmed_fake: 1 },
+        {
+          month: "2026-08",
+          registrations: 0,
+          confirmed_fake: 0,
+          confirmed_fake_percent: null,
+        },
+        {
+          month: "2026-09",
+          registrations: 15,
+          confirmed_fake: 1,
+          confirmed_fake_percent: 6.7,
+        },
+        {
+          month: "2026-10",
+          registrations: 25,
+          confirmed_fake: 1,
+          confirmed_fake_percent: 4,
+        },
       ],
     });
     renderPage(<QualityDashboardPage />, { user: makeUser("client") });
@@ -43,7 +59,9 @@ describe("client quality dashboard", () => {
       within(october)
         .getAllByRole("cell")
         .map((c) => c.textContent),
-    ).toEqual(["2026-10", "25", "1"]);
+    ).toEqual(["2026-10", "25", "1", "4%"]);
+    const august = screen.getByRole("row", { name: /2026-08/ });
+    expect(within(august).getAllByRole("cell")[3]).toHaveTextContent("—");
     expect(screen.getByText("Monthly trend")).toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(
       /flag|probability|reason|reputation/i,

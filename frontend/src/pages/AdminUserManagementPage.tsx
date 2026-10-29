@@ -527,7 +527,7 @@ function OrganisationDialog({
         <DialogTitle>Organisation name</DialogTitle>
         <DialogContent className="dialog-form-content">
           <Typography color="text.secondary">
-            Customers see this name on the registration links of {email}â€™s
+            Customers see this name on the registration links of {email}’s
             agents, and the consent text says their details are shared with it.
             Links stay inactive until it is set.
           </Typography>
