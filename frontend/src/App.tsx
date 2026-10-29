@@ -62,6 +62,10 @@ const MyCustomersPage = named(
   () => import("./pages/agent/MyCustomersPage"),
   "MyCustomersPage",
 );
+const MyActivityPage = named(
+  () => import("./pages/agent/MyActivityPage"),
+  "MyActivityPage",
+);
 const ReferralPage = named(
   () => import("./pages/agent/ReferralPage"),
   "ReferralPage",
@@ -181,6 +185,7 @@ function AppRoutes() {
               <Route element={<WorkspaceLayout role="agent" />}>
                 <Route path="/agent" element={<ReferralPage />} />
                 <Route path="/agent/customers" element={<MyCustomersPage />} />
+                <Route path="/agent/activity" element={<MyActivityPage />} />
               </Route>
             </Route>
             <Route element={<RoleRoute allowed={["client"]} />}>

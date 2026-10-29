@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Customer, Review, RiskAssessment, ScoringConfig
 from app.services.eligibility import ELIGIBLE, eligibility
-from app.services.pipeline import registration_status
+from app.services.pipeline import REJECTED, UNDER_REVIEW, registration_status
 from app.services.reputation import reputation_score
 
 UTC_MIDNIGHT = time(0, 0)
@@ -48,13 +48,17 @@ class Registration:
     reviewed_at: datetime | None
     decision: str | None
 
-    def is_flag_at(self, moment: datetime) -> bool:
-        reviewed = self.reviewed_at is not None and self.reviewed_at < moment
-        if reviewed and self.decision == "confirmed_fake":
-            return True
+    def status_at(self, moment: datetime) -> str:
+        """The registration status as it was just before `moment`."""
         scored = self.scored_at is not None and self.scored_at < moment
-        confirmed_real = reviewed and self.decision == "confirmed_real"
-        return bool(scored and self.flagged and not confirmed_real)
+        reviewed = self.reviewed_at is not None and self.reviewed_at < moment
+        return registration_status(
+            self.flagged if scored else None, self.decision if reviewed else None
+        )
+
+    def is_flag_at(self, moment: datetime) -> bool:
+        """The live reputation rule (status pending_review or rejected), then."""
+        return self.status_at(moment) in (UNDER_REVIEW, REJECTED)
 
 
 @dataclass(frozen=True)

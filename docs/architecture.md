@@ -113,8 +113,9 @@ user downloads only the pages they open.
 - **Reputation is calculated on read.** There is no reputation table, so a
   reputation can never be out of date after a registration, review, setting
   change, or erasure.
-- **Least privilege per role.** Only admins see model output. Agents see only
-  their referral link and customer names, and clients see only confirmed
-  outcomes, so the scores cannot be gamed or misread.
+- **Least privilege per role.** Only admins see model output. Agents see
+  their referral link, customer names, a monthly standing label, and monthly
+  totals, and clients see only confirmed outcomes, so the scores cannot be
+  gamed or misread.
 - **Model files outside Git.** Binaries are downloaded from a GitHub Release
   and verified with SHA-256 checksums that are tracked in Git.

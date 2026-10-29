@@ -51,9 +51,10 @@ phones from 320 px wide up to laptops. The page:
 
 ## Agent Area
 
-Agents can see only their referral link and the list of customers they
-onboarded. Reputation is an admin-only decision-support tool. A future
-commission module may show payout status to agents.
+Agents see their referral link, the customers they onboarded, one standing
+label, and monthly totals. Reputation, bands, and customer statuses are
+admin-only (see
+[Reputation and review](reputation-and-review.md#agent-standing-a-deliberate-design-decision)).
 
 - **Referral link:** copy the link; share it by WhatsApp (`wa.me`), SMS
   (`sms:`), or email (`mailto:`); show a large QR code; download the QR code as
@@ -62,6 +63,10 @@ commission module may show payout status to agents.
   code is drawn in the browser by `qrcode.react`.
 - **My customers:** name, registration date, and whether it was registered on
   the agent's device. No status, score, or reasons.
+- **My activity:** the standing label (New agent, Good standing, or Account
+  under review) with a short explanation and its "as of" date, and a table of
+  the last 12 completed months: registrations, eligible, and awaiting
+  verification, or "Shown from 10 registrations" for smaller months.
 
 ## Admin Area
 

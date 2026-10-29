@@ -107,10 +107,13 @@ fake). It reveals the flag, so only admins see it.
 | --- | --- | --- |
 | GET /me/referral | Agent | referral_code, display_name, and the full `/join/<code>` link |
 | GET /me/customers | Agent | Paginated customers: full_name, registered_at, assisted only |
+| GET /me/standing | Agent | `{"standing": "New agent" \| "Good standing" \| "Account under review", "as_of": "YYYY-MM-01"}` only |
+| GET /me/activity | Agent | `as_of` and the last 12 completed months: month, registrations, eligible, awaiting_verification (the last two null below 10 registrations) |
 
-Agents can see only their referral link and the list of customers they
-onboarded. Reputation is an admin-only decision-support tool. A future
-commission module may show payout status to agents.
+Agents never receive a reputation score, band name, probability, reason, or
+customer status. The standing and the totals are calculated as of the start
+of the current month; see
+[Reputation and review](reputation-and-review.md#agent-standing-a-deliberate-design-decision).
 
 ### Client (`/client`)
 

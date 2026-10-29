@@ -1,6 +1,7 @@
 // Public registration, agent, and client endpoints.
 import { api } from "./client";
 import type {
+  Activity,
   ClientEligibility,
   JoinLink,
   JoinRegistration,
@@ -9,6 +10,7 @@ import type {
   Quality,
   Referral,
   RegistrationReceived,
+  Standing,
 } from "../types/scoring";
 
 export async function getJoinLink(code: string) {
@@ -36,6 +38,16 @@ export async function getMyCustomers(offset: number, limit: number) {
   const { data } = await api.get<Page<MyCustomer>>("/me/customers", {
     params: { offset, limit },
   });
+  return data;
+}
+
+export async function getMyStanding() {
+  const { data } = await api.get<Standing>("/me/standing");
+  return data;
+}
+
+export async function getMyActivity() {
+  const { data } = await api.get<Activity>("/me/activity");
   return data;
 }
 
