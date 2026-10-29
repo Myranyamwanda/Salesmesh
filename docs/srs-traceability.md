@@ -1,0 +1,99 @@
+# SRS Traceability
+
+This table maps each SalesMesh SRS requirement in the scope of this module, the
+**AI-Based Agent Reputation System** ("track KPIs and generate reputation
+scores"), to the feature that meets it, where the code is, and the automated
+test that verifies it. Tests are cited as `file::test name`; backend tests are
+in `backend/tests/`, frontend tests in `frontend/src/`.
+
+**Status:** **Met** = implemented and tested. **Partly met** = implemented in
+part; the gap is listed under [Known limitations](#known-limitations).
+**Integration point** = belongs to another SalesMesh module; this module
+provides the data or the interface it needs (see
+[Integration points](#integration-points)).
+
+## Requirements in Scope
+
+| SRS | Requirement | Status | Implemented feature | Code location | Verified by |
+| --- | --- | --- | --- | --- | --- |
+| 2.2.1 | Agents are motivated by performance-based commissions and reputation scores | Met | Agents see a monthly standing label (New agent, Good standing, Account under review) and monthly registrations, eligible, and awaiting-verification totals, but never the score itself | `backend/app/services/standing.py`, `backend/app/api/agent.py`, `frontend/src/pages/agent/MyActivityPage.tsx` | `test_standing.py::test_standing_follows_the_internal_band`; `test_standing.py::test_agent_standing_response_is_one_label` |
+| 2.4 | AI models shall be auditable and configurable | Met | Model version, metrics, and 20 golden examples checked at every start; every score stored with its model version, threshold, reasons, and feature snapshot; reputation and rule settings editable in Settings and audited | `backend/app/ml/model_service.py`, `backend/app/services/scoring.py`, `backend/app/api/scoring_admin.py` | `test_model_service.py::test_failed_golden_check_blocks_predictions`; `test_domain_tables.py::test_assessment_stores_json`; `test_phase4_api.py::test_scoring_config_read_and_update` |
+| 3.2.1 | Associate categories with specific client products | Integration point | Product catalogues and categories belong to the client and product module; each registration already records its client (`customers.client_id`), the key a category link would use | `backend/app/models/customer.py` | `test_pipeline.py::test_customer_keeps_the_client_they_registered_for` |
+| 3.6 | Verify onboarding outcomes against defined criteria | Met | Registration pipeline: received → clear (not flagged) or under review (flagged) → verified or rejected after a human review; each registration has a reference number | `backend/app/services/pipeline.py`, `backend/app/services/reviews.py`, `backend/app/services/registration.py` | `test_pipeline.py::test_registration_status_follows_score_and_review`; `test_end_to_end.py::test_registration_to_reputation` |
+| 3.6 | Integrate with client platforms for verification | Integration point | Client verification callbacks belong to the client-integration module; clients can already take verified customers into their systems with the CSV export | `backend/app/api/client.py` | `test_integrations.py::test_export_has_only_verified_and_clear_customers_of_this_client` |
+| 3.6 | Score onboarding quality using AI models | Met | Calibrated logistic regression scores every registration from 13 features | `backend/app/ml/`, `backend/app/services/scoring.py` | `test_model_service.py::test_real_model_passes_golden_examples`; `test_join.py::test_registration_saves_customer_and_assessment` |
+| 3.6 | Flag suspicious or low-quality onboardings | Met | Flag when the probability reaches the threshold or the device-email rule fires; flagged registrations wait for review | `backend/app/services/scoring.py` | `test_join.py::test_flagged_registration_waits_for_review`; `test_scoring.py::test_rule_flags_even_when_the_model_does_not` |
+| 3.7 | Calculate agent commissions per successful onboarding | Integration point | Commission amounts belong to the commission module; SalesMesh provides eligibility per registration, agent, and month | `backend/app/services/eligibility.py` | `test_eligibility.py::test_admin_report_per_agent_and_month` |
+| 3.7 | Prevent payouts for unverified or rejected onboardings | Met (input) | Eligibility input: clear or verified → eligible; under review → pending; rejected → not eligible | `backend/app/services/eligibility.py` | `test_eligibility.py::test_eligibility_follows_registration_status`; `test_pipeline.py::test_registration_status_follows_score_and_review` |
+| 3.8 | Track agent performance metrics | Met | Monthly KPIs per agent and for the network: registrations, flag rate, confirmed-fake rate, verification rate, average time to review, eligible count | `backend/app/services/kpis.py`, `backend/app/api/kpis.py` | `test_kpis.py::test_monthly_kpis_on_the_fixed_dataset` |
+| 3.8 | Compute reputation scores based on quality and consistency | Met | Smoothed reputation 0-100 and bands, calculated on read; reputation at each month end from what was known then | `backend/app/services/reputation.py`, `backend/app/services/kpis.py` | `test_reputation.py::test_worked_example`; `test_kpis.py::test_reputation_as_of_uses_only_what_was_known_then`; `test_kpis.py::test_current_month_reputation_equals_live_reputation` |
+| 3.8 | Use reputation scores in task assignment decisions | Integration point | Task assignment belongs to the task module; it can read reputation through the versioned API | `backend/app/api/integrations.py` | `test_integrations.py::test_admin_reads_an_agent_reputation` |
+| 3.8 | Display performance analytics to agents and admins | Met | Admins: agent detail KPI table and reputation trend, overview network KPIs and benchmark. Agents: My activity page with standing and monthly totals | `frontend/src/pages/admin/AgentDetailPage.tsx`, `frontend/src/pages/admin/OverviewPage.tsx`, `frontend/src/pages/agent/MyActivityPage.tsx` | `pages/admin/KpiPages.test.tsx::agent KPIs > shows monthly KPIs newest first, with dashes for empty months`; `pages/agent/AgentPages.test.tsx::my activity > shows monthly totals newest first and hides small breakdowns` |
+| 3.9 | Provide clients with onboarding performance dashboards | Met | Client quality dashboard: registrations, confirmed fakes, under review, 12-month trend, commission eligibility per agent | `backend/app/api/client.py`, `frontend/src/pages/client/QualityDashboardPage.tsx` | `test_phase4_api.py::test_client_sees_only_their_agents_customers`; `pages/client/QualityDashboardPage.test.tsx::client quality dashboard > shows the quality figures and the monthly trend` |
+| 3.9 | Display cost, conversion, and quality metrics | Partly met | Quality metrics shown; cost and conversion are integration points (they need commission amounts and client activation data) | `backend/app/api/client.py` | `test_phase4_api.py::test_client_sees_only_their_agents_customers` |
+| 3.9 | Support data export and API access | Met | Client CSV export of verified and clear customers; versioned reputation API for other modules | `backend/app/api/client.py`, `backend/app/api/integrations.py` | `test_integrations.py::test_export_has_only_verified_and_clear_customers_of_this_client`; `test_integrations.py::test_admin_reads_an_agent_reputation` |
+| 3.9 | Provide real-time and historical analytics | Met | Totals and reputation calculated on read (real time); 12-month trends and reputation at month end (historical) | `backend/app/api/client.py`, `backend/app/services/kpis.py` | `test_kpis.py::test_current_month_reputation_equals_live_reputation`; `test_kpis.py::test_monthly_kpis_on_the_fixed_dataset` |
+| 3.10 | Log all administrative actions | Met | Audit log of user management, reviews, settings, agent and client changes, model reloads, erasures | `backend/app/services/audit.py` | `test_auth.py::test_admin_failed_user_actions_are_audited`; `test_pipeline.py::test_admin_sets_client_organisation_and_it_is_audited`; `test_phase4_api.py::test_model_reload_success_is_audited` |
+| 3.10 | Allow configuration of global policies and thresholds | Met | Settings page: p0, k, minimum registrations for a band, band thresholds, device-email rule minimum | `backend/app/api/scoring_admin.py`, `frontend/src/pages/admin/SettingsPage.tsx` | `test_phase4_api.py::test_scoring_config_read_and_update`; `test_phase4_api.py::test_invalid_scoring_config_is_rejected` |
+| 4.1.1 | Agents can track earnings, payouts, and performance metrics | Partly met | Performance metrics and eligible counts on My activity; earnings and payouts are an integration point (commission module) | `frontend/src/pages/agent/MyActivityPage.tsx` | `test_standing.py::test_agent_activity_response_has_monthly_totals_only` |
+| 4.1.2 | Client interface (mapped by its place under 4.1 User Interfaces) | Met | Client dashboard, eligibility section, and CSV export, limited to the client's own registrations | `frontend/src/pages/client/QualityDashboardPage.tsx`, `backend/app/api/client.py` | `test_eligibility.py::test_client_sees_own_registrations_with_pending_only_as_total`; `test_integrations.py::test_rival_client_exports_only_its_own_customers` |
+| 4.2.1 | All APIs shall require authentication and authorization | Met | Every endpoint except health and the public join page requires a token and a role (`require_roles`) | `backend/app/auth.py` | `test_phase4_api.py::test_missing_token_gets_401`; `test_phase4_api.py::test_wrong_roles_get_403`; `test_integrations.py::test_unauthenticated_request_is_401`; `test_integrations.py::test_non_admin_request_is_403` |
+| 4.2.2 | Expose APIs for agent activity where required | Met | `GET /api/v1/agents/{id}/reputation` for other modules; `GET /me/activity` for agents | `backend/app/api/integrations.py`, `backend/app/api/agent.py` | `test_integrations.py::test_admin_reads_an_agent_reputation`; `test_standing.py::test_agent_activity_response_has_monthly_totals_only` |
+| 4.2.2 | API usage shall be rate-limited and monitored | Met | Reputation API limited per admin and audited (success, failure, rate_limited); sign-in and registration rate limits | `backend/app/api/integrations.py`, `backend/app/services/registration.py`, `backend/app/services/auth.py` | `test_integrations.py::test_requests_over_the_limit_are_429_and_audited`; `test_join.py::test_registration_is_rate_limited_but_assisted_is_exempt`; `test_firebase_auth.py::test_firebase_login_is_rate_limited_per_ip` |
+| 4.3 | Quality scoring and fraud detection | Met | Model service and hybrid scoring with plain-English reasons | `backend/app/ml/`, `backend/app/services/scoring.py` | `test_explain.py::test_explain_returns_top_positive_reasons_with_text`; `test_scoring.py::test_model_flag_without_rule` |
+| 4.3 | Predictive analytics | Partly met | The model predicts the probability that a registration is fake; no forecasting of agent performance | `backend/app/ml/model_service.py` | `test_model_service.py::test_matching_fake_model_is_ready_and_predicts` |
+| 4.3 | AI decisions shall be logged for auditability | Met | Every assessment stores probability, threshold, flag, reasons, feature snapshot, and model version; reviews are audited | `backend/app/models/scoring.py`, `backend/app/services/reviews.py` | `test_join.py::test_registration_saves_customer_and_assessment`; `test_domain_tables.py::test_assessment_stores_json` |
+| 5.5 | Support data minimization and purpose limitation | Met | The form collects only model features and contact details; consent names the client; the export has five columns and only consent version 2 customers | `backend/app/schemas/join.py`, `backend/app/api/client.py` | `test_integrations.py::test_consent_version_1_customers_are_never_exported`; `test_join.py::test_registration_response_never_contains_scores` |
+| 5.5 | Allow users to access and manage their data | Partly met | Customers request access or deletion through the privacy contact; admins erase on request. No customer self-service portal | `backend/app/services/erasure.py`, `frontend/src/pages/JoinPage.tsx` | `test_erasure_monitoring.py::test_admin_erases_customer_assessments_and_reviews`; `pages/JoinPage.test.tsx::public join page > opens the privacy notice from the consent block` |
+| 5.5 | Support audit and compliance reporting | Met | Audit log page; erasures and exports audited without personal data | `backend/app/api/admin.py`, `backend/app/services/erasure.py` | `test_erasure_monitoring.py::test_erasure_is_audited_without_personal_data`; `test_integrations.py::test_export_is_audited_without_personal_data` |
+| 6.1 | Onboarding Result entity: verification data | Met | Registration status, review decision, reviewer, and reference number per registration | `backend/app/services/pipeline.py`, `backend/app/models/scoring.py` | `test_pipeline.py::test_admin_sees_reference_and_status_per_customer` |
+| 6.1 | Onboarding Result entity: quality score and fraud flags | Met | `risk_assessments`: probability, threshold, flag, reasons | `backend/app/models/scoring.py` | `test_domain_tables.py::test_assessment_stores_json`; `test_phase4_api.py::test_assessment_detail_shows_everything_to_admins` |
+| 6.5 | Restrict data access based on roles | Met | Role-based access on every endpoint; agents and clients see only their own data and never model output | `backend/app/auth.py`, `backend/app/api/` | `test_phase4_api.py::test_no_agent_endpoint_reveals_scores_or_status`; `test_standing.py::test_agent_activity_response_has_monthly_totals_only`; `test_eligibility.py::test_client_sees_own_registrations_with_pending_only_as_total` |
+| 6.5 | Log all data access and changes | Partly met | All changes and the sensitive reads (user views, exports, reputation API) are audited; ordinary admin page reads are not | `backend/app/services/audit.py` | `test_integrations.py::test_export_is_audited_without_personal_data`; `test_integrations.py::test_admin_reads_an_agent_reputation` |
+| 6.5 | Support traceability of onboarding and payment events | Met (onboarding); integration point (payment) | Reference number, registration status, review, and audit subject `assessment:<id>`; eligibility is the payment module's input | `backend/app/services/pipeline.py`, `backend/app/services/eligibility.py` | `test_pipeline.py::test_references_are_unique_in_the_database`; `test_phase4_api.py::test_audit_log_returns_the_subject` |
+| 7.5 | Implement AI-assisted fraud detection mechanisms | Met | Fraud model on every registration | `backend/app/ml/`, `backend/app/services/scoring.py` | `test_join.py::test_registration_with_the_real_model` |
+| 7.5 | Detect anomalies in onboarding behavior | Met | Device-email rule (3 or more emails on one device in 8 weeks), date-of-birth and device features, monthly drift monitoring | `backend/app/services/scoring.py`, `backend/app/ml/features.py`, `backend/app/api/model.py` | `test_join.py::test_third_email_on_one_device_is_flagged_by_rule`; `test_erasure_monitoring.py::test_monitoring_reports_monthly_flag_rate_and_mean` |
+| 7.5 | Flag potential collusion or fake activations | Partly met | Fake registrations flagged per customer and summarised per agent by reputation; collusion beyond the device rule is not detected | `backend/app/services/reputation.py` | `test_reputation.py::test_more_flags_lower_the_score`; `test_scoring.py::test_device_email_rule` |
+| 7.5 | Allow administrative review of flagged events | Met | Review queue and one review per assessment | `backend/app/api/scoring_admin.py`, `backend/app/services/reviews.py` | `test_phase4_api.py::test_review_queue_lists_flagged_unreviewed_assessments`; `test_phase4_api.py::test_assessment_can_be_reviewed_only_once` |
+| 8.2 | Log AI decisions and scoring outcomes | Met | Assessments with model version, threshold, reasons, and features; reviews audited | `backend/app/models/scoring.py`, `backend/app/services/reviews.py` | `test_join.py::test_registration_saves_customer_and_assessment`; `test_phase4_api.py::test_confirmed_fake_rejects_the_customer_and_keeps_the_flag` |
+| 8.2 | Protect logs from tampering | Partly met | No API can change or delete audit entries, and deleting a user keeps their entries; the database itself is not tamper-proof | `backend/app/models/audit.py` | `test_database.py::test_user_deletion_removes_tokens_but_retains_audit` |
+| 8.3 | Support real-time and historical reporting | Met | Live totals and reputation; 12-month KPI tables and trends | `backend/app/services/kpis.py`, `backend/app/api/kpis.py` | `test_kpis.py::test_network_kpis_and_flag_rate_benchmark`; `test_kpis.py::test_current_month_reputation_equals_live_reputation` |
+| 8.3 | Track onboarding performance, quality, and cost metrics | Partly met | Performance and quality tracked; cost is an integration point | `backend/app/services/kpis.py` | `test_kpis.py::test_monthly_kpis_on_the_fixed_dataset` |
+| 8.3 | Support exportable reports | Partly met | Client CSV export; the admin KPI tables are not exported to a file | `backend/app/api/client.py` | `test_integrations.py::test_export_has_only_verified_and_clear_customers_of_this_client` |
+| 8.4 | Benchmarking across categories and clients | Partly met | Each agent's flag rate against the network average; benchmarking by client is not built, and categories are an integration point | `backend/app/api/kpis.py`, `frontend/src/pages/admin/OverviewPage.tsx` | `test_kpis.py::test_network_kpis_and_flag_rate_benchmark`; `pages/admin/KpiPages.test.tsx::network KPIs > benchmarks agents against the network flag rate` |
+
+## Integration Points
+
+These SalesMesh modules are outside this module's scope. This module provides
+the interface or data each needs; none of them is a gap in this module.
+
+| Module | What it needs | What this module provides |
+| --- | --- | --- |
+| Training and exams | Agent onboarding and certification | Agent accounts with approval and an active flag |
+| Task management (SRS 3.8) | Reputation in assignment decisions | `GET /api/v1/agents/{id}/reputation` |
+| Commission, payouts, and escrow (SRS 3.7, 4.1.1) | Which onboardings may be paid | Eligibility per registration, agent, and month (`GET /admin/eligibility`) |
+| Client verification callbacks (SRS 3.6) | Activation results from client platforms | Reference numbers and the verified-customer CSV export |
+| Products and categories (SRS 3.2.1, 8.4) | Categories per client product | `customers.client_id` recorded at registration |
+| Cost and conversion analytics (SRS 3.9, 8.3) | Commission amounts and activation data | Registration and eligibility counts per month |
+| Service accounts (SRS 4.2.2) | Unattended module-to-module calls | Today the reputation API needs an admin token; a service role with its own credentials would change authentication and is left for later |
+
+## Known Limitations
+
+- **Collusion (7.5).** Only one device registering many emails is detected;
+  groups of agents or devices working together are not.
+- **Tamper-proof logs (8.2).** Audit entries cannot be changed through the
+  application, but anyone with database access could; append-only storage or
+  signed logs would be needed.
+- **Data access logging (6.5).** Changes and sensitive reads are audited;
+  routine admin page views are not.
+- **Exportable reports (8.3).** Only the client customer export is a file; KPI
+  tables are on screen only.
+- **Benchmarking by client (8.4).** Agents are benchmarked against the
+  network, not clients against each other.
+- **Predictive analytics (4.3).** The model predicts fraud per registration;
+  agent performance is not forecast.
+- **Customer self-service (5.5).** Access and deletion requests go through the
+  privacy contact and an admin.
+- **Historical settings.** Reputation at a past month end uses today's p0 and
+  k, because settings changes are not versioned; erased customers also leave
+  earlier months.

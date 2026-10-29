@@ -19,7 +19,15 @@ the model itself (data, fairness, precision, drift) are in the
 | Agents and clients | Each agent works for at most one client |
 | Data retention | Customers can be erased on request, but there is no automatic retention period |
 | Monitoring | Monthly drift monitoring on the Model page only; no metrics system or alerts |
-| Demo data | The demo uses real BAF test rows with invented identities, and older demo flags are reviewed from the dataset label, not by a person |
+| Demo data | The demo uses real BAF test rows with invented identities, and older demo flags are reviewed from the dataset label, not by a person. All demo reviews carry the seed time, so the demo's time-to-review and reputation trend are not realistic (see the model card) |
+| Historical KPIs | Reputation at a past month end uses today's p0 and k (settings changes are not versioned), and erased customers leave earlier months too |
+| Integration API | The reputation API needs an admin token; there is no service account for unattended module-to-module calls |
+| Reports | The client customer CSV is the only file export; KPI tables are on screen only. Agents are benchmarked against the network, not clients against each other |
+| Fraud patterns | Collusion is detected only as one device registering many emails |
+| Audit log | Entries cannot be changed through the application, but the database is not tamper-proof; routine admin page views are not logged |
+
+The [SRS traceability](srs-traceability.md) table lists which requirements
+are met, partly met, or integration points for other modules.
 
 ## Future Work
 
@@ -65,9 +73,16 @@ registrations made for them.
 
 ### Commission and payout module
 
-Show agents their payout status for verified customers. This gives agents
-useful feedback without exposing their reputation, scores, or which
-customers were flagged.
+Use the eligibility input (`GET /admin/eligibility`) to calculate
+commissions, and show agents their payout status for eligible customers.
+This gives agents useful feedback without exposing their reputation, scores,
+or which customers were flagged.
+
+### Service account for the integration API
+
+Give other modules their own credentials and a service role for
+`/api/v1`, instead of an admin token, with its own rate limit and audit
+actor.
 
 ### Reproducible training with a SageMaker training job
 
