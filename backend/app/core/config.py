@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     phone_default_region: str = Field(default="KE", pattern="^[A-Z]{2}$")
     join_rate_limit: int = Field(default=10, ge=1)
     join_rate_window_seconds: int = Field(default=3600, ge=1)
+    # Reputation API (/api/v1) requests per admin within the window.
+    reputation_api_rate_limit: int = Field(default=60, ge=1)
+    reputation_api_rate_window_seconds: int = Field(default=60, ge=1)
     # How long the real-email check waits for DNS before accepting the address.
     email_dns_timeout_seconds: float = Field(default=2.0, gt=0, le=10)
     # Optional comma-separated DNS server IPs for that check; empty = system DNS.
