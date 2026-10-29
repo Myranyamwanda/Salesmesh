@@ -120,9 +120,29 @@ of the current month; see
 | Method and Path | Access | Purpose |
 | --- | --- | --- |
 | GET /client/quality | Client | Registrations made for this client (`customers.client_id`): registrations, confirmed-fake count and percentage, registrations under review, and a 12-month trend of registrations, confirmed fakes, and the confirmed-fake percentage (null for a month without registrations). No model flags or scores. |
+| GET /client/customers/export.csv | Client | CSV download (UTF-8 with BOM): reference, full_name, email, mobile_phone, registered_on, for this client's customers (`customers.client_id`) with consent version 2 or later and status clear or verified. No scores, flags, reasons, or statuses. Cells that could run as a spreadsheet formula get a leading apostrophe. Audited as `customers_exported` with the row count only. |
 | GET /client/eligibility | Client | Registrations made for this client (`customers.client_id`): eligible, pending, and not_eligible totals, and eligible / not_eligible per agent. Pending is a total only. |
 
 See [Reputation and review](reputation-and-review.md) for the rules.
+
+### Integration API (`/api/v1`)
+
+A versioned contract for other SalesMesh modules, for example task assignment
+(SRS 3.8, 4.2.1, 4.2.2). Fields are only ever added in v1.
+
+| Method and Path | Access | Purpose |
+| --- | --- | --- |
+| GET /api/v1/agents/{id}/reputation | Admin | `agent_id`, `score` (reputation 0-100), `band` (internal band), `n` (customers), `flags`, `computed_at` (time of the request; reputation is calculated on read) |
+
+Requests need an admin access token (401 without a valid token, 403 for other
+roles; both are rejected before the endpoint runs). Each admin may make
+`REPUTATION_API_RATE_LIMIT` requests per `REPUTATION_API_RATE_WINDOW_SECONDS`
+(default 60 per 60 seconds); more get 429 with `Retry-After`. Every request
+that reaches the endpoint is audited as `reputation_api_read` with outcome
+`success`, `failure` (unknown agent, 404), or `rate_limited`, and subject
+`agent:<id>`; the limit counts these audit entries. A service account for
+module-to-module calls is a future integration point: it would need its own
+credentials, which is a change to authentication.
 
 ## Responses
 
