@@ -72,7 +72,9 @@ commission module may show payout status to agents.
 - **Agents ranking:** customers, flags, confirmed fake, pending, assisted share,
   reputation, risk score, band, and client, sorted lowest reputation first.
 - **Agent detail:** the same figures, the display name, the client assignment,
-  and the agent's customers with their status and probability.
+  a **Reputation at month end** line chart and a **Monthly KPIs** table for
+  the last 12 months, and the agent's customers with their reference,
+  registration status, eligibility, and probability.
 - **Commission eligibility:** eligible, pending, and not-eligible totals, a
   table per registration month (newest first), and a table per agent for all
   time or one month. Agent detail also shows each customer's eligibility.
@@ -87,6 +89,14 @@ commission module may show payout status to agents.
   same validation as the backend.
 - **Audit log:** now also shows each entry's subject, such as
   `assessment:<id>`.
+
+- **Overview:** besides the model, review, and attention cards, a **Network
+  flag rate** line chart, the network KPIs by month, and the flag-rate
+  benchmark of each agent against the network.
+
+KPI charts are single-series Recharts lines in the dataviz reference palette's
+first categorical colour (`#2a78d6`, validated on white). Months without data
+are gaps, not zeros, and every chart has a table with the same figures.
 
 ## Client Area
 
