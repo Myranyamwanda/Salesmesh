@@ -4,8 +4,9 @@ SalesMesh is a distributed sales-agent onboarding platform, built as a
 final-year capstone project. Sales agents register customers through personal
 referral links, and an AI engine checks every registration for signs of fake
 customers. Administrators review flagged registrations and see a reputation
-score from 0 to 100 for every agent; clients see the registration quality of
-the agents who work for them.
+score from 0 to 100 for every agent, with monthly KPIs and a reputation
+trend; clients see the registration quality of the agents who work for them
+and can export their verified customers.
 
 ## Features
 
@@ -14,7 +15,11 @@ the agents who work for them.
   (`/join/<code>`) with a consent checkbox and privacy notice (Kenya Data
   Protection Act 2019). Agents can also register a customer on their own device
   (assisted mode). Referral links can be shared by copy, WhatsApp, SMS, email,
-  or QR code.
+  or QR code. The page names the client and the agent, the consent text says
+  the details are shared with that client, and every registration gets a
+  reference number such as SM-7K3Q-9XPA.
+- **Registration pipeline.** Each registration is received, then clear (not
+  flagged) or under review (flagged), then verified or rejected by a person.
 - **Fraud detection.** A calibrated logistic regression, trained on the BAF
   dataset (NeurIPS 2022), scores every registration from 13 features. Numeric
   values are clipped to the training range, and a transparent rule flags a
@@ -24,10 +29,25 @@ the agents who work for them.
   confirms each as real or fake. The model never rejects anyone on its own.
 - **Agent reputation.** A smoothed 0–100 reputation and risk score with bands
   (High risk, Watch, Low risk, Insufficient data), calculated on read, so it
-  is always current. It is an admin-only decision-support tool: agents cannot
-  see it, which stops them from gaming it.
-- **Client dashboard.** Registrations, human-confirmed fakes, and a 12-month
-  trend for the client's own agents. No model scores are shown to clients.
+  is always current. It is an admin-only decision-support tool, which stops
+  agents from gaming it.
+- **KPI tracking.** Monthly KPIs per agent and for the network (registrations,
+  flag rate, confirmed-fake rate, verification rate, time to review, eligible
+  count), each agent's reputation at every month end, and a flag-rate
+  benchmark against the network. Empty months are shown as blanks, not 0 %.
+- **Commission eligibility.** Clear and verified registrations are eligible,
+  flagged ones pending, confirmed fakes not eligible: the input for a
+  commission module. No amounts or payouts.
+- **Agent standing.** Agents see one monthly label (New agent, Good standing,
+  Account under review) and monthly totals, never a score, band, or
+  customer status.
+- **Client dashboard.** Registrations, human-confirmed fakes, a 12-month
+  trend, and commission eligibility for the registrations made for the
+  client, plus a CSV export of their verified customers. No model scores are
+  shown to clients.
+- **Integration API.** A versioned, rate-limited, audited
+  `GET /api/v1/agents/{id}/reputation` for other SalesMesh modules such as
+  task assignment.
 - **Model operations.** The API refuses to load the model with a different
   scikit-learn version and checks 20 golden examples at every start. The admin
   Model page shows metrics, the golden check, a safe reload, and monthly drift
@@ -59,8 +79,12 @@ flowchart LR
         scoring["Scoring service<br/>features, model, rules, reasons"]
         model["Model service<br/>loaded once, version + golden checks"]
         reputation["Reputation and reviews"]
+        kpis["KPIs, eligibility,<br/>agent standing"]
+        integration["Integration API /api/v1<br/>and client export"]
         routes --> scoring --> model
         routes --> reputation
+        routes --> kpis --> reputation
+        routes --> integration --> reputation
     end
 
     api --> db[("PostgreSQL 16<br/>users, customers, assessments,<br/>reviews, settings, audit log")]
@@ -441,7 +465,8 @@ salesmesh/
 | [ML integration](docs/ml-integration.md) | Architecture, registration flow, who sees what, demo data |
 | [ML model service](docs/ml-scoring.md) | Model files, loading checks, features, hybrid scoring, reasons, monitoring |
 | [Model card](docs/model-card.md) | Data, model comparison, fairness, metrics, simulation, limitations |
-| [Reputation and review](docs/reputation-and-review.md) | Review workflow, reputation formula, erasure requests, who sees what |
+| [Reputation and review](docs/reputation-and-review.md) | Review workflow, reputation formula, KPIs, commission eligibility, agent standing, integration points, erasure requests, who sees what |
+| [SRS traceability](docs/srs-traceability.md) | Each SRS requirement in scope mapped to the feature, the code, and the test that verifies it |
 | [Scoring data model](docs/scoring-data-model.md) | Tables and design decisions (ER diagram) |
 | [Workspace pages](docs/workspace-pages.md) | Public join page and the admin, agent, and client pages |
 | [API summary](docs/api-summary.md) | Endpoints, access rules, and error format |
@@ -518,4 +543,14 @@ housekeeping and code splitting, and a documentation update.
 4. Frontend: Firebase sign-in, Google, agent sign-up, MFA pages
 5. Demo users in Firebase, with the demo admin's authenticator
 6. Removal of local passwords and the old password endpoints
+
+**KPIs and integration (v1.2.0)**
+
+A. Registration pipeline: status, reference numbers, the client on the join
+   page, and consent version 2
+B. Commission eligibility for admins and clients
+C. Monthly KPIs, reputation at month end, and the network benchmark
+D. Agent standing label and the My activity page
+E. Reputation API (`/api/v1`) and the client's verified-customer export
+F. SRS traceability, documentation, and release
 7. This documentation

@@ -1,4 +1,5 @@
 import random
+import re
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
@@ -32,7 +33,15 @@ from app.demo import (
 )
 from app.ml.features import ASSISTED_UNKNOWN
 from app.ml.model_service import ModelService, ModelUnavailableError
-from app.models import AgentProfile, AuditLog, Customer, Review, RiskAssessment, User
+from app.models import (
+    AgentProfile,
+    AuditLog,
+    ClientProfile,
+    Customer,
+    Review,
+    RiskAssessment,
+    User,
+)
 from app.services.firebase import FirebaseUnavailable
 from app.services.mfa import decrypt_secret
 
@@ -137,6 +146,31 @@ def test_every_customer_is_scored_without_storing_the_label(db_session, sample):
     for features in db_session.scalars(select(RiskAssessment.features)):
         assert "fraud_bool" not in features
         assert "customer_age" not in features
+
+
+def test_demo_customers_get_consent_version_2_client_and_reference(db_session, sample):
+    """New demo customers agree to the v1.2.0 consent (version 2), which names
+    the client, so the demo clients' export includes them."""
+    seed(db_session, sample)
+    rows = db_session.execute(
+        select(Customer, AgentProfile.client_id).join(
+            AgentProfile, AgentProfile.user_id == Customer.agent_id
+        )
+    ).all()
+    assert rows
+    assert {customer.consent_version for customer, _ in rows} == {2}
+    assert all(customer.client_id == client_id for customer, client_id in rows)
+    references = [customer.reference for customer, _ in rows]
+    assert len(set(references)) == len(references)
+    assert all(
+        re.fullmatch(r"SM-[2-9A-HJKMNP-Z]{4}-[2-9A-HJKMNP-Z]{4}", r) for r in references
+    )
+    names = db_session.scalars(
+        select(ClientProfile.organisation_name).order_by(
+            ClientProfile.organisation_name
+        )
+    ).all()
+    assert names == ["Demo Client 1", "Demo Client 2", "Demo Client 3"]
 
 
 def test_old_flags_are_reviewed_and_recent_flags_stay_pending(db_session, sample):
