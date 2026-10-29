@@ -65,7 +65,7 @@ describe("workspace navigation", () => {
     renderLayout("agent");
     const links = workspaceLinks();
     expect(links).toEqual(
-      expect.arrayContaining(["Referral link", "My customers"]),
+      expect.arrayContaining(["Referral link", "My customers", "My activity"]),
     );
     expect(links.join(" ")).not.toMatch(/reputation|dashboard|tasks|review/i);
   });

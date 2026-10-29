@@ -245,6 +245,22 @@ export type Quality = {
   trend: MonthQuality[];
 };
 
+/** Agent view: one label, recalculated at the start of each month. */
+export type Standing = {
+  standing: "New agent" | "Good standing" | "Account under review";
+  as_of: string;
+};
+
+/** Agent view: completed months only; null below 10 registrations. */
+export type MonthActivity = {
+  month: string;
+  registrations: number;
+  eligible: number | null;
+  awaiting_verification: number | null;
+};
+
+export type Activity = { as_of: string; months: MonthActivity[] };
+
 /** Public: the agent's display name and the client's organisation name. */
 export type JoinLink = { display_name: string; client_name: string };
 
