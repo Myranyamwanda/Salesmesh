@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import * as portalApi from "../../api/portal";
 import { makeUser, renderPage } from "../../test/render";
 import type { Standing } from "../../types/scoring";
+import { formatLongDate } from "../../utils/format";
 import { MyActivityPage } from "./MyActivityPage";
 import { MyCustomersPage } from "./MyCustomersPage";
 import { ReferralPage } from "./ReferralPage";
@@ -158,7 +159,11 @@ describe("my activity", () => {
     const card = await screen.findByRole("region", { name: "My standing" });
     expect(await within(card).findByText(standing)).toBeInTheDocument();
     expect(within(card).getByText(text)).toBeInTheDocument();
-    expect(within(card).getByText(/As of 1 October 2026/)).toBeInTheDocument();
+    // The date follows the reader's locale (CI runs en-US, Kenya uses en-GB).
+    expect(
+      within(card).getByText(`As of ${formatLongDate("2026-10-01")}.`),
+    ).toBeInTheDocument();
+    expect(formatLongDate("2026-10-01")).toMatch(/2026/);
     expect(document.body).not.toHaveTextContent(forbidden);
   });
 

@@ -14,6 +14,16 @@ export function formatHours(value: number | null): string {
     : `${value.toFixed(1)} h`;
 }
 
+/** A calendar date such as "2026-10-01", in the reader's locale (UTC day). */
+export function formatLongDate(value: string): string {
+  return new Date(`${value}T00:00:00Z`).toLocaleDateString(undefined, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function formatDate(value: string): string {
   return new Date(value).toLocaleDateString();
 }
