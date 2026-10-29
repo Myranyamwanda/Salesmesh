@@ -7,6 +7,9 @@ The status is derived instead of stored, so it can never disagree with the
 assessment and review it comes from, and customers.status (which reputation
 reads) is unchanged. "received" lasts only until the registration is scored,
 which happens in the same transaction, so in practice it is never seen.
+
+The review decision comes first: an admin may also review a registration the
+model did not flag, and that decision is final (as it is for customers.status).
 """
 
 from typing import Literal
@@ -30,21 +33,19 @@ def registration_status(flagged: bool | None, decision: str | None) -> str:
     """Python version, for rows already loaded: flagged is None without a score."""
     if flagged is None:
         return RECEIVED
-    if not flagged:
-        return CLEAR
     if decision == "confirmed_real":
         return VERIFIED
     if decision == "confirmed_fake":
         return REJECTED
-    return UNDER_REVIEW
+    return UNDER_REVIEW if flagged else CLEAR
 
 
 def registration_status_sql():
     """SQL version for queries that outer-join RiskAssessment and Review."""
     return case(
         (RiskAssessment.id.is_(None), RECEIVED),
-        (RiskAssessment.flagged.is_(False), CLEAR),
         (Review.decision == "confirmed_real", VERIFIED),
         (Review.decision == "confirmed_fake", REJECTED),
+        (RiskAssessment.flagged.is_(False), CLEAR),
         else_=UNDER_REVIEW,
     )
