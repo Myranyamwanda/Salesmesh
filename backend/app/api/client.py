@@ -6,17 +6,22 @@ at the model's precision about 9 in 10 flagged registrations are genuine, so a
 Registrations still waiting for a decision are shown as a plain count.
 """
 
+import csv
+import io
+import re
 from datetime import UTC, datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.auth import Database, require_roles
 from app.models import AgentProfile, Customer, Review, RiskAssessment, User
+from app.services.audit import audit
 from app.services.eligibility import AgentCounts, Counts, eligibility_counts
 from app.services.periods import recent_months, utc_month
+from app.services.pipeline import CLEAR, VERIFIED, registration_status_sql
 
 router = APIRouter(prefix="/client", tags=["Client"])
 type Client = Annotated[User, Depends(require_roles("client"))]
@@ -139,4 +144,86 @@ def eligibility(session: Database, client: Client) -> ClientEligibility:
         pending=totals.pending,
         not_eligible=totals.not_eligible,
         agents=agents,
+    )
+
+
+# Consent version 2 is the first wording that names the client as receiving
+# the customer's details; customers who agreed to version 1 are never exported.
+EXPORT_MIN_CONSENT_VERSION = 2
+EXPORT_COLUMNS = ["reference", "full_name", "email", "mobile_phone", "registered_on"]
+# Spreadsheet programs run a cell that starts with one of these as a formula.
+FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+# A signed number such as +254 712 345 678 cannot run a formula.
+PLAIN_NUMBER = re.compile(r"[+-]?[0-9 ]+")
+
+
+def safe_cell(value: str) -> str:
+    """Neutralise CSV formula injection with a leading apostrophe."""
+    if value.startswith(FORMULA_PREFIXES) and not PLAIN_NUMBER.fullmatch(value):
+        return f"'{value}"
+    return value
+
+
+@router.get("/customers/export.csv")
+def export_customers(request: Request, session: Database, client: Client) -> Response:
+    """CSV of the client's verified and clear customers, for onboarding.
+
+    Only customers registered for this client (customers.client_id) who agreed
+    to the consent text that names the client (consent_version 2 or later).
+    Five columns, no scores, flags, reasons, or statuses. Registrations still
+    awaiting verification or confirmed fake are left out. The download is
+    audited with the row count only, never personal data.
+    """
+    status = registration_status_sql()
+    rows = session.execute(
+        select(
+            Customer.reference,
+            Customer.full_name,
+            Customer.email,
+            Customer.mobile_phone,
+            Customer.created_at,
+        )
+        .outerjoin(RiskAssessment, RiskAssessment.customer_id == Customer.id)
+        .outerjoin(Review, Review.assessment_id == RiskAssessment.id)
+        .where(
+            Customer.client_id == client.id,
+            Customer.consent_version >= EXPORT_MIN_CONSENT_VERSION,
+            status.in_([CLEAR, VERIFIED]),
+        )
+        .order_by(Customer.created_at, Customer.reference)
+    ).all()
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\r\n")
+    writer.writerow(EXPORT_COLUMNS)
+    for reference, name, email, phone, created in rows:
+        writer.writerow(
+            [
+                reference,
+                safe_cell(name),
+                safe_cell(email),
+                safe_cell(phone),
+                created.astimezone(UTC).date().isoformat(),
+            ]
+        )
+    audit(
+        session,
+        request,
+        "customers_exported",
+        actor=client,
+        subject=f"export:{len(rows)} rows",
+    )
+    session.commit()
+    today = datetime.now(UTC).date().isoformat()
+    # The byte-order mark lets Excel open the UTF-8 file with accents intact.
+    return Response(
+        content="﻿" + buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="salesmesh-customers-{today}.csv"'
+            ),
+            "Cache-Control": "no-store",
+        },
     )
