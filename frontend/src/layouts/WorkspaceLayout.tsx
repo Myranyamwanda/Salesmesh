@@ -28,6 +28,7 @@ import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
 import ModelTrainingOutlined from "@mui/icons-material/ModelTrainingOutlined";
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
+import RequestQuoteOutlined from "@mui/icons-material/RequestQuoteOutlined";
 import QrCode2 from "@mui/icons-material/QrCode2";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import ShieldOutlined from "@mui/icons-material/ShieldOutlined";
@@ -62,6 +63,11 @@ const navItems: Record<
       label: "Review queue",
       path: "/admin/review-queue",
       icon: FactCheckOutlined,
+    },
+    {
+      label: "Commission eligibility",
+      path: "/admin/eligibility",
+      icon: RequestQuoteOutlined,
     },
     {
       label: "Model",

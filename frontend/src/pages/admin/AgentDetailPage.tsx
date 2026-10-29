@@ -16,6 +16,7 @@ import * as scoringApi from "../../api/scoring";
 import {
   BandBadge,
   DataTable,
+  EligibilityChip,
   KpiCard,
   PageError,
   PageHeader,
@@ -138,6 +139,11 @@ export function AgentDetailPage() {
       render: (row) => (
         <RegistrationStatusChip status={row.registration_status} />
       ),
+    },
+    {
+      key: "eligibility",
+      label: "Commission",
+      render: (row) => <EligibilityChip value={row.eligibility} />,
     },
     {
       key: "probability",

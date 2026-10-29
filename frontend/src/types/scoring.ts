@@ -106,10 +106,37 @@ export type AgentCustomer = {
   created_at: string;
   status: CustomerStatus;
   registration_status: RegistrationStatus;
+  eligibility: Eligibility;
   assisted: boolean;
   assessment_id: string | null;
   probability: number | null;
   flagged: boolean | null;
+};
+
+/** Commission eligibility input; see backend/app/services/eligibility.py. */
+export type Eligibility = "eligible" | "pending" | "not_eligible";
+
+export type EligibilityCounts = {
+  eligible: number;
+  pending: number;
+  not_eligible: number;
+};
+
+export type MonthEligibility = EligibilityCounts & { month: string };
+
+export type EligibilityReport = {
+  totals: EligibilityCounts;
+  months: MonthEligibility[];
+  agents: {
+    agent: AgentSummary;
+    totals: EligibilityCounts;
+    months: MonthEligibility[];
+  }[];
+};
+
+/** Client view: pending only as a total, never per agent or per month. */
+export type ClientEligibility = EligibilityCounts & {
+  agents: { display_name: string; eligible: number; not_eligible: number }[];
 };
 
 export type AgentDetail = AgentRanking & {
