@@ -80,6 +80,7 @@ unavailable the endpoint returns 503 and saves nothing.
 | GET /admin/agents | Admin | Every agent with n_users, flags, assisted share, reputation, risk score, band, client (with organisation name), and `link_active`; worst first |
 | GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with reference, registration_status, and scores |
 | PATCH /admin/agents/{id} | Admin | display_name and/or client_id (a client account, or null to unassign) |
+| GET /admin/eligibility | Admin | Commission eligibility (eligible, pending, not_eligible): network totals, the last 12 registration months, and the same per agent |
 | GET /admin/scoring-config | Admin | Reputation and rule settings |
 | PUT /admin/scoring-config | Admin | p0, k, min_users_for_band, high_risk_below, watch_below, device_email_rule_min |
 | POST /admin/customers/{id}/erase | Admin | confirm_email; deletes the customer, assessments, and reviews (204), audited as `customer_erased` without personal data; 422 if the email does not match |
@@ -114,6 +115,7 @@ commission module may show payout status to agents.
 | Method and Path | Access | Purpose |
 | --- | --- | --- |
 | GET /client/quality | Client | For the client's agents only: registrations, confirmed-fake count and percentage, registrations under review, and a 12-month trend of registrations and confirmed fakes. No model flags or scores. |
+| GET /client/eligibility | Client | Registrations made for this client (`customers.client_id`): eligible, pending, and not_eligible totals, and eligible / not_eligible per agent. Pending is a total only. |
 
 See [Reputation and review](reputation-and-review.md) for the rules.
 
