@@ -50,13 +50,24 @@ def test_registration_to_reputation(auth_context):  # noqa: F811
     assert response.status_code == 200
 
     # 2. Two customers register through the agent's link.
-    assert client.get(f"/join/{code}").json() == {"display_name": "Amina Otieno"}
+    # Without an organisation name the link is not active yet.
+    assert client.get(f"/join/{code}").status_code == 404
+    response = client.put(
+        f"/admin/clients/{client_user.id}/organisation",
+        headers=admin,
+        json={"organisation_name": "Acme Bank"},
+    )
+    assert response.status_code == 200
+    assert client.get(f"/join/{code}").json() == {
+        "display_name": "Amina Otieno",
+        "client_name": "Acme Bank",
+    }
     for email in ("fake.person@gmail.com", "real.person@gmail.com"):
         response = client.post(
             f"/join/{code}/register",
             json=FORM | {"email": email, "device_id": str(uuid4())},
         )
-        assert response.json() == {"message": "Registration received"}
+        assert response.json()["message"] == "Registration received"
 
     # 3. Both are scored and flagged, so both wait in the review queue.
     queue = client.get("/admin/review-queue", headers=admin).json()
@@ -70,6 +81,7 @@ def test_registration_to_reputation(auth_context):  # noqa: F811
             f"/admin/assessments/{item['assessment_id']}", headers=admin
         ).json()
         by_email[detail["customer"]["email"]] = item["assessment_id"]
+        assert detail["registration_status"] == "under_review"
     before = client.get(f"/admin/agents/{agent.id}", headers=admin).json()
     assert (before["n_users"], before["flags"]) == (2, 2)
     assert before["reputation"] == reputation_score(2, 2, 10, 0.0539)
@@ -100,6 +112,10 @@ def test_registration_to_reputation(auth_context):  # noqa: F811
     real = client.get(f"/admin/assessments/{real_id}", headers=admin).json()
     assert fake["customer"]["status"] == "rejected"
     assert real["customer"]["status"] == "verified"
+    assert (fake["registration_status"], real["registration_status"]) == (
+        "rejected",
+        "verified",
+    )
 
     # 6. The reputation now counts only the confirmed fake.
     after = client.get(f"/admin/agents/{agent.id}", headers=admin).json()

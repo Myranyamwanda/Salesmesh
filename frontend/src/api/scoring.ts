@@ -2,11 +2,14 @@
 import { api } from "./client";
 import type {
   AgentDetail,
+  AgentKpis,
   AgentRanking,
   AssessmentDetail,
   Decision,
+  EligibilityReport,
   ModelStatus,
   Monitoring,
+  NetworkKpis,
   Page,
   QueueItem,
   Review,
@@ -60,6 +63,21 @@ export async function updateAgent(
     `/admin/agents/${agentId}`,
     changes,
   );
+  return data;
+}
+
+export async function getAgentKpis(agentId: string) {
+  const { data } = await api.get<AgentKpis>(`/admin/agents/${agentId}/kpis`);
+  return data;
+}
+
+export async function getNetworkKpis() {
+  const { data } = await api.get<NetworkKpis>("/admin/kpis");
+  return data;
+}
+
+export async function getEligibility() {
+  const { data } = await api.get<EligibilityReport>("/admin/eligibility");
   return data;
 }
 

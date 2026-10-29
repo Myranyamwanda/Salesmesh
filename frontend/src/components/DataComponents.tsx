@@ -1,5 +1,11 @@
 import { useId, type ReactNode } from "react";
-import type { Band, CustomerStatus, ReasonSource } from "../types/scoring";
+import type {
+  Band,
+  CustomerStatus,
+  Eligibility,
+  ReasonSource,
+  RegistrationStatus,
+} from "../types/scoring";
 import {
   Alert,
   Box,
@@ -156,6 +162,36 @@ export function StatusChip({ status }: { status: CustomerStatus }) {
   return <Chip size="small" variant="outlined" color={color} label={label} />;
 }
 
+const registrationLabels = {
+  received: { label: "Received", color: "default" },
+  clear: { label: "Clear", color: "success" },
+  under_review: { label: "Under review", color: "warning" },
+  verified: { label: "Verified", color: "success" },
+  rejected: { label: "Rejected", color: "error" },
+} as const;
+
+/** Admin only: the registration pipeline status (it reveals the flag). */
+export function RegistrationStatusChip({
+  status,
+}: {
+  status: RegistrationStatus;
+}) {
+  const { label, color } = registrationLabels[status];
+  return <Chip size="small" variant="outlined" color={color} label={label} />;
+}
+
+const eligibilityLabels = {
+  eligible: { label: "Eligible", color: "success" },
+  pending: { label: "Pending", color: "warning" },
+  not_eligible: { label: "Not eligible", color: "error" },
+} as const;
+
+/** Admin only: commission eligibility of one registration. */
+export function EligibilityChip({ value }: { value: Eligibility }) {
+  const { label, color } = eligibilityLabels[value];
+  return <Chip size="small" variant="outlined" color={color} label={label} />;
+}
+
 export type DataColumn<Row> = {
   key: string;
   label: string;
@@ -171,7 +207,7 @@ export function DataTable<Row>({
 }: {
   columns: DataColumn<Row>[];
   rows: Row[];
-  rowKey: (row: Row) => string;
+  rowKey: (row: Row, index: number) => string;
   loading?: boolean;
   emptyLabel?: string;
 }) {
@@ -197,8 +233,8 @@ export function DataTable<Row>({
         </TableHead>
         <TableBody>
           {rows.length ? (
-            rows.map((row) => (
-              <TableRow hover key={rowKey(row)}>
+            rows.map((row, index) => (
+              <TableRow hover key={rowKey(row, index)}>
                 {columns.map((column) => (
                   <TableCell key={column.key}>{column.render(row)}</TableCell>
                 ))}

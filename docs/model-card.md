@@ -137,11 +137,24 @@ older than 60 days, the four fraudulent agents had the four lowest reputations
 customers as real removed false flags from honest agents, so human review
 widened the separation between honest and fraudulent agents.
 
+**Demo caveat for the KPI charts.** The seed spreads registrations over the
+last 365 days but records every review at the moment it runs (flags older
+than 60 days are reviewed then; newer ones stay pending). The monthly KPIs
+therefore show (1) an average time to review that equals the cohort's age at
+seeding, from about 11 months for the oldest month down to about 2 months,
+and no reviews for the two newest months; and (2) reputations at earlier
+month ends that count every demo flag as still waiting, so each agent's trend
+steps up in the month the seed ran, when the confirmed-real reviews remove
+false flags. Real reviews would take hours or days and would change the
+trend gradually.
+
 **Decision: agents cannot see their reputation.** Reputation is an admin-only
 decision-support tool. Showing it, or even a customer's review status, would
 let an agent learn which registrations get flagged and adjust to avoid
-detection. Agents see only their referral link and the names of the customers
-they onboarded. A future commission module may show payout status to agents.
+detection. Agents see their referral link, the names of the customers they
+onboarded, a monthly standing label (New agent, Good standing, or Account
+under review), and monthly totals of completed months. A future commission
+module may show payout status to agents.
 
 ## Limitations
 

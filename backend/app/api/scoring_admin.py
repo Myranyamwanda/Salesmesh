@@ -1,5 +1,6 @@
 """Admin endpoints for reviews, agent reputation, and scoring settings."""
 
+from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
@@ -10,6 +11,7 @@ from sqlalchemy.orm import aliased
 from app.auth import Database, require_roles
 from app.models import (
     AgentProfile,
+    ClientProfile,
     Customer,
     Review,
     RiskAssessment,
@@ -19,13 +21,17 @@ from app.models import (
 from app.schemas.scoring import (
     AgentCustomer,
     AgentDetail,
+    AgentEligibility,
     AgentProfileUpdate,
     AgentRanking,
     AgentSummary,
     AssessmentDetail,
     ClientSummary,
     CustomerDetail,
+    EligibilityCounts,
+    EligibilityReport,
     EraseInput,
+    MonthEligibility,
     QueueItem,
     QueuePage,
     ReviewInput,
@@ -34,7 +40,16 @@ from app.schemas.scoring import (
     ScoringConfigRead,
 )
 from app.services.audit import audit
+from app.services.eligibility import (
+    AgentCounts,
+    Counts,
+    eligibility,
+    eligibility_counts,
+)
 from app.services.erasure import erase_customer
+from app.services.periods import recent_months
+from app.services.pipeline import registration_status
+from app.services.registration import link_is_active
 from app.services.reputation import AgentReputation, agent_reputations
 from app.services.reviews import review_assessment
 
@@ -97,6 +112,9 @@ def read_assessment(
         features=assessment.features,
         created_at=assessment.created_at,
         customer=CustomerDetail.model_validate(customer),
+        registration_status=registration_status(
+            assessment.flagged, review.decision if review else None
+        ),
         agent=AgentSummary(id=profile.user_id, display_name=profile.display_name),
         review=ReviewRead.model_validate(review) if review else None,
     )
@@ -123,12 +141,13 @@ def config_row(session) -> ScoringConfig:
 
 
 def agent_rows(session, agent_id: UUID | None = None):
-    """Agent profiles with their user account and assigned client."""
+    """Agent profiles with their user account, assigned client, and its profile."""
     client = aliased(User)
     query = (
-        select(AgentProfile, User, client)
+        select(AgentProfile, User, client, ClientProfile)
         .join(User, User.id == AgentProfile.user_id)
         .outerjoin(client, client.id == AgentProfile.client_id)
+        .outerjoin(ClientProfile, ClientProfile.user_id == AgentProfile.client_id)
         .where(User.role == "agent")
     )
     if agent_id is not None:
@@ -136,7 +155,9 @@ def agent_rows(session, agent_id: UUID | None = None):
     return session.execute(query).all()
 
 
-def ranking(profile, user, client, stats: AgentReputation) -> AgentRanking:
+def ranking(
+    profile, user, client, client_profile, stats: AgentReputation
+) -> AgentRanking:
     return AgentRanking(
         id=profile.user_id,
         display_name=profile.display_name,
@@ -144,7 +165,16 @@ def ranking(profile, user, client, stats: AgentReputation) -> AgentRanking:
         referral_code=profile.referral_code,
         status=user.status,
         is_active=user.is_active,
-        client=ClientSummary(id=client.id, email=client.email) if client else None,
+        client=ClientSummary(
+            id=client.id,
+            email=client.email,
+            organisation_name=(
+                client_profile.organisation_name if client_profile else None
+            ),
+        )
+        if client
+        else None,
+        link_active=link_is_active(user, client, client_profile),
         n_users=stats.n_users,
         flags=stats.flags,
         confirmed_fake=stats.confirmed_fake,
@@ -160,10 +190,7 @@ def ranking(profile, user, client, stats: AgentReputation) -> AgentRanking:
 def list_agents(session: Database, _: Admin) -> list[AgentRanking]:
     """Every agent with reputation, lowest (most at risk) first."""
     stats = agent_reputations(session, config_row(session))
-    rows = [
-        ranking(profile, user, client, stats[profile.user_id])
-        for profile, user, client in agent_rows(session)
-    ]
+    rows = [ranking(*row, stats[row[0].user_id]) for row in agent_rows(session)]
     return sorted(rows, key=lambda row: (row.reputation, row.display_name))
 
 
@@ -178,31 +205,39 @@ def find_agent(session, agent_id: UUID):
 def read_agent(
     agent_id: UUID, session: Database, _: Admin, offset: Offset = 0, limit: Limit = 25
 ) -> AgentDetail:
-    profile, user, client = find_agent(session, agent_id)
+    row = find_agent(session, agent_id)
     stats = agent_reputations(session, config_row(session), [agent_id])[agent_id]
     rows = session.execute(
-        select(Customer, RiskAssessment)
+        select(Customer, RiskAssessment, Review.decision)
         .outerjoin(RiskAssessment, RiskAssessment.customer_id == Customer.id)
+        .outerjoin(Review, Review.assessment_id == RiskAssessment.id)
         .where(Customer.agent_id == agent_id)
         .order_by(Customer.created_at.desc(), Customer.id)
         .offset(offset)
         .limit(limit)
     )
-    customers = [
-        AgentCustomer(
-            id=customer.id,
-            full_name=customer.full_name,
-            created_at=customer.created_at,
-            status=customer.status,
-            assisted=customer.assisted,
-            assessment_id=assessment.id if assessment else None,
-            probability=assessment.probability if assessment else None,
-            flagged=assessment.flagged if assessment else None,
+    customers = []
+    for customer, assessment, decision in rows:
+        status = registration_status(
+            assessment.flagged if assessment else None, decision
         )
-        for customer, assessment in rows
-    ]
+        customers.append(
+            AgentCustomer(
+                id=customer.id,
+                reference=customer.reference,
+                full_name=customer.full_name,
+                created_at=customer.created_at,
+                status=customer.status,
+                registration_status=status,
+                eligibility=eligibility(status),
+                assisted=customer.assisted,
+                assessment_id=assessment.id if assessment else None,
+                probability=assessment.probability if assessment else None,
+                flagged=assessment.flagged if assessment else None,
+            )
+        )
     return AgentDetail(
-        **ranking(profile, user, client, stats).model_dump(),
+        **ranking(*row, stats).model_dump(),
         customers=customers,
         customers_total=stats.n_users,
     )
@@ -217,7 +252,7 @@ def update_agent(
     actor: Admin,
 ) -> AgentDetail:
     """Change the display name and/or the client the agent works for."""
-    profile, user, _ = find_agent(session, agent_id)
+    profile, user, _, _ = find_agent(session, agent_id)
     changes = payload.model_fields_set
     if "display_name" in changes:
         if payload.display_name is None:
@@ -234,6 +269,59 @@ def update_agent(
     audit(session, request, "agent_profile_updated", actor=actor, target=user)
     session.commit()
     return read_agent(agent_id, session, actor)
+
+
+ELIGIBILITY_MONTHS = 12
+
+
+def counts_read(counts: Counts) -> EligibilityCounts:
+    return EligibilityCounts(**vars(counts))
+
+
+def months_read(by_month: dict, months: list) -> list[MonthEligibility]:
+    """One row per month, oldest first, with zeros for empty months."""
+    return [
+        MonthEligibility(
+            month=start.strftime("%Y-%m"), **vars(by_month.get(start, Counts()))
+        )
+        for start in months
+    ]
+
+
+@router.get("/eligibility", response_model=EligibilityReport)
+def eligibility_report(session: Database, _: Admin) -> EligibilityReport:
+    """Commission eligibility for the network and per agent, by name.
+
+    Totals cover every registration; months are the last 12 registration
+    months (UTC). Agents without customers are listed with zeros.
+    """
+    months = recent_months(datetime.now(UTC).date(), ELIGIBILITY_MONTHS)
+    counts = eligibility_counts(session)
+    network = AgentCounts()
+    for agent in counts.values():
+        network.totals.merge(agent.totals)
+        for start, month_counts in agent.by_month.items():
+            network.by_month.setdefault(start, Counts()).merge(month_counts)
+    profiles = session.scalars(
+        select(AgentProfile).order_by(AgentProfile.display_name, AgentProfile.user_id)
+    )
+    agents = []
+    for profile in profiles:
+        agent = counts.get(profile.user_id, AgentCounts())
+        agents.append(
+            AgentEligibility(
+                agent=AgentSummary(
+                    id=profile.user_id, display_name=profile.display_name
+                ),
+                totals=counts_read(agent.totals),
+                months=months_read(agent.by_month, months),
+            )
+        )
+    return EligibilityReport(
+        totals=counts_read(network.totals),
+        months=months_read(network.by_month, months),
+        agents=agents,
+    )
 
 
 @router.get("/scoring-config", response_model=ScoringConfigRead)

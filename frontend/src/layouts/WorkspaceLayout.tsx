@@ -25,9 +25,11 @@ import DashboardOutlined from "@mui/icons-material/DashboardOutlined";
 import FactCheckOutlined from "@mui/icons-material/FactCheckOutlined";
 import GroupOutlined from "@mui/icons-material/GroupOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
+import InsightsOutlined from "@mui/icons-material/InsightsOutlined";
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
 import ModelTrainingOutlined from "@mui/icons-material/ModelTrainingOutlined";
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
+import RequestQuoteOutlined from "@mui/icons-material/RequestQuoteOutlined";
 import QrCode2 from "@mui/icons-material/QrCode2";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import ShieldOutlined from "@mui/icons-material/ShieldOutlined";
@@ -64,6 +66,11 @@ const navItems: Record<
       icon: FactCheckOutlined,
     },
     {
+      label: "Commission eligibility",
+      path: "/admin/eligibility",
+      icon: RequestQuoteOutlined,
+    },
+    {
       label: "Model",
       path: "/admin/models",
       icon: ModelTrainingOutlined,
@@ -80,10 +87,12 @@ const navItems: Record<
       icon: SettingsOutlined,
     },
   ],
-  // Agents see only their link and who they onboarded (no scores).
+  // Agents see their link, who they onboarded, one standing label, and
+  // monthly totals; never scores, bands, or customer statuses.
   agent: [
     { label: "Referral link", path: "/agent", icon: QrCode2 },
     { label: "My customers", path: "/agent/customers", icon: GroupOutlined },
+    { label: "My activity", path: "/agent/activity", icon: InsightsOutlined },
   ],
   client: [
     {

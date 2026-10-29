@@ -45,12 +45,13 @@ token from `/auth/firebase`, not an access token. See
 
 | Method and Path | Access | Body / Purpose |
 | --- | --- | --- |
-| GET /join/{code} | Public | The agent's `display_name` only |
-| POST /join/{code}/register | Public (agent token for assisted mode) | Registration form plus `consent: true`, `session_length_minutes`, `device_id`, `user_agent`, and `assisted`; scores the customer and returns only `{"message": "Registration received"}` |
+| GET /join/{code} | Public | The agent's `display_name` and the client's `client_name` only |
+| POST /join/{code}/register | Public (agent token for assisted mode) | Registration form plus `consent: true`, `session_length_minutes`, `device_id`, `user_agent`, and `assisted`; scores the customer and returns only `{"message": "Registration received", "reference": "SM-7K3Q-9XPA"}` |
 
-Both endpoints return the same 404 "This link is not active" for an unknown
-code and for an agent who is not approved, active, and verified, or no longer
-has the agent role. `assisted: true` requires the owning agent's access token
+Both endpoints return the same 404 "This link is not active. Contact your
+agent." for an unknown code, for an agent who is not approved, active, and
+verified or no longer has the agent role, and for an agent without an active
+client that has an organisation name. `assisted: true` requires the owning agent's access token
 (otherwise 403). Non-assisted registrations are limited per IP address (429).
 A disposable address, or a domain without a mail server, gets 422
 `email_not_permanent` ("Use a permanent email address"); if the model is
@@ -62,7 +63,9 @@ unavailable the endpoint returns 503 and saves nothing.
 | --- | --- | --- |
 | GET /admin/users | Admin | Paginated user list |
 | GET /admin/users/{id} | Admin | User detail |
-| POST /admin/users | Admin | email, role (`admin` or `client`); creates the user in SalesMesh and Firebase without a password (the browser then sends Firebase's "set your password" email) |
+| POST /admin/users | Admin | email, role (`admin` or `client`), and `organisation_name` (required for a client, not allowed for an admin); creates the user in SalesMesh and Firebase without a password (the browser then sends Firebase's "set your password" email) |
+| GET /admin/clients | Admin | Every client: id, email, is_active, organisation_name (null until set) |
+| PUT /admin/clients/{id}/organisation | Admin | organisation_name; audited as `client_organisation_updated` |
 | POST /admin/users/{id}/password-email | Admin | Makes sure the user has a Firebase account (creates and links one without a password if missing) so the browser can then send Firebase's password email; 409 for an inactive or conflicting account |
 | POST /admin/users/{id}/approve | Admin | Approve a pending agent |
 | POST /admin/users/{id}/reject | Admin | Reject a pending agent |
@@ -72,11 +75,14 @@ unavailable the endpoint returns 503 and saves nothing.
 | GET /admin/model | Admin | Model status, version, metrics, threshold, and golden-check result |
 | POST /admin/model/reload | Admin | Reload and re-check the model; on failure the current model stays (409) |
 | GET /admin/review-queue | Admin | Paginated flagged, unreviewed assessments, oldest first |
-| GET /admin/assessments/{id} | Admin | Probability, threshold, flag, reasons, features, customer, agent, review |
+| GET /admin/assessments/{id} | Admin | Probability, threshold, flag, reasons, features, customer (with reference), registration_status, agent, review |
 | POST /admin/assessments/{id}/review | Admin | decision (`confirmed_real` or `confirmed_fake`), notes; once per assessment (409 after) |
-| GET /admin/agents | Admin | Every agent with n_users, flags, assisted share, reputation, risk score, band; worst first |
-| GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with scores |
+| GET /admin/agents | Admin | Every agent with n_users, flags, assisted share, reputation, risk score, band, client (with organisation name), and `link_active`; worst first |
+| GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with reference, registration_status, eligibility, and scores |
+| GET /admin/agents/{id}/kpis | Admin | The last 12 registration months: registrations, flagged, confirmed fake, reviewed, confirmed real, eligible, the four rates (null when nothing to divide), average hours to review, and the reputation at the end of each month (now for the current month; null before the first registration) |
+| GET /admin/kpis | Admin | The same monthly KPIs for the network (without reputation), the network flag rate over the 12 months, and a benchmark of each agent's flag rate against it (`enough_data` false below min_users_for_band registrations) |
 | PATCH /admin/agents/{id} | Admin | display_name and/or client_id (a client account, or null to unassign) |
+| GET /admin/eligibility | Admin | Commission eligibility (eligible, pending, not_eligible): network totals, the last 12 registration months, and the same per agent |
 | GET /admin/scoring-config | Admin | Reputation and rule settings |
 | PUT /admin/scoring-config | Admin | p0, k, min_users_for_band, high_risk_below, watch_below, device_email_rule_min |
 | POST /admin/customers/{id}/erase | Admin | confirm_email; deletes the customer, assessments, and reviews (204), audited as `customer_erased` without personal data; 422 if the email does not match |
@@ -88,8 +94,12 @@ own role, and an admin cannot be deactivated or demoted if no other usable
 admin (active, verified, linked to Firebase, with an authenticator) would
 remain (409).
 
-Reviews, scoring-config changes, agent profile changes, and model reloads are
-written to the audit log.
+Reviews, scoring-config changes, agent profile changes, client organisation
+changes, and model reloads are written to the audit log.
+
+`registration_status` is `received`, `clear` (not flagged), `under_review`
+(flagged, not reviewed), `verified` (confirmed real), or `rejected` (confirmed
+fake). It reveals the flag, so only admins see it.
 
 ### Agent (`/me`)
 
@@ -97,18 +107,42 @@ written to the audit log.
 | --- | --- | --- |
 | GET /me/referral | Agent | referral_code, display_name, and the full `/join/<code>` link |
 | GET /me/customers | Agent | Paginated customers: full_name, registered_at, assisted only |
+| GET /me/standing | Agent | `{"standing": "New agent" \| "Good standing" \| "Account under review", "as_of": "YYYY-MM-01"}` only |
+| GET /me/activity | Agent | `as_of` and the last 12 completed months: month, registrations, eligible, awaiting_verification (the last two null below 10 registrations) |
 
-Agents can see only their referral link and the list of customers they
-onboarded. Reputation is an admin-only decision-support tool. A future
-commission module may show payout status to agents.
+Agents never receive a reputation score, band name, probability, reason, or
+customer status. The standing and the totals are calculated as of the start
+of the current month; see
+[Reputation and review](reputation-and-review.md#agent-standing-a-deliberate-design-decision).
 
 ### Client (`/client`)
 
 | Method and Path | Access | Purpose |
 | --- | --- | --- |
-| GET /client/quality | Client | For the client's agents only: registrations, confirmed-fake count and percentage, registrations under review, and a 12-month trend of registrations and confirmed fakes. No model flags or scores. |
+| GET /client/quality | Client | Registrations made for this client (`customers.client_id`): registrations, confirmed-fake count and percentage, registrations under review, and a 12-month trend of registrations, confirmed fakes, and the confirmed-fake percentage (null for a month without registrations). No model flags or scores. |
+| GET /client/customers/export.csv | Client | CSV download (UTF-8 with BOM): reference, full_name, email, mobile_phone, registered_on, for this client's customers (`customers.client_id`) with consent version 2 or later and status clear or verified. No scores, flags, reasons, or statuses. Cells that could run as a spreadsheet formula get a leading apostrophe. Audited as `customers_exported` with the row count only. |
+| GET /client/eligibility | Client | Registrations made for this client (`customers.client_id`): eligible, pending, and not_eligible totals, and eligible / not_eligible per agent. Pending is a total only. |
 
 See [Reputation and review](reputation-and-review.md) for the rules.
+
+### Integration API (`/api/v1`)
+
+A versioned contract for other SalesMesh modules, for example task assignment
+(SRS 3.8, 4.2.1, 4.2.2). Fields are only ever added in v1.
+
+| Method and Path | Access | Purpose |
+| --- | --- | --- |
+| GET /api/v1/agents/{id}/reputation | Admin | `agent_id`, `score` (reputation 0-100), `band` (internal band), `n` (customers), `flags`, `computed_at` (time of the request; reputation is calculated on read) |
+
+Requests need an admin access token (401 without a valid token, 403 for other
+roles; both are rejected before the endpoint runs). Each admin may make
+`REPUTATION_API_RATE_LIMIT` requests per `REPUTATION_API_RATE_WINDOW_SECONDS`
+(default 60 per 60 seconds); more get 429 with `Retry-After`. Every request
+that reaches the endpoint is audited as `reputation_api_read` with outcome
+`success`, `failure` (unknown agent, 404), or `rate_limited`, and subject
+`agent:<id>`; the limit counts these audit entries. A service account for
+module-to-module calls is a future integration point: it would need its own
+credentials, which is a change to authentication.
 
 ## Responses
 

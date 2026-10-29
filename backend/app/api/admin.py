@@ -9,8 +9,14 @@ from sqlalchemy.exc import IntegrityError
 
 from app.auth import Database, require_roles
 from app.core.errors import CodedHTTPException
-from app.models import AgentProfile, AuditLog, User
-from app.schemas.auth import ActiveInput, CreateUserInput, RoleInput, UserRead
+from app.models import AgentProfile, AuditLog, ClientProfile, User
+from app.schemas.auth import (
+    ActiveInput,
+    CreateUserInput,
+    OrganisationName,
+    RoleInput,
+    UserRead,
+)
 from app.services.agents import create_agent_profile
 from app.services.audit import audit
 from app.services.auth import other_usable_admins, revoke_sessions
@@ -23,6 +29,19 @@ type Admin = Annotated[User, Depends(require_roles("admin"))]
 class UserPage(BaseModel):
     items: list[UserRead]
     total: int
+
+
+class ClientRead(BaseModel):
+    id: UUID
+    email: str
+    is_active: bool
+    # None for clients created before v1.2.0: their agents' links stay inactive
+    # until an admin sets it.
+    organisation_name: str | None
+
+
+class OrganisationInput(BaseModel):
+    organisation_name: OrganisationName
 
 
 class AuditRead(BaseModel):
@@ -134,6 +153,12 @@ def create_user(
     except IntegrityError:
         session.rollback()
         raise failed(409, conflict) from None
+    if payload.organisation_name is not None:
+        session.add(
+            ClientProfile(
+                user_id=target.id, organisation_name=payload.organisation_name
+            )
+        )
     audit(session, request, "user_created", actor=actor, target=target)
     session.commit()
     return target
@@ -275,6 +300,51 @@ def set_user_role(
             create_agent_profile(session, target)
 
     return change_user(session, request, actor, user_id, "user_role_changed", apply)
+
+
+def client_read(user: User, profile: ClientProfile | None) -> ClientRead:
+    return ClientRead(
+        id=user.id,
+        email=user.email,
+        is_active=user.is_active,
+        organisation_name=profile.organisation_name if profile else None,
+    )
+
+
+@router.get("/clients", response_model=list[ClientRead])
+def list_clients(session: Database, _: Admin) -> list[ClientRead]:
+    """Every client account with its organisation name, for agent assignment."""
+    rows = session.execute(
+        select(User, ClientProfile)
+        .outerjoin(ClientProfile, ClientProfile.user_id == User.id)
+        .where(User.role == "client")
+        .order_by(User.email)
+    )
+    return [client_read(user, profile) for user, profile in rows]
+
+
+@router.put("/clients/{user_id}/organisation", response_model=ClientRead)
+def set_client_organisation(
+    user_id: UUID,
+    payload: OrganisationInput,
+    request: Request,
+    session: Database,
+    actor: Admin,
+) -> ClientRead:
+    """Set the organisation name shown to customers on the client's /join links."""
+    target = session.get(User, user_id)
+    if target is None or target.role != "client":
+        audit(session, request, "client_organisation_updated", "failure", actor)
+        session.commit()
+        raise HTTPException(404, "Client not found")
+    profile = session.get(ClientProfile, user_id)
+    if profile is None:
+        profile = ClientProfile(user_id=user_id)
+        session.add(profile)
+    profile.organisation_name = payload.organisation_name
+    audit(session, request, "client_organisation_updated", actor=actor, target=target)
+    session.commit()
+    return client_read(target, profile)
 
 
 @router.get("/audit-logs", response_model=AuditPage)

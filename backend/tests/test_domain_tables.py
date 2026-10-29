@@ -23,12 +23,14 @@ from app.models import (
     ScoringConfig,
     User,
 )
+from app.models.customer import CONSENT_VERSION
 from app.services.agents import (
     PLACEHOLDER_DISPLAY_NAME,
     create_agent_profile,
     new_referral_code,
 )
 from app.services.model_versions import record_active_model
+from app.services.registration import new_reference
 
 REASON = {
     "source": "model",
@@ -56,6 +58,8 @@ def make_customer(session, agent, **overrides):
         "country": "KE",
         "current_address_months": 24,
         "consent_at": datetime.now(UTC),
+        "consent_version": CONSENT_VERSION,
+        "reference": new_reference(),
     }
     customer = Customer(**(values | overrides))
     session.add(customer)
@@ -161,6 +165,8 @@ def test_customer_requires_existing_agent(db_session):
             country="KE",
             current_address_months=1,
             consent_at=datetime.now(UTC),
+            consent_version=CONSENT_VERSION,
+            reference=new_reference(),
         )
     )
     expect_integrity_error(db_session)

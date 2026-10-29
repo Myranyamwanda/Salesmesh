@@ -47,7 +47,7 @@ sequenceDiagram
 
     C->>W: Opens the agent's referral link
     W->>J: GET /join/{code}
-    J-->>W: Agent display name (or "This link is not active")
+    J-->>W: Client and agent names (or "This link is not active")
     C->>W: Fills in the form and gives consent
     W->>J: Form + session minutes + device ID + user agent
     J->>J: Check link, rate limit, assisted mode
@@ -62,7 +62,7 @@ sequenceDiagram
     S->>S: Flag if probability >= 0.035 or a rule fires
     S->>D: Save risk assessment (probability, reasons, raw snapshot)
     S->>D: Status verified (not flagged) or pending_review (flagged)
-    J-->>W: "Registration received" (never the score)
+    J-->>W: "Registration received" + reference (never the score)
 
     A->>D: Review queue: flagged, unreviewed assessments
     A->>D: Confirm real (verified) or confirm fake (rejected), audited
@@ -73,8 +73,8 @@ sequenceDiagram
 
 | Role | Sees | Never sees |
 | --- | --- | --- |
-| Customer | "Registration received" | Probability, flag, status, reasons |
-| Agent | Own referral link; names, dates, and assisted flag of own customers | Customer status, probability, reasons, own reputation |
+| Customer | "Registration received" and a reference number | Probability, flag, status, reasons |
+| Agent | Own referral link; names, dates, and assisted flag of own customers; one standing label and monthly totals (as of the start of the month) | Customer status, probability, reasons, own reputation score or band |
 | Client | Registrations, confirmed fake % (decided by a reviewer), count under review, monthly trend for their agents | Model flags, probabilities, reasons, features |
 | Admin | Everything above, plus probabilities, reasons, raw features, reputations, settings, model status | — |
 

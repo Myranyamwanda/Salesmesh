@@ -13,7 +13,7 @@ flowchart LR
     customer["Customer's phone<br/>/join/:code (public)"]
     browser["Browser<br/>React + MUI SPA<br/>admin, agent, client"]
     api["FastAPI API<br/>localhost:8000"]
-    db[("PostgreSQL 16<br/>users, refresh tokens, MFA recovery<br/>codes, audit_logs, agent_profiles,<br/>customers, risk_assessments, reviews,<br/>scoring_config, model_versions")]
+    db[("PostgreSQL 16<br/>users, refresh tokens, MFA recovery<br/>codes, audit_logs, agent_profiles,<br/>client_profiles, customers,<br/>risk_assessments, reviews,<br/>scoring_config, model_versions")]
     firebase[["Firebase Authentication<br/>sign-in, verification and<br/>password emails"]]
     model["Model service<br/>model.joblib in memory"]
     files[["backend/models/v1/<br/>from GitHub Release model-v1<br/>(SHA-256 checked) or S3"]]
@@ -37,9 +37,9 @@ The registration flow, step by step, is shown as a sequence diagram in
 
 ```mermaid
 flowchart TB
-    routes["api/<br/>health, auth, admin, join, agent (/me),<br/>client, model, scoring_admin"]
+    routes["api/<br/>health, auth, admin, join, agent (/me),<br/>client, model, scoring_admin, kpis,<br/>integrations (/api/v1)"]
     deps["auth.py<br/>current user, require_roles(...)"]
-    services["services/<br/>auth, firebase, mfa, email_checks, registration,<br/>scoring, reviews, reputation, erasure, agents,<br/>audit, geoip"]
+    services["services/<br/>auth, firebase, mfa, email_checks, registration,<br/>scoring, reviews, reputation, pipeline, eligibility,<br/>kpis, standing, erasure, agents, audit, geoip"]
     ml["ml/<br/>model_service, features, explain"]
     core["core/<br/>settings, security, errors, logging"]
     models["models/ + schemas/<br/>SQLAlchemy tables, Pydantic I/O"]
@@ -113,8 +113,19 @@ user downloads only the pages they open.
 - **Reputation is calculated on read.** There is no reputation table, so a
   reputation can never be out of date after a registration, review, setting
   change, or erasure.
-- **Least privilege per role.** Only admins see model output. Agents see only
-  their referral link and customer names, and clients see only confirmed
-  outcomes, so the scores cannot be gamed or misread.
+- **Least privilege per role.** Only admins see model output. Agents see
+  their referral link, customer names, a monthly standing label, and monthly
+  totals, and clients see only confirmed outcomes, so the scores cannot be
+  gamed or misread.
+- **Statuses and KPIs are derived, not stored.** The registration status,
+  commission eligibility, monthly KPIs, and reputation at a past month end are
+  all computed from the assessments and reviews, so they always agree with
+  each other and with the live reputation (a test checks the current month).
+- **Coarse, delayed views outside the admin role.** Agents see a monthly
+  standing label and monthly totals; clients see pending registrations only
+  as a total. Neither can work out which customers were flagged.
+- **Versioned integration API.** `/api/v1` is a separate router whose fields
+  are only ever added, so other modules can rely on it; it is rate-limited
+  from the audit log, which works with several API workers.
 - **Model files outside Git.** Binaries are downloaded from a GitHub Release
   and verified with SHA-256 checksums that are tracked in Git.

@@ -35,10 +35,12 @@ from app.core.config import ROOT_DIR, Settings
 from app.core.security import validate_password
 from app.ml.features import ASSISTED_UNKNOWN, FEATURE_NAMES
 from app.ml.model_service import ModelService
-from app.models import AgentProfile, Customer, ScoringConfig, User
+from app.models import AgentProfile, ClientProfile, Customer, ScoringConfig, User
+from app.models.customer import CONSENT_VERSION
 from app.services.agents import create_agent_profile
 from app.services.firebase import FirebaseAuth
 from app.services.mfa import encrypt_secret, provisioning_uri
+from app.services.registration import unique_reference
 from app.services.reputation import agent_reputations
 from app.services.reviews import apply_review
 from app.services.scoring import score_customer
@@ -108,6 +110,11 @@ def agent_email(number: int) -> str:
 
 def client_email(number: int) -> str:
     return demo_email(f"client{number}")
+
+
+def client_organisation(number: int) -> str:
+    # Fixed names: no seeded random value is used, so the customers stay the same.
+    return f"Demo Client {number}"
 
 
 ADMIN_EMAIL = demo_email("admin")
@@ -250,9 +257,16 @@ def seed_demo(
     }
     session.add_all([admin, *clients, *agents.values()])
     session.flush()
+    session.add_all(
+        ClientProfile(user_id=client.id, organisation_name=client_organisation(number))
+        for number, client in enumerate(clients, start=1)
+    )
+    agent_clients = {}
     for number, agent in agents.items():
         profile = create_agent_profile(session, agent, fake.name())
-        profile.client_id = clients[(number - 1) % plan.clients].id
+        profile.client_id = agent_clients[number] = clients[
+            (number - 1) % plan.clients
+        ].id
     session.flush()
 
     customer_number = 0
@@ -271,6 +285,9 @@ def seed_demo(
             previous = features["prev_address_months_count"]
             customer = Customer(
                 agent_id=agents[number].id,
+                client_id=agent_clients[number],
+                # secrets, not the seeded generator: see unique_reference.
+                reference=unique_reference(session),
                 full_name=fake.name(),
                 email=demo_email(f"customer{customer_number:04d}"),
                 mobile_phone=fake.numerify("07## ### ###"),
@@ -281,6 +298,8 @@ def seed_demo(
                 previous_address_months=None if previous is None else int(previous),
                 assisted=assisted,
                 consent_at=created_at,
+                # Demo customers count as consenting to the current wording.
+                consent_version=CONSENT_VERSION,
                 created_at=created_at,
             )
             session.add(customer)

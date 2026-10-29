@@ -15,20 +15,81 @@ import * as adminApi from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
 import {
   BandBadge,
+  ChartCard,
   DataTable,
+  EmptyState,
+  EligibilityChip,
   KpiCard,
   PageError,
   PageHeader,
-  StatusChip,
+  RegistrationStatusChip,
   type DataColumn,
 } from "../../components/DataComponents";
+import { KpiTable, MonthlyLineChart } from "../../components/KpiComponents";
 import { ReviewDialog } from "../../components/ReviewDialog";
-import type { AgentCustomer, AgentDetail } from "../../types/scoring";
+import type {
+  AgentCustomer,
+  AgentDetail,
+  AgentMonthKpi,
+} from "../../types/scoring";
 import { apiErrorMessage } from "../../utils/errors";
 import { formatDate, formatPercent } from "../../utils/format";
 
 const PAGE_SIZE = 25;
 const NO_CLIENT = "none";
+
+const reputationColumn: DataColumn<AgentMonthKpi> = {
+  key: "reputation",
+  label: "Reputation at month end",
+  render: (row) => (row.reputation === null ? "—" : row.reputation.toFixed(1)),
+};
+
+function AgentKpiSection({ agentId }: { agentId: string }) {
+  const kpiQuery = useQuery({
+    queryKey: ["admin", "agent-kpis", agentId],
+    queryFn: () => scoringApi.getAgentKpis(agentId),
+  });
+  const months = kpiQuery.data?.months ?? [];
+  const hasData = months.some((month) => month.reputation !== null);
+  return (
+    <section aria-label="Monthly KPIs">
+      {kpiQuery.isError && <PageError message="KPIs could not be loaded." />}
+      <ChartCard
+        title="Reputation at month end"
+        description="Last 12 months. Each point uses only the registrations and reviews known at the end of that month; the current month is as of now."
+      >
+        {kpiQuery.data &&
+          (hasData ? (
+            <MonthlyLineChart
+              rows={months}
+              value={(row) => row.reputation}
+              name="Reputation"
+              format={(value) => value.toFixed(1)}
+            />
+          ) : (
+            <EmptyState
+              title="No registrations yet"
+              description="The trend starts with the agent's first registration."
+            />
+          ))}
+      </ChartCard>
+      <Typography component="h2" variant="h6" sx={{ mt: 3, mb: 1 }}>
+        Monthly KPIs
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 1 }}>
+        Each month counts the registrations made in it and what has happened to
+        them so far. Verification rate is confirmed real out of reviewed; a dash
+        means there was nothing to measure.
+      </Typography>
+      <KpiTable
+        rows={months}
+        extra={[reputationColumn]}
+        loading={kpiQuery.isPending}
+        label="No KPIs yet."
+      />
+    </section>
+  );
+}
 
 function ProfileForm({ agent }: { agent: AgentDetail }) {
   const queryClient = useQueryClient();
@@ -36,9 +97,8 @@ function ProfileForm({ agent }: { agent: AgentDetail }) {
   const [clientId, setClientId] = useState(agent.client?.id ?? NO_CLIENT);
   const [notice, setNotice] = useState("");
   const clientsQuery = useQuery({
-    queryKey: ["admin", "users", "clients"],
-    queryFn: () => adminApi.listUsers(0, 100),
-    select: (page) => page.items.filter((user) => user.role === "client"),
+    queryKey: ["admin", "clients"],
+    queryFn: adminApi.listClients,
   });
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -79,19 +139,21 @@ function ProfileForm({ agent }: { agent: AgentDetail }) {
           label="Client"
           value={clientId}
           onChange={(event) => setClientId(event.target.value)}
-          helperText="The client this agent works for. The client sees only their agents' registration quality."
+          helperText="The client this agent works for. Customers see its organisation name on the registration link, and the client sees only their agents' registration quality."
         >
           <MenuItem value={NO_CLIENT}>No client</MenuItem>
           {(clientsQuery.data ?? []).map((client) => (
             <MenuItem key={client.id} value={client.id}>
-              {client.email}
+              {adminApi.clientLabel(client)}
             </MenuItem>
           ))}
           {agent.client &&
             !clientsQuery.data?.some(
               (client) => client.id === agent.client?.id,
             ) && (
-              <MenuItem value={agent.client.id}>{agent.client.email}</MenuItem>
+              <MenuItem value={agent.client.id}>
+                {adminApi.clientLabel(agent.client)}
+              </MenuItem>
             )}
         </TextField>
         {saveMutation.isError && (
@@ -124,6 +186,7 @@ export function AgentDetailPage() {
   const agent = agentQuery.data;
 
   const columns: DataColumn<AgentCustomer>[] = [
+    { key: "reference", label: "Reference", render: (row) => row.reference },
     { key: "name", label: "Customer", render: (row) => row.full_name },
     {
       key: "date",
@@ -133,7 +196,14 @@ export function AgentDetailPage() {
     {
       key: "status",
       label: "Status",
-      render: (row) => <StatusChip status={row.status} />,
+      render: (row) => (
+        <RegistrationStatusChip status={row.registration_status} />
+      ),
+    },
+    {
+      key: "eligibility",
+      label: "Commission",
+      render: (row) => <EligibilityChip value={row.eligibility} />,
     },
     {
       key: "probability",
@@ -180,6 +250,13 @@ export function AgentDetailPage() {
       />
       {agent && (
         <>
+          {!agent.link_active && (
+            <Alert severity="warning" sx={{ mb: 2 }}>
+              Registration link not active. Customers can register only when the
+              agent is approved, active, and email-verified and works for an
+              active client that has an organisation name.
+            </Alert>
+          )}
           <section className="kpi-grid" aria-label="Agent reputation">
             <KpiCard
               label="Reputation"
@@ -200,6 +277,7 @@ export function AgentDetailPage() {
             />
           </section>
           <ProfileForm key={agent.id} agent={agent} />
+          <AgentKpiSection agentId={agent.id} />
           <Typography component="h2" variant="h6" sx={{ mt: 3, mb: 1 }}>
             Customers
           </Typography>

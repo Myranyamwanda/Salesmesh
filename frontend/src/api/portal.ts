@@ -1,15 +1,20 @@
 // Public registration, agent, and client endpoints.
 import { api } from "./client";
 import type {
+  Activity,
+  ClientEligibility,
+  JoinLink,
   JoinRegistration,
   MyCustomer,
   Page,
   Quality,
   Referral,
+  RegistrationReceived,
+  Standing,
 } from "../types/scoring";
 
 export async function getJoinLink(code: string) {
-  const { data } = await api.get<{ display_name: string }>(`/join/${code}`);
+  const { data } = await api.get<JoinLink>(`/join/${code}`);
   return data;
 }
 
@@ -17,7 +22,7 @@ export async function registerCustomer(
   code: string,
   registration: JoinRegistration,
 ) {
-  const { data } = await api.post<{ message: string }>(
+  const { data } = await api.post<RegistrationReceived>(
     `/join/${code}/register`,
     registration,
   );
@@ -34,6 +39,38 @@ export async function getMyCustomers(offset: number, limit: number) {
     params: { offset, limit },
   });
   return data;
+}
+
+export async function getMyStanding() {
+  const { data } = await api.get<Standing>("/me/standing");
+  return data;
+}
+
+export async function getMyActivity() {
+  const { data } = await api.get<Activity>("/me/activity");
+  return data;
+}
+
+export async function getClientEligibility() {
+  const { data } = await api.get<ClientEligibility>("/client/eligibility");
+  return data;
+}
+
+/** Download the client's verified-customer CSV through the browser. */
+export async function downloadCustomerExport() {
+  const response = await api.get<Blob>("/client/customers/export.csv", {
+    responseType: "blob",
+  });
+  const disposition = String(response.headers["content-disposition"] ?? "");
+  const filename =
+    /filename="([^"]+)"/.exec(disposition)?.[1] ?? "salesmesh-customers.csv";
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+  return filename;
 }
 
 export async function getQuality() {

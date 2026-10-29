@@ -1,5 +1,8 @@
 import { useState } from "react";
 import {
+  Alert,
+  AlertTitle,
+  Chip,
   Paper,
   Table,
   TableBody,
@@ -11,6 +14,7 @@ import {
 } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { clientLabel } from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
 import {
   BandBadge,
@@ -84,6 +88,9 @@ export function AgentsPage() {
     }
   }
 
+  const withoutClient = (agentsQuery.data ?? []).filter(
+    (agent) => agent.client === null,
+  );
   const term = search.trim().toLowerCase();
   const rows = sortAgents(
     (agentsQuery.data ?? []).filter(
@@ -115,6 +122,19 @@ export function AgentsPage() {
       />
       {agentsQuery.isError && (
         <PageError message="Agents could not be loaded." />
+      )}
+      {withoutClient.length > 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          <AlertTitle>Agents without a client</AlertTitle>
+          Their registration links are not active until you assign a client:{" "}
+          {withoutClient.map((agent, index) => (
+            <span key={agent.id}>
+              {index > 0 && ", "}
+              <Link to={`/admin/agents/${agent.id}`}>{agent.display_name}</Link>
+            </span>
+          ))}
+          .
+        </Alert>
       )}
       <TableContainer
         component={Paper}
@@ -162,7 +182,18 @@ export function AgentsPage() {
                 <TableCell>
                   <BandBadge band={agent.band} />
                 </TableCell>
-                <TableCell>{agent.client?.email ?? "—"}</TableCell>
+                <TableCell>
+                  {agent.client ? clientLabel(agent.client) : "No client"}
+                  {!agent.link_active && (
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      color="warning"
+                      label="Link inactive"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                </TableCell>
               </TableRow>
             ))}
             {!agentsQuery.isPending && rows.length === 0 && (

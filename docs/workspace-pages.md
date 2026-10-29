@@ -28,27 +28,33 @@ remains the authority for every permission.
 `PublicLayout` is a single, mobile-first column without the sidebar, built for
 phones from 320 px wide up to laptops. The page:
 
-- shows "Registering with {display name}", or a friendly "This link is not
-  active" page for any unknown or inactive link;
+- shows "You are registering for {client name} with agent {display name}",
+  or a friendly "This link is not active. Contact your agent." page for any
+  unknown or inactive link (including an agent without a named, active
+  client);
 - collects only the fields the model needs (see
   [ML model service](ml-scoring.md)), with the country as a short East African
   list plus a few others, defaulting to Kenya;
 - requires a consent checkbox under the Kenya Data Protection Act 2019, next to
   a "How we use your data" dialog: the data is used for registration and fraud
-  prevention, it is seen by SalesMesh administrators and not by the agent, and
+  prevention and shared with the named client for onboarding (consent version
+  2), SalesMesh administrators also see it, the agent sees only the name and
+  registration date, and
   the customer can ask for access or deletion at `VITE_PRIVACY_CONTACT_EMAIL`;
 - sends the minutes from opening the form to submitting it, a random device ID
   kept in `localStorage` (missing if storage is blocked), and the browser user
   agent;
 - offers "I am registering this customer on my device" only to the signed-in
   agent who owns the link;
-- shows the same neutral "Registration received" message whatever the score.
+- shows the same neutral "Registration received" message and a reference
+  number whatever the score.
 
 ## Agent Area
 
-Agents can see only their referral link and the list of customers they
-onboarded. Reputation is an admin-only decision-support tool. A future
-commission module may show payout status to agents.
+Agents see their referral link, the customers they onboarded, one standing
+label, and monthly totals. Reputation, bands, and customer statuses are
+admin-only (see
+[Reputation and review](reputation-and-review.md#agent-standing-a-deliberate-design-decision)).
 
 - **Referral link:** copy the link; share it by WhatsApp (`wa.me`), SMS
   (`sms:`), or email (`mailto:`); show a large QR code; download the QR code as
@@ -57,6 +63,10 @@ commission module may show payout status to agents.
   code is drawn in the browser by `qrcode.react`.
 - **My customers:** name, registration date, and whether it was registered on
   the agent's device. No status, score, or reasons.
+- **My activity:** the standing label (New agent, Good standing, or Account
+  under review) with a short explanation and its "as of" date, and a table of
+  the last 12 completed months: registrations, eligible, and awaiting
+  verification, or "Shown from 10 registrations" for smaller months.
 
 ## Admin Area
 
@@ -67,7 +77,12 @@ commission module may show payout status to agents.
 - **Agents ranking:** customers, flags, confirmed fake, pending, assisted share,
   reputation, risk score, band, and client, sorted lowest reputation first.
 - **Agent detail:** the same figures, the display name, the client assignment,
-  and the agent's customers with their status and probability.
+  a **Reputation at month end** line chart and a **Monthly KPIs** table for
+  the last 12 months, and the agent's customers with their reference,
+  registration status, eligibility, and probability.
+- **Commission eligibility:** eligible, pending, and not-eligible totals, a
+  table per registration month (newest first), and a table per agent for all
+  time or one month. Agent detail also shows each customer's eligibility.
 - **Model:** status, version, scikit-learn version, threshold, test metrics,
   and the golden check. "Reload model" keeps the current model if the new one
   fails its checks. A **Monitoring** card charts the monthly model flag rate
@@ -80,11 +95,23 @@ commission module may show payout status to agents.
 - **Audit log:** now also shows each entry's subject, such as
   `assessment:<id>`.
 
+- **Overview:** besides the model, review, and attention cards, a **Network
+  flag rate** line chart, the network KPIs by month, and the flag-rate
+  benchmark of each agent against the network.
+
+KPI charts are single-series Recharts lines in the dataviz reference palette's
+first categorical colour (`#2a78d6`, validated on white). Months without data
+are gaps, not zeros, and every chart has a table with the same figures.
+
 ## Client Area
 
 The quality dashboard shows registrations, confirmed fake %, and the number
 of registrations under review for the client's own agents, with a 12-month
-chart (Recharts) and the same figures in a table. Clients see only outcomes a person has confirmed, never model flags or scores. At the model's precision about 9 in 10 flagged registrations are genuine, so a "flagged %" would overstate fraud and could unfairly harm an agent's standing with their client.
+chart (Recharts) and the same figures in a table. A **Commission eligibility**
+section shows eligible and not-eligible registrations per agent and the
+number awaiting verification as a single total. **Export verified customers**
+downloads the CSV described in the API summary, with a note on what it leaves
+out. Clients see only outcomes a person has confirmed, never model flags or scores. At the model's precision about 9 in 10 flagged registrations are genuine, so a "flagged %" would overstate fraud and could unfairly harm an agent's standing with their client.
 
 ## Accessibility
 

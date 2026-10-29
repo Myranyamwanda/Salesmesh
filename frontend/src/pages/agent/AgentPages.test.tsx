@@ -3,6 +3,9 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import * as portalApi from "../../api/portal";
 import { makeUser, renderPage } from "../../test/render";
+import type { Standing } from "../../types/scoring";
+import { formatLongDate } from "../../utils/format";
+import { MyActivityPage } from "./MyActivityPage";
 import { MyCustomersPage } from "./MyCustomersPage";
 import { ReferralPage } from "./ReferralPage";
 
@@ -113,5 +116,84 @@ describe("my customers", () => {
     expect(document.body).not.toHaveTextContent(
       /reputation|risk|band|status|probability|flag|verified|pending|rejected/i,
     );
+  });
+});
+
+describe("my activity", () => {
+  // The same words the backend tests prove absent from the agent API.
+  const forbidden =
+    /reputation|risk|band|score|probability|reason|flag|watch|insufficient|threshold|rejected|fake/i;
+
+  function mockActivity(standing: Standing["standing"]) {
+    vi.spyOn(portalApi, "getMyStanding").mockResolvedValue({
+      standing,
+      as_of: "2026-10-01",
+    });
+    vi.spyOn(portalApi, "getMyActivity").mockResolvedValue({
+      as_of: "2026-10-01",
+      months: [
+        {
+          month: "2026-08",
+          registrations: 3,
+          eligible: null,
+          awaiting_verification: null,
+        },
+        {
+          month: "2026-09",
+          registrations: 40,
+          eligible: 35,
+          awaiting_verification: 5,
+        },
+      ],
+    });
+  }
+
+  it.each([
+    ["New agent", /once enough customers have registered/],
+    ["Good standing", /Keep registering customers/],
+    ["Account under review", /Your link keeps working/],
+  ] as const)("shows %s with its explanation only", async (standing, text) => {
+    mockActivity(standing);
+    renderPage(<MyActivityPage />, { user: makeUser("agent") });
+
+    const card = await screen.findByRole("region", { name: "My standing" });
+    expect(await within(card).findByText(standing)).toBeInTheDocument();
+    expect(within(card).getByText(text)).toBeInTheDocument();
+    // The date follows the reader's locale (CI runs en-US, Kenya uses en-GB).
+    expect(
+      within(card).getByText(`As of ${formatLongDate("2026-10-01")}.`),
+    ).toBeInTheDocument();
+    expect(formatLongDate("2026-10-01")).toMatch(/2026/);
+    expect(document.body).not.toHaveTextContent(forbidden);
+  });
+
+  it("shows monthly totals newest first and hides small breakdowns", async () => {
+    mockActivity("Good standing");
+    renderPage(<MyActivityPage />, { user: makeUser("agent") });
+
+    const table = await screen.findByRole("table");
+    const rows = (await within(table).findAllByRole("row")).slice(1);
+    expect(
+      rows.map((row) =>
+        within(row)
+          .getAllByRole("cell")
+          .map((cell) => cell.textContent),
+      ),
+    ).toEqual([
+      ["2026-09", "40", "35", "5"],
+      [
+        "2026-08",
+        "3",
+        "Shown from 10 registrations",
+        "Shown from 10 registrations",
+      ],
+    ]);
+    // Only these columns: no per-customer status or review state.
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((cell) => cell.textContent),
+    ).toEqual(["Month", "Registrations", "Eligible", "Awaiting verification"]);
+    expect(document.body).not.toHaveTextContent(/review/i);
   });
 });
