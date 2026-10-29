@@ -1,6 +1,7 @@
 // Public registration, agent, and client endpoints.
 import { api } from "./client";
 import type {
+  ClientEligibility,
   JoinLink,
   JoinRegistration,
   MyCustomer,
@@ -35,6 +36,11 @@ export async function getMyCustomers(offset: number, limit: number) {
   const { data } = await api.get<Page<MyCustomer>>("/me/customers", {
     params: { offset, limit },
   });
+  return data;
+}
+
+export async function getClientEligibility() {
+  const { data } = await api.get<ClientEligibility>("/client/eligibility");
   return data;
 }
 
