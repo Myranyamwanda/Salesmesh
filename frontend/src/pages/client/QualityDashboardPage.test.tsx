@@ -1,4 +1,5 @@
 import { cleanup, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as portalApi from "../../api/portal";
 import { makeUser, renderPage } from "../../test/render";
@@ -97,5 +98,39 @@ describe("client quality dashboard", () => {
         .getAllByRole("columnheader")
         .map((c) => c.textContent),
     ).toEqual(["Agent", "Eligible", "Not eligible"]);
+  });
+});
+
+describe("verified-customer export", () => {
+  it("downloads the CSV and explains what it contains", async () => {
+    vi.spyOn(portalApi, "getQuality").mockResolvedValue({
+      registrations: 0,
+      confirmed_fake: 0,
+      confirmed_fake_percent: 0,
+      under_review: 0,
+      trend: [],
+    });
+    const download = vi
+      .spyOn(portalApi, "downloadCustomerExport")
+      .mockResolvedValue("salesmesh-customers-2026-10-29.csv");
+    renderPage(<QualityDashboardPage />, { user: makeUser("client") });
+
+    const section = await screen.findByRole("region", {
+      name: "Export verified customers",
+    });
+    expect(section).toHaveTextContent(
+      "Registrations awaiting verification are added once a reviewer has decided",
+    );
+    expect(section).toHaveTextContent("never included");
+    await userEvent
+      .setup()
+      .click(within(section).getByRole("button", { name: "Download CSV" }));
+    expect(download).toHaveBeenCalledTimes(1);
+    expect(
+      await within(section).findByText(
+        "Downloaded salesmesh-customers-2026-10-29.csv.",
+      ),
+    ).toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/flag|probability|reason/i);
   });
 });

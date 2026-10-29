@@ -1,5 +1,6 @@
-import { Typography } from "@mui/material";
-import { useQuery } from "@tanstack/react-query";
+import { Alert, Button, Typography } from "@mui/material";
+import FileDownloadOutlined from "@mui/icons-material/FileDownloadOutlined";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Bar,
   CartesianGrid,
@@ -33,6 +34,45 @@ const eligibilityColumns: DataColumn<AgentEligibility>[] = [
     render: (row) => row.not_eligible,
   },
 ];
+
+function ExportSection() {
+  const exportMutation = useMutation({
+    mutationFn: portalApi.downloadCustomerExport,
+  });
+  return (
+    <section aria-label="Export verified customers">
+      <Typography component="h2" variant="h6" sx={{ mt: 3, mb: 1 }}>
+        Export verified customers
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 2 }}>
+        A CSV file of the customers registered for you that passed the checks or
+        were verified by a reviewer: reference, name, email, mobile phone, and
+        registration date. Registrations awaiting verification are added once a
+        reviewer has decided, and customers who registered before the consent
+        text named you are never included. Every download is recorded in the
+        audit log.
+      </Typography>
+      {exportMutation.isError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          The export could not be downloaded. Please try again.
+        </Alert>
+      )}
+      {exportMutation.isSuccess && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          Downloaded {exportMutation.data}.
+        </Alert>
+      )}
+      <Button
+        variant="contained"
+        startIcon={<FileDownloadOutlined />}
+        onClick={() => exportMutation.mutate()}
+        disabled={exportMutation.isPending}
+      >
+        {exportMutation.isPending ? "Preparing…" : "Download CSV"}
+      </Button>
+    </section>
+  );
+}
 
 function EligibilitySection() {
   const eligibilityQuery = useQuery({
@@ -173,6 +213,7 @@ export function QualityDashboardPage() {
         emptyLabel="No registrations yet."
       />
       <EligibilitySection />
+      <ExportSection />
     </>
   );
 }

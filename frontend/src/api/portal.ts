@@ -56,6 +56,23 @@ export async function getClientEligibility() {
   return data;
 }
 
+/** Download the client's verified-customer CSV through the browser. */
+export async function downloadCustomerExport() {
+  const response = await api.get<Blob>("/client/customers/export.csv", {
+    responseType: "blob",
+  });
+  const disposition = String(response.headers["content-disposition"] ?? "");
+  const filename =
+    /filename="([^"]+)"/.exec(disposition)?.[1] ?? "salesmesh-customers.csv";
+  const url = URL.createObjectURL(response.data);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+  return filename;
+}
+
 export async function getQuality() {
   const { data } = await api.get<Quality>("/client/quality");
   return data;
