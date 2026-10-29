@@ -73,6 +73,9 @@ commission module may show payout status to agents.
   reputation, risk score, band, and client, sorted lowest reputation first.
 - **Agent detail:** the same figures, the display name, the client assignment,
   and the agent's customers with their status and probability.
+- **Commission eligibility:** eligible, pending, and not-eligible totals, a
+  table per registration month (newest first), and a table per agent for all
+  time or one month. Agent detail also shows each customer's eligibility.
 - **Model:** status, version, scikit-learn version, threshold, test metrics,
   and the golden check. "Reload model" keeps the current model if the new one
   fails its checks. A **Monitoring** card charts the monthly model flag rate
@@ -89,7 +92,9 @@ commission module may show payout status to agents.
 
 The quality dashboard shows registrations, confirmed fake %, and the number
 of registrations under review for the client's own agents, with a 12-month
-chart (Recharts) and the same figures in a table. Clients see only outcomes a person has confirmed, never model flags or scores. At the model's precision about 9 in 10 flagged registrations are genuine, so a "flagged %" would overstate fraud and could unfairly harm an agent's standing with their client.
+chart (Recharts) and the same figures in a table. A **Commission eligibility**
+section shows eligible and not-eligible registrations per agent and the
+number awaiting verification as a single total. Clients see only outcomes a person has confirmed, never model flags or scores. At the model's precision about 9 in 10 flagged registrations are genuine, so a "flagged %" would overstate fraud and could unfairly harm an agent's standing with their client.
 
 ## Accessibility
 

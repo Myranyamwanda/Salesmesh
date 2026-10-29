@@ -5,6 +5,7 @@ import type {
   AgentRanking,
   AssessmentDetail,
   Decision,
+  EligibilityReport,
   ModelStatus,
   Monitoring,
   Page,
@@ -60,6 +61,11 @@ export async function updateAgent(
     `/admin/agents/${agentId}`,
     changes,
   );
+  return data;
+}
+
+export async function getEligibility() {
+  const { data } = await api.get<EligibilityReport>("/admin/eligibility");
   return data;
 }
 

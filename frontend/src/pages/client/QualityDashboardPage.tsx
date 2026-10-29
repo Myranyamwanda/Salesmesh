@@ -1,3 +1,4 @@
+import { Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import {
   Bar,
@@ -19,7 +20,63 @@ import {
   PageHeader,
   type DataColumn,
 } from "../../components/DataComponents";
-import type { MonthQuality } from "../../types/scoring";
+import type { ClientEligibility, MonthQuality } from "../../types/scoring";
+
+type AgentEligibility = ClientEligibility["agents"][number];
+
+const eligibilityColumns: DataColumn<AgentEligibility>[] = [
+  { key: "agent", label: "Agent", render: (row) => row.display_name },
+  { key: "eligible", label: "Eligible", render: (row) => row.eligible },
+  {
+    key: "not_eligible",
+    label: "Not eligible",
+    render: (row) => row.not_eligible,
+  },
+];
+
+function EligibilitySection() {
+  const eligibilityQuery = useQuery({
+    queryKey: ["client", "eligibility"],
+    queryFn: portalApi.getClientEligibility,
+  });
+  const eligibility = eligibilityQuery.data;
+  return (
+    <section aria-label="Commission eligibility">
+      <Typography component="h2" variant="h6" sx={{ mt: 3, mb: 1 }}>
+        Commission eligibility
+      </Typography>
+      <Typography color="text.secondary" sx={{ mb: 2 }}>
+        Registrations made for you since the start. Eligible registrations
+        passed the checks or were verified by a reviewer; not eligible ones were
+        confirmed as fake. Registrations awaiting verification are shown only as
+        a total, so no agent is judged before a reviewer has decided.
+      </Typography>
+      {eligibilityQuery.isError && (
+        <PageError message="Commission eligibility could not be loaded." />
+      )}
+      <div className="kpi-grid">
+        <KpiCard label="Eligible" value={eligibility?.eligible ?? null} />
+        <KpiCard
+          label="Awaiting verification"
+          value={eligibility?.pending ?? null}
+          detail="Total for all your agents"
+        />
+        <KpiCard
+          label="Not eligible"
+          value={eligibility?.not_eligible ?? null}
+        />
+      </div>
+      <DataTable
+        columns={eligibilityColumns}
+        rows={eligibility?.agents ?? []}
+        // Display names are not unique; the list order is stable (by name).
+        rowKey={(row, index) => `${index}-${row.display_name}`}
+        loading={eligibilityQuery.isPending}
+        emptyLabel="No agents work for you yet."
+      />
+    </section>
+  );
+}
 
 const columns: DataColumn<MonthQuality>[] = [
   { key: "month", label: "Month", render: (row) => row.month },
@@ -106,6 +163,7 @@ export function QualityDashboardPage() {
         loading={qualityQuery.isPending}
         emptyLabel="No registrations yet."
       />
+      <EligibilitySection />
     </>
   );
 }

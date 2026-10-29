@@ -66,6 +66,10 @@ const ReferralPage = named(
   () => import("./pages/agent/ReferralPage"),
   "ReferralPage",
 );
+const EligibilityPage = named(
+  () => import("./pages/admin/EligibilityPage"),
+  "EligibilityPage",
+);
 const QualityDashboardPage = named(
   () => import("./pages/client/QualityDashboardPage"),
   "QualityDashboardPage",
@@ -156,6 +160,10 @@ function AppRoutes() {
                 <Route
                   path="/admin/review-queue"
                   element={<ReviewQueuePage />}
+                />
+                <Route
+                  path="/admin/eligibility"
+                  element={<EligibilityPage />}
                 />
                 <Route path="/admin/models" element={<ModelPage />} />
                 <Route

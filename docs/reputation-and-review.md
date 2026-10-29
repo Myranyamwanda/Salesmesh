@@ -102,6 +102,24 @@ Act 2019, see the privacy notice on `/join`).
   retained after case-by-case review under the Kenya Data Protection Act 2019.
   The admin decides whether erasure is appropriate before confirming it.
 
+## Commission Eligibility
+
+SalesMesh provides the eligibility input for a commission module (SRS 3.7);
+it calculates no amounts and makes no payments.
+
+| Registration status | Eligibility |
+| --- | --- |
+| clear (not flagged) or verified (confirmed real) | eligible |
+| under_review (flagged, no decision yet) or received (not yet scored) | pending |
+| rejected (confirmed fake) | not_eligible |
+
+The mapping is in `backend/app/services/eligibility.py` and is derived on read,
+so it follows every review at once. Admins see eligibility per customer, per
+agent, and per registration month on the **Commission eligibility** page.
+Clients see eligible and not-eligible counts per agent for registrations made
+for them, but pending only as one total: per agent or per month it would show
+which registrations the model flagged, and most flags are genuine customers.
+
 ## Agents and Clients
 
 - `PATCH /admin/agents/{id}` changes an agent's display name and assigns or

@@ -51,6 +51,7 @@ describe("workspace navigation", () => {
         "Overview",
         "Agents",
         "Review queue",
+        "Commission eligibility",
         "Model",
         "User management",
         "Audit log",
