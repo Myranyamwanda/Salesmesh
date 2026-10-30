@@ -70,7 +70,7 @@ the admin types the customer's email (see
 
 ## 5. Model and Client Views
 
-- **Model** shows the version, test metrics, the golden check, monthly
+- **Model** (open `/admin/models`; it is not in the sidebar) shows the version, test metrics, the golden check, monthly
   monitoring against p0, and **Reload model** (a failed reload keeps the
   current model).
 - **Settings** edits the reputation and rule settings; reputations update at
