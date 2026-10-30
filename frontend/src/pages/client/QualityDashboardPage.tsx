@@ -21,6 +21,7 @@ import {
   PageHeader,
   type DataColumn,
 } from "../../components/DataComponents";
+import { chart } from "../../tokens";
 import type { ClientEligibility, MonthQuality } from "../../types/scoring";
 
 type AgentEligibility = ClientEligibility["agents"][number];
@@ -151,16 +152,16 @@ export function QualityChart({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <ComposedChart data={trend} margin={{ top: 8, right: 16, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#e3e8e2" />
+        <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
         <XAxis dataKey="month" tick={{ fontSize: 12 }} />
         <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
         <Tooltip />
         <Legend />
-        <Bar dataKey="registrations" name="Registrations" fill="#1d5141" />
+        <Bar dataKey="registrations" name="Registrations" fill={chart.series} />
         <Line
           dataKey="confirmed_fake"
           name="Confirmed fake"
-          stroke="#b63737"
+          stroke={chart.comparison}
           strokeWidth={2}
         />
       </ComposedChart>
