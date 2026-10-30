@@ -80,15 +80,6 @@ afterEach(cleanup);
 beforeEach(() => {
   vi.spyOn(scoringApi, "getAgent").mockResolvedValue(detail);
   vi.spyOn(adminApi, "listClients").mockResolvedValue([]);
-  vi.spyOn(scoringApi, "getModel").mockResolvedValue({
-    status: "ok",
-    error: null,
-    model_version: "v1",
-    sklearn_version: "1.7.2",
-    threshold: 0.035,
-    metrics: {},
-    golden_check: null,
-  } as unknown as Awaited<ReturnType<typeof scoringApi.getModel>>);
   vi.spyOn(scoringApi, "getReviewQueue").mockResolvedValue({
     items: [],
     total: 0,
@@ -214,5 +205,8 @@ describe("network KPIs", () => {
     ]);
     expect(cells(benchmark, /Brian/)[3]).toBe("-8.5 pts");
     expect(cells(benchmark, /Chebet/)[3]).toBe("Insufficient data");
+    const summary = screen.getByRole("region", { name: "Workspace summary" });
+    expect(within(summary).queryByText("Model")).not.toBeInTheDocument();
+    expect(within(summary).queryByText("Ready")).not.toBeInTheDocument();
   });
 });

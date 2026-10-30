@@ -129,10 +129,6 @@ const columns: DataColumn<AgentRanking>[] = [
 ];
 
 export function OverviewPage() {
-  const modelQuery = useQuery({
-    queryKey: ["admin", "model"],
-    queryFn: scoringApi.getModel,
-  });
   const queueQuery = useQuery({
     queryKey: ["admin", "review-queue", 0],
     queryFn: () => scoringApi.getReviewQueue(0, 25),
@@ -152,20 +148,9 @@ export function OverviewPage() {
       <PageHeader
         eyebrow="ADMINISTRATION"
         title="Overview"
-        description="Model status, reviews waiting, and agents that need attention."
+        description="Reviews waiting and agents that need attention."
       />
       <section className="kpi-grid" aria-label="Workspace summary">
-        <KpiCard
-          label="Model"
-          value={
-            modelQuery.data
-              ? modelQuery.data.status === "ok"
-                ? "Ready"
-                : "Failed"
-              : null
-          }
-          detail={modelQuery.data?.model_version ?? undefined}
-        />
         <KpiCard
           label="Reviews waiting"
           value={queueQuery.data?.total ?? null}
