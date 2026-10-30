@@ -120,6 +120,13 @@ Band badges (High risk, Watch, Low risk, Insufficient data), reason sources
 never depends on colour alone. Filter dropdowns are linked to their visible
 label for screen readers.
 
+## Design Tokens
+
+`frontend/src/tokens.ts` is the one source of colours, fonts, radii, and chart
+colours. `theme.ts` passes them to MUI and publishes them as CSS variables, so
+`styles.css` and the charts hold no colours of their own. Text is at least
+12px.
+
 ## Tests
 
 Vitest tests in `frontend/src` cover the join page (agent name, inactive link,
