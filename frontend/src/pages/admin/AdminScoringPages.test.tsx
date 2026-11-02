@@ -50,6 +50,10 @@ const assessment: AssessmentDetail = {
   flagged: true,
   reasons: [ruleReason, modelReason],
   features: { device_os: "windows", prev_address_months_count: null },
+  feature_effects: {
+    device_os: "lowered",
+    prev_address_months_count: "raised",
+  },
   created_at: "2026-10-10T08:00:00Z",
   customer: {
     id: "customer-1",

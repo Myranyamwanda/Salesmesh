@@ -9,6 +9,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import aliased
 
 from app.auth import Database, require_roles
+from app.ml.feature_effects import feature_effects
+from app.ml.model_service import ModelService, get_model_service
 from app.models import (
     AgentProfile,
     ClientProfile,
@@ -94,7 +96,10 @@ def review_queue(
 
 @router.get("/assessments/{assessment_id}", response_model=AssessmentDetail)
 def read_assessment(
-    assessment_id: UUID, session: Database, _: Admin
+    assessment_id: UUID,
+    session: Database,
+    _: Admin,
+    model_service: Annotated[ModelService, Depends(get_model_service)],
 ) -> AssessmentDetail:
     assessment = session.get(RiskAssessment, assessment_id)
     if assessment is None:
@@ -110,6 +115,12 @@ def read_assessment(
         flagged=assessment.flagged,
         reasons=assessment.reasons,
         features=assessment.features,
+        feature_effects=feature_effects(
+            model_service.state,
+            assessment.model_version,
+            assessment.features,
+            customer.assisted,
+        ),
         created_at=assessment.created_at,
         customer=CustomerDetail.model_validate(customer),
         registration_status=registration_status(

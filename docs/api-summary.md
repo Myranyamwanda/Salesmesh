@@ -75,7 +75,7 @@ unavailable the endpoint returns 503 and saves nothing.
 | GET /admin/model | Admin | Model status, version, metrics, threshold, and golden-check result |
 | POST /admin/model/reload | Admin | Reload and re-check the model; on failure the current model stays (409) |
 | GET /admin/review-queue | Admin | Paginated flagged, unreviewed assessments, oldest first |
-| GET /admin/assessments/{id} | Admin | Probability, threshold, flag, reasons, features, customer (with reference), registration_status, agent, review |
+| GET /admin/assessments/{id} | Admin | Model version, probability, threshold, flag, reasons, features, feature_effects, customer (with reference), registration_status, agent, review |
 | POST /admin/assessments/{id}/review | Admin | decision (`confirmed_real` or `confirmed_fake`), notes; once per assessment (409 after) |
 | GET /admin/agents | Admin | Every agent with n_users, flags, assisted share, reputation, risk score, band, client (with organisation name), and `link_active`; worst first |
 | GET /admin/agents/{id} | Admin | One agent's figures and paginated customers with reference, registration_status, eligibility, and scores |

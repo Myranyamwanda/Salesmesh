@@ -160,6 +160,27 @@ Each stored reason has a `source`: `rule` reasons come first, followed by
 `model` reasons. Reasons and probabilities are shown to administrators only,
 never to agents or customers.
 
+## Feature Effects
+
+The review dialog shows every stored feature with its effect on that score. It
+comes from `app/ml/feature_effects.py`, which adds up the contributions of each
+feature's model inputs, and is calculated when an administrator opens the
+registration.
+
+| Effect | Shown as | When |
+| --- | --- | --- |
+| `raised`, `lowered` | Raised the score, Lowered the score | The total is at least 0.01 from zero |
+| `no_effect` | No real effect | The total is closer to zero than 0.01 |
+| `not_used_bank_scale` | Not used by the model (bank-scale feature) | `date_of_birth_distinct_emails_4w`, which is stored but sent as None |
+| `not_used_assisted` | Not used (assisted registration) | The four device features of an assisted registration |
+| `unavailable` | Not available (the model that scored this is not loaded) | The model is not ok, or another version is loaded |
+
+An effect shows direction, not size. Numeric inputs compare the value with the
+training average. The categories of `source` and `device_os` are not centred, so
+their sign only follows the category's coefficient. Effects use clipped values,
+as the model did, while the table shows the raw value. Like reasons, they are for
+administrators only.
+
 ## Known Limitations
 
 - **Not Kenyan data.** BAF is synthetic bank application data from another
