@@ -62,11 +62,11 @@ SEED = 42
 TARGET_FPR = 0.05
 OLDER_AGE = 50  # customer_age measures fairness only; it is never a feature.
 
-# Dataviz reference palette: blue, orange, aqua, and a neutral reference line.
+# Dataviz reference palette with a darker aqua for 3:1 contrast on the surface.
 COLOURS = {
     "Calibrated LR (model v1 setup)": "#2a78d6",
     "Random forest": "#eb6834",
-    "Gradient boosting": "#1baf7a",
+    "Gradient boosting": "#17996b",
 }
 LINE_STYLES = {
     "Calibrated LR (model v1 setup)": "-",
