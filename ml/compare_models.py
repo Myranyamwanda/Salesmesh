@@ -400,6 +400,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    git = git_state()  # Before any results exist, so they cannot mark it dirty.
     data = args.data.resolve()
     if data.is_relative_to(REPO):
         parser.error("Base.csv must stay outside the repository")
@@ -435,7 +436,7 @@ def main() -> None:
     packages = ["scikit-learn", "numpy", "pandas", "joblib", "scipy", "matplotlib"]
     record = {
         "date_utc": datetime.now(UTC).isoformat(timespec="seconds"),
-        "git": git_state(),
+        "git": git,
         "dataset_file": data.name,
         "dataset_sha256": sha256_of(data),
         "rows_used": len(frame),
