@@ -23,6 +23,9 @@ The dataset itself is never committed (`data/` is ignored by Git).
 | `model_contract/` | Tracked copies of the contract: `metadata.json` (features, categories, ranges, threshold, metrics), `golden_examples.json`, `demo_sample.csv` (5,000 test rows for demo data), and `model-v1.sha256` |
 | `src/` | One module per pipeline stage; each points to the notebook that implements it |
 | `artifacts/` | Generated model output (ignored by Git) |
+| `compare_models.py` | v1.3.0 comparison of model v1 with a baseline and tree models; changes nothing in model v1 |
+| `results/v1.3.0/` | Comparison results, charts, and the machine-written run record |
+| `RUN_RECORD.md` | How the SageMaker run and the comparison were done, the results, and why model v1 was kept |
 
 The exported model files are published as the GitHub Release `model-v1` and
 downloaded with `.\scripts\dev.ps1 fetch-model`. See the
