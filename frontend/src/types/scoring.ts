@@ -58,6 +58,14 @@ export type CustomerDetail = {
   created_at: string;
 };
 
+export type FeatureEffect =
+  | "raised"
+  | "lowered"
+  | "no_effect"
+  | "not_used_bank_scale"
+  | "not_used_assisted"
+  | "unavailable";
+
 export type AssessmentDetail = {
   id: string;
   model_version: string;
@@ -66,6 +74,7 @@ export type AssessmentDetail = {
   flagged: boolean;
   reasons: Reason[];
   features: Record<string, string | number | null>;
+  feature_effects: Record<string, FeatureEffect>;
   created_at: string;
   customer: CustomerDetail;
   registration_status: RegistrationStatus;

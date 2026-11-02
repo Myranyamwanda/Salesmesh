@@ -10,13 +10,14 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableHead,
   TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as scoringApi from "../api/scoring";
-import type { Decision, Reason } from "../types/scoring";
+import type { Decision, FeatureEffect, Reason } from "../types/scoring";
 import { apiErrorMessage } from "../utils/errors";
 import { formatDate, formatDateTime, formatPercent } from "../utils/format";
 import { SourceChip, StatusChip } from "./DataComponents";
@@ -37,6 +38,15 @@ const FEATURE_LABELS: Record<string, string> = {
   device_os: "Device operating system",
   keep_alive_session: "Kept signed in",
   device_distinct_emails_8w: "Emails from this device (8 weeks)",
+};
+
+const EFFECT_LABELS: Record<FeatureEffect, string> = {
+  raised: "Raised the score",
+  lowered: "Lowered the score",
+  no_effect: "No real effect",
+  not_used_bank_scale: "Not used by the model (bank-scale feature)",
+  not_used_assisted: "Not used (assisted registration)",
+  unavailable: "Not available (the model that scored this is not loaded)",
 };
 
 export function ReasonList({ reasons }: { reasons: Reason[] }) {
@@ -147,10 +157,15 @@ export function ReviewDialog({
                 </div>
                 <div>
                   <dt>Probability of a fake customer</dt>
-                  <dd>
-                    {formatPercent(assessment.probability)} (threshold{" "}
-                    {formatPercent(assessment.threshold)})
-                  </dd>
+                  <dd>{formatPercent(assessment.probability)}</dd>
+                </div>
+                <div>
+                  <dt>Threshold at scoring</dt>
+                  <dd>{formatPercent(assessment.threshold)}</dd>
+                </div>
+                <div>
+                  <dt>Model version</dt>
+                  <dd>{assessment.model_version}</dd>
                 </div>
                 <div>
                   <dt>Status</dt>
@@ -159,6 +174,14 @@ export function ReviewDialog({
                   </dd>
                 </div>
               </dl>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                The probability is the model&apos;s estimate that this
+                registration is fake. It is not proof. The model flags a
+                registration at {formatPercent(assessment.threshold)} or above,
+                and a rule can also flag it. In testing of model v1, about 9 in
+                10 registrations flagged at its threshold were genuine, so check
+                the details before deciding.
+              </Typography>
               <Typography component="h3" variant="subtitle1" gutterBottom>
                 Reasons
               </Typography>
@@ -171,12 +194,26 @@ export function ReviewDialog({
               >
                 Feature values (as registered)
               </Typography>
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Raised and lowered show the direction of each value in this
+                score, not how much it mattered.
+              </Typography>
               <Table size="small" aria-label="Feature values">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Feature</TableCell>
+                    <TableCell>Value</TableCell>
+                    <TableCell>Effect on the score</TableCell>
+                  </TableRow>
+                </TableHead>
                 <TableBody>
                   {Object.entries(assessment.features).map(([name, value]) => (
                     <TableRow key={name}>
                       <TableCell>{FEATURE_LABELS[name] ?? name}</TableCell>
                       <TableCell>{displayValue(value)}</TableCell>
+                      <TableCell>
+                        {EFFECT_LABELS[assessment.feature_effects[name]]}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -22,6 +22,7 @@ function assessment(status: CustomerStatus): AssessmentDetail {
     flagged: status !== "verified",
     reasons: [],
     features: {},
+    feature_effects: {},
     created_at: "2026-10-10T08:00:00Z",
     customer: {
       id: "customer-1",
