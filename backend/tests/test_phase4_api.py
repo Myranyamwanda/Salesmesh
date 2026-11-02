@@ -111,6 +111,7 @@ def test_assessment_detail_shows_everything_to_admins(api):
 
     assert body["probability"] == 0.05
     assert body["features"] == {"source": "INTERNET"}
+    assert body["feature_effects"] == {"source": "unavailable"}
     assert body["customer"]["email"] == customer.email
     assert body["agent"]["id"] == str(users["agent"].id)
     assert body["review"] is None

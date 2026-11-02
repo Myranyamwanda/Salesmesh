@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.ml.feature_effects import FeatureEffect
 from app.schemas.auth import DisplayName
 from app.services.eligibility import Eligibility
 from app.services.pipeline import RegistrationStatus
@@ -71,6 +72,7 @@ class AssessmentDetail(BaseModel):
     flagged: bool
     reasons: list[dict[str, Any]]
     features: dict[str, Any]
+    feature_effects: dict[str, FeatureEffect]
     created_at: datetime
     customer: CustomerDetail
     registration_status: RegistrationStatus
