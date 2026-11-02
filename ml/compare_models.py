@@ -360,8 +360,8 @@ def plot_recall(rows, target: Path) -> None:
     positions = np.arange(len(shown))
     height = 0.34
     views = [
-        ("original", "Threshold chosen on test months", "#2a78d6", -height / 2 - 0.01),
-        ("validation", "Threshold chosen on month 5", "#eb6834", height / 2 + 0.01),
+        ("original", "Chosen on test months", "#2a78d6", -height / 2 - 0.01),
+        ("validation", "Chosen on month 5", "#eb6834", height / 2 + 0.01),
     ]
     figure, axis = plt.subplots(figsize=(7.4, 3.8), facecolor=SURFACE)
     style(axis)
@@ -374,9 +374,15 @@ def plot_recall(rows, target: Path) -> None:
     axis.invert_yaxis()
     axis.set_xlabel("Recall on test months 6-7")
     axis.set_xlim(0, max(row["original"]["recall"] for row in shown) * 1.2)
-    axis.legend(frameon=False, labelcolor=TEXT, loc="lower right")
+    axis.legend(
+        frameon=False,
+        labelcolor=TEXT,
+        ncols=2,
+        loc="lower left",
+        bbox_to_anchor=(-0.02, 1.0),
+    )
     axis.set_title("Recall by where the 5% FPR threshold was chosen", color=TEXT,
-                   loc="left")  # fmt: skip
+                   loc="left", pad=30)  # fmt: skip
     figure.tight_layout()
     figure.savefig(target, dpi=150)
     plt.close(figure)
