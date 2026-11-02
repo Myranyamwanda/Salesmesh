@@ -72,6 +72,17 @@ At this threshold the model finds about a third of the fake applications and
 about **9 in 10 flagged applications are genuine**. That is acceptable only
 because every flag goes to a person.
 
+**Threshold note.** The threshold 0.035 was chosen on the test months, the same
+months as these metrics, so they are slightly optimistic. Choosing it on month 5
+instead, with a model fitted on months 0-4, gives a threshold of 0.0356 and, on
+the test months, recall of 32.9%, precision of 9.3%, and a false-positive rate
+of 4.6%. The deployed threshold is unchanged.
+
+**v1.3.0 comparison.** Random forest (ROC-AUC 0.820) and untuned gradient
+boosting (0.825) scored slightly higher than model v1 (0.817), but with worse
+FPR ratios (0.415 and 0.389 against 0.474). Model v1 was kept. The method,
+results, and reasons are in the [run record](../ml/RUN_RECORD.md).
+
 ## How SalesMesh Uses the Model: Model + Rules
 
 1. **Features.** Each registration is turned into the 13 features by
