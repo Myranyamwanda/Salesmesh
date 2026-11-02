@@ -71,9 +71,10 @@ admin-only (see
 ## Admin Area
 
 - **Review queue:** probability, threshold, and the top reasons. Each reason has
-  a **Model** or **Rule** label. The review dialog shows the customer, all
-  reasons, and the raw feature values, and records "Confirm real" or "Confirm
-  fake" with optional notes.
+  a **Model** or **Rule** label. The review dialog shows the customer, the model
+  version and threshold stored at scoring, what the probability means, all
+  reasons, and the raw feature values with each one's effect on the score, and
+  records "Confirm real" or "Confirm fake" with optional notes.
 - **Agents ranking:** customers, flags, confirmed fake, pending, assisted share,
   reputation, risk score, band, and client, sorted lowest reputation first.
 - **Agent detail:** the same figures, the display name, the client assignment,
