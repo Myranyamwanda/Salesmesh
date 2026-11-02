@@ -9,13 +9,11 @@ import {
 } from "recharts";
 import { DataTable, type DataColumn } from "./DataComponents";
 import type { MonthKpi } from "../types/scoring";
+import { chart } from "../tokens";
 import { formatHours, formatRate } from "../utils/format";
 
 // One series per chart, so no legend box: the card title names it. Colour is
 // categorical slot 1 of the dataviz reference palette, validated on white.
-const SERIES = "#2a78d6";
-const GRID = "#e3e8e2";
-const AXIS_TEXT = "#52514e";
 
 /** A single-series monthly line. Null months stay gaps, never a fake 0. */
 export function MonthlyLineChart<Row extends { month: string }>({
@@ -37,15 +35,15 @@ export function MonthlyLineChart<Row extends { month: string }>({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 16, left: 0 }}>
-        <CartesianGrid stroke={GRID} vertical={false} />
+        <CartesianGrid stroke={chart.grid} vertical={false} />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 12, fill: AXIS_TEXT }}
+          tick={{ fontSize: 12, fill: chart.axis }}
           tickLine={false}
         />
         <YAxis
           domain={domain}
-          tick={{ fontSize: 12, fill: AXIS_TEXT }}
+          tick={{ fontSize: 12, fill: chart.axis }}
           tickFormatter={format}
           tickLine={false}
           axisLine={false}
@@ -60,10 +58,15 @@ export function MonthlyLineChart<Row extends { month: string }>({
           type="monotone"
           dataKey="value"
           name={name}
-          stroke={SERIES}
+          stroke={chart.series}
           strokeWidth={2}
-          dot={{ r: 4, strokeWidth: 2, stroke: "#fff", fill: SERIES }}
-          activeDot={{ r: 6, strokeWidth: 2, stroke: "#fff" }}
+          dot={{
+            r: 4,
+            strokeWidth: 2,
+            stroke: chart.markerRing,
+            fill: chart.series,
+          }}
+          activeDot={{ r: 6, strokeWidth: 2, stroke: chart.markerRing }}
           connectNulls={false}
           isAnimationActive={false}
         />

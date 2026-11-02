@@ -50,7 +50,7 @@ and can export their verified customers.
   task assignment.
 - **Model operations.** The API refuses to load the model with a different
   scikit-learn version and checks 20 golden examples at every start. The admin
-  Model page shows metrics, the golden check, a safe reload, and monthly drift
+  Model page (`/admin/models`, not in the sidebar) shows metrics, the golden check, a safe reload, and monthly drift
   monitoring against the expected flag rate.
 - **Privacy.** Admins can erase a customer's data on request; the erasure is
   audited without personal data. Agents and customers never see probabilities

@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import * as scoringApi from "../api/scoring";
 import type { MonitoringMonth } from "../types/scoring";
+import { chart } from "../tokens";
 import { formatPercent } from "../utils/format";
 import {
   ChartCard,
@@ -71,28 +72,28 @@ export function MonitoringCard() {
           </Typography>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={points} margin={{ top: 8, right: 16, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e3e8e2" />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis unit="%" tick={{ fontSize: 12 }} />
               <Tooltip formatter={(value) => `${Number(value).toFixed(2)}%`} />
               <Legend />
               <ReferenceLine
                 y={monitoring.p0 * 100}
-                stroke="#66736d"
+                stroke={chart.reference}
                 strokeDasharray="6 4"
                 label={{ value: "p0", position: "insideTopRight" }}
               />
               <Line
                 dataKey="flagRate"
                 name="Model flag rate"
-                stroke="#e66c4a"
+                stroke={chart.comparison}
                 strokeWidth={2}
                 connectNulls={false}
               />
               <Line
                 dataKey="meanProbability"
                 name="Mean probability"
-                stroke="#1d5141"
+                stroke={chart.series}
                 strokeWidth={2}
                 connectNulls={false}
               />

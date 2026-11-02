@@ -52,13 +52,13 @@ describe("workspace navigation", () => {
         "Agents",
         "Review queue",
         "Commission eligibility",
-        "Model",
         "User management",
         "Audit log",
         "Settings",
         "My profile",
       ]),
     );
+    expect(workspaceLinks()).not.toContain("Model");
   });
 
   it("gives agents only their referral link and customers", () => {

@@ -10,11 +10,11 @@ remains the authority for every permission.
 | Route | Who | Page |
 | --- | --- | --- |
 | `/join/:code` | Public | Customer registration through an agent's referral link |
-| `/admin` | Admin | Overview: model status, reviews waiting, agent counts, agents needing attention |
+| `/admin` | Admin | Overview: reviews waiting, agent counts, agents needing attention |
 | `/admin/review-queue` | Admin | Flagged registrations with reasons; review dialog |
 | `/admin/agents` | Admin | Agents ranking, sortable and filterable by band |
 | `/admin/agents/:agentId` | Admin | Agent figures, profile and client assignment, customers |
-| `/admin/models` | Admin | Model version, metrics, threshold, golden check, reload |
+| `/admin/models` | Admin | Model version, metrics, threshold, golden check, reload (not in the sidebar; open by URL) |
 | `/admin/settings` | Admin | Reputation and rule settings |
 | `/admin/users`, `/admin/audit-log` | Admin | User management and audit log |
 | `/agent` | Agent | Referral link with share buttons and QR code |
@@ -83,7 +83,7 @@ admin-only (see
 - **Commission eligibility:** eligible, pending, and not-eligible totals, a
   table per registration month (newest first), and a table per agent for all
   time or one month. Agent detail also shows each customer's eligibility.
-- **Model:** status, version, scikit-learn version, threshold, test metrics,
+- **Model** (not in the sidebar; open `/admin/models` directly): status, version, scikit-learn version, threshold, test metrics,
   and the golden check. "Reload model" keeps the current model if the new one
   fails its checks. A **Monitoring** card charts the monthly model flag rate
   and mean probability against p0, with a table of the same figures.
@@ -95,7 +95,7 @@ admin-only (see
 - **Audit log:** now also shows each entry's subject, such as
   `assessment:<id>`.
 
-- **Overview:** besides the model, review, and attention cards, a **Network
+- **Overview:** besides the review, agent, and attention cards, a **Network
   flag rate** line chart, the network KPIs by month, and the flag-rate
   benchmark of each agent against the network.
 
@@ -119,6 +119,13 @@ Band badges (High risk, Watch, Low risk, Insufficient data), reason sources
 (Model, Rule), and customer statuses always show a text label, so their meaning
 never depends on colour alone. Filter dropdowns are linked to their visible
 label for screen readers.
+
+## Design Tokens
+
+`frontend/src/tokens.ts` is the one source of colours, fonts, radii, and chart
+colours. `theme.ts` passes them to MUI and publishes them as CSS variables, so
+`styles.css` and the charts hold no colours of their own. Text is at least
+12px.
 
 ## Tests
 

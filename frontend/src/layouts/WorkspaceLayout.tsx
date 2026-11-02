@@ -27,7 +27,6 @@ import GroupOutlined from "@mui/icons-material/GroupOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import InsightsOutlined from "@mui/icons-material/InsightsOutlined";
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
-import ModelTrainingOutlined from "@mui/icons-material/ModelTrainingOutlined";
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
 import RequestQuoteOutlined from "@mui/icons-material/RequestQuoteOutlined";
 import QrCode2 from "@mui/icons-material/QrCode2";
@@ -69,11 +68,6 @@ const navItems: Record<
       label: "Commission eligibility",
       path: "/admin/eligibility",
       icon: RequestQuoteOutlined,
-    },
-    {
-      label: "Model",
-      path: "/admin/models",
-      icon: ModelTrainingOutlined,
     },
     {
       label: "User management",
