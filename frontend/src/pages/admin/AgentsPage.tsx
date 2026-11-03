@@ -121,7 +121,10 @@ export function AgentsPage() {
         onFilter={setBand}
       />
       {agentsQuery.isError && (
-        <PageError message="Agents could not be loaded." />
+        <PageError
+          message="Agents could not be loaded."
+          error={agentsQuery.error}
+        />
       )}
       {withoutClient.length > 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>

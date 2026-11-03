@@ -61,7 +61,10 @@ export function MonitoringCard() {
       description="Monthly share of registrations the model flagged, and the mean probability, over the last 12 months."
     >
       {monitoringQuery.isError && (
-        <PageError message="Monitoring data could not be loaded." />
+        <PageError
+          message="Monitoring data could not be loaded."
+          error={monitoringQuery.error}
+        />
       )}
       {monitoring && (
         <>

@@ -80,7 +80,10 @@ export function EligibilityPage() {
         description="Which registrations may count towards an agent's commission. Clear and verified registrations are eligible, flagged ones are pending until a reviewer decides, and confirmed fakes are not eligible. SalesMesh provides this input only; amounts and payouts belong to the commission module."
       />
       {reportQuery.isError && (
-        <PageError message="Commission eligibility could not be loaded." />
+        <PageError
+          message="Commission eligibility could not be loaded."
+          error={reportQuery.error}
+        />
       )}
       <section className="kpi-grid" aria-label="Eligibility totals">
         <KpiCard

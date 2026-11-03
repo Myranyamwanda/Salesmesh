@@ -25,6 +25,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { apiErrorMessage } from "../utils/errors";
 
 export function PageHeader({
   eyebrow,
@@ -304,6 +305,18 @@ export function PageFilters({
   );
 }
 
-export function PageError({ message }: { message: string }) {
-  return <Alert severity="error">{message}</Alert>;
+/** What failed, then why and what to do when the cause is known. */
+export function PageError({
+  message,
+  error,
+}: {
+  message: string;
+  error?: unknown;
+}) {
+  const reason = apiErrorMessage(error, "Reload the page to try again.");
+  return (
+    <Alert severity="error">
+      {message} {reason}
+    </Alert>
+  );
 }

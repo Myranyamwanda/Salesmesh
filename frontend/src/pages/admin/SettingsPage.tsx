@@ -130,7 +130,10 @@ export function SettingsPage() {
         description="Reputation and rule settings. Changes apply at once, because reputation is calculated when it is read."
       />
       {configQuery.isError && (
-        <PageError message="The settings could not be loaded." />
+        <PageError
+          message="The settings could not be loaded."
+          error={configQuery.error}
+        />
       )}
       <Paper className="chart-card" variant="outlined" square>
         <form

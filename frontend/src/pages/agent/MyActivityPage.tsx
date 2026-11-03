@@ -63,7 +63,10 @@ export function MyActivityPage() {
         description="Your standing and your monthly totals. Both are updated at the start of each month and cover completed months only."
       />
       {(standingQuery.isError || activityQuery.isError) && (
-        <PageError message="Your activity could not be loaded." />
+        <PageError
+          message="Your activity could not be loaded."
+          error={standingQuery.error ?? activityQuery.error}
+        />
       )}
       <Paper
         className="chart-card"

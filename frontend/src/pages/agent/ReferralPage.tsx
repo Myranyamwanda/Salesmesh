@@ -175,7 +175,10 @@ export function ReferralPage() {
         description="Share your link so customers can register with you."
       />
       {referralQuery.isError && (
-        <PageError message="Your referral link could not be loaded." />
+        <PageError
+          message="Your referral link could not be loaded."
+          error={referralQuery.error}
+        />
       )}
       {referralQuery.data && <ReferralCard referral={referralQuery.data} />}
     </>
