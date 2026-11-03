@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import * as scoringApi from "../../api/scoring";
 import {
+  AssistedAlertChip,
   BandBadge,
   ChartCard,
   DataTable,
@@ -27,7 +28,12 @@ const benchmarkColumns: DataColumn<BenchmarkRow>[] = [
     key: "agent",
     label: "Agent",
     render: (row) => (
-      <Link to={`/admin/agents/${row.agent.id}`}>{row.agent.display_name}</Link>
+      <>
+        <Link to={`/admin/agents/${row.agent.id}`}>
+          {row.agent.display_name}
+        </Link>
+        {row.assisted_alert && <AssistedAlertChip />}
+      </>
     ),
   },
   {

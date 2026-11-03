@@ -280,7 +280,11 @@ export function AgentDetailPage() {
             <KpiCard
               label="Assisted share"
               value={formatPercent(agent.assisted_share, 0)}
-              detail="Registered on the agent's own device"
+              detail={
+                agent.assisted_alert
+                  ? "High assisted share: far above the network's. Check this agent's assisted registrations."
+                  : "Registered on the agent's own device"
+              }
             />
           </section>
           <ProfileForm key={agent.id} agent={agent} />

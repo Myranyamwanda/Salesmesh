@@ -184,7 +184,11 @@ export function ReviewDialog({
                 </div>
                 <div>
                   <dt>Threshold at scoring</dt>
-                  <dd>{formatPercent(assessment.threshold)}</dd>
+                  <dd>
+                    {assessment.threshold_kind === "assisted"
+                      ? `${formatPercent(assessment.threshold, 2)} (assisted registration)`
+                      : formatPercent(assessment.threshold)}
+                  </dd>
                 </div>
                 <div>
                   <dt>Model version</dt>
@@ -197,6 +201,14 @@ export function ReviewDialog({
                   </dd>
                 </div>
               </dl>
+              {assessment.audit_selected && !assessment.flagged && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Random audit: this assisted registration was not flagged. It
+                  was picked at random for a check, because assisted
+                  registrations withhold device details. It does not count as a
+                  flag unless you confirm it as fake.
+                </Alert>
+              )}
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 The probability is the model&apos;s estimate that this
                 registration is fake. It is not proof. The model flags a

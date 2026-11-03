@@ -17,6 +17,7 @@ import { Link } from "react-router-dom";
 import { clientLabel } from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
 import {
+  AssistedAlertChip,
   BandBadge,
   PageError,
   PageFilters,
@@ -179,7 +180,10 @@ export function AgentsPage() {
                 <TableCell>{agent.flags}</TableCell>
                 <TableCell>{agent.confirmed_fake}</TableCell>
                 <TableCell>{agent.pending_review}</TableCell>
-                <TableCell>{formatPercent(agent.assisted_share, 0)}</TableCell>
+                <TableCell>
+                  {formatPercent(agent.assisted_share, 0)}
+                  {agent.assisted_alert && <AssistedAlertChip />}
+                </TableCell>
                 <TableCell>{agent.reputation.toFixed(1)}</TableCell>
                 <TableCell>{agent.risk_score.toFixed(1)}</TableCell>
                 <TableCell>

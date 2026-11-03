@@ -65,7 +65,7 @@ export function ReviewQueuePage() {
       <PageHeader
         eyebrow="ADMINISTRATION"
         title="Review queue"
-        description="Flagged registrations waiting for a decision, oldest first. A Rule reason came from a fixed rule; a Model reason from the fraud model."
+        description="Flagged registrations and random audits waiting for a decision, oldest first. A Rule reason came from a fixed rule, a Model reason from the fraud model, and an Audit is a random check of an assisted registration, not a flag."
       />
       {queueQuery.isError && (
         <PageError

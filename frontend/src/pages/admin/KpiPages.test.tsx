@@ -68,6 +68,7 @@ const detail: AgentDetail = {
   confirmed_fake: 1,
   pending_review: 1,
   assisted_share: 0,
+  assisted_alert: false,
   reputation: 81.9,
   risk_score: 18.1,
   band: "Insufficient data",
@@ -168,6 +169,7 @@ describe("network KPIs", () => {
           flag_rate: 0.4545,
           difference: 0.0699,
           enough_data: true,
+          assisted_alert: false,
         },
         {
           agent: { id: "b", display_name: "Brian Mwangi" },
@@ -175,6 +177,7 @@ describe("network KPIs", () => {
           flag_rate: 0.3,
           difference: -0.0846,
           enough_data: true,
+          assisted_alert: false,
         },
         {
           agent: { id: "c", display_name: "Chebet" },
@@ -182,6 +185,7 @@ describe("network KPIs", () => {
           flag_rate: 0,
           difference: -0.3846,
           enough_data: false,
+          assisted_alert: true,
         },
       ],
     });
@@ -205,6 +209,8 @@ describe("network KPIs", () => {
     ]);
     expect(cells(benchmark, /Brian/)[3]).toBe("-8.5 pts");
     expect(cells(benchmark, /Chebet/)[3]).toBe("Insufficient data");
+    expect(cells(benchmark, /Chebet/)[0]).toBe("ChebetHigh assisted share");
+    expect(cells(benchmark, /Amina/)[0]).toBe("Amina Otieno");
     const summary = screen.getByRole("region", { name: "Workspace summary" });
     expect(within(summary).queryByText("Model")).not.toBeInTheDocument();
     expect(within(summary).queryByText("Ready")).not.toBeInTheDocument();

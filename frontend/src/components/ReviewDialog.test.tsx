@@ -10,7 +10,9 @@ const assessment: AssessmentDetail = {
   model_version: "v1",
   probability: 0.0612,
   threshold: 0.035,
+  threshold_kind: "standard",
   flagged: true,
+  audit_selected: false,
   reasons: [
     {
       source: "model",
@@ -117,5 +119,41 @@ describe("ReviewDialog explanation", () => {
     expect(
       screen.getByText(/Time spent on the form was not measured/),
     ).toHaveTextContent("(expected: registered on the agent's device)");
+  });
+
+  it("shows the assisted threshold and explains a random audit", async () => {
+    vi.spyOn(scoringApi, "getAssessment").mockResolvedValue({
+      ...assessment,
+      threshold: 0.008039,
+      threshold_kind: "assisted",
+      flagged: false,
+      audit_selected: true,
+      reasons: [
+        {
+          source: "audit",
+          code: "audit__assisted",
+          text: "Random audit (assisted registration)",
+        },
+      ],
+    });
+    renderPage(
+      <ReviewDialog assessmentId="assessment-1" onClose={() => {}} />,
+      {
+        user: makeUser("admin"),
+      },
+    );
+
+    const threshold = await screen.findByText("Threshold at scoring");
+    expect(threshold.parentElement).toHaveTextContent(
+      "0.80% (assisted registration)",
+    );
+    expect(
+      screen.getByText(/Random audit: this assisted registration/),
+    ).toHaveTextContent(
+      "does not count as a flag unless you confirm it as fake",
+    );
+    expect(screen.getByRole("listitem")).toHaveTextContent(
+      "AuditRandom audit (assisted registration)",
+    );
   });
 });

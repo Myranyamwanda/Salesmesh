@@ -141,13 +141,26 @@ export function BandBadge({ band }: { band: Band }) {
   );
 }
 
+const sourceChips = {
+  model: { label: "Model", color: "primary" },
+  rule: { label: "Rule", color: "secondary" },
+  audit: { label: "Audit", color: "default" },
+} as const;
+
 export function SourceChip({ source }: { source: ReasonSource }) {
+  const { label, color } = sourceChips[source] ?? sourceChips.model;
+  return <Chip size="small" variant="outlined" color={color} label={label} />;
+}
+
+/** Admin only: the agent's assisted share is far above the network's. */
+export function AssistedAlertChip() {
   return (
     <Chip
       size="small"
       variant="outlined"
-      color={source === "rule" ? "secondary" : "primary"}
-      label={source === "rule" ? "Rule" : "Model"}
+      color="warning"
+      label="High assisted share"
+      sx={{ ml: 1 }}
     />
   );
 }
