@@ -70,5 +70,6 @@ class JoinRegistrationInput(BaseModel):
     consent: Literal[True]
     session_length_minutes: Annotated[float, Field(ge=0, le=1440)] | None = None
     device_id: UUID | None = None
+    submission_id: UUID | None = None
     user_agent: Annotated[str, StringConstraints(max_length=512)] | None = None
     assisted: bool = False
