@@ -71,7 +71,7 @@ def test_date_of_birth_count_is_labelled_not_used():
     assert effects["date_of_birth_distinct_emails_4w"] == "not_used_bank_scale"
 
 
-def test_only_assisted_registrations_label_the_four_device_features():
+def test_assisted_registrations_mark_the_four_features_withheld():
     assisted = feature_effects(STATE, VERSION, ASSISTED_FEATURES, assisted=True)
     not_assisted = feature_effects(STATE, VERSION, ASSISTED_FEATURES, assisted=False)
     four = (
@@ -81,8 +81,17 @@ def test_only_assisted_registrations_label_the_four_device_features():
         "device_distinct_emails_8w",
     )
 
-    assert {assisted[name] for name in four} == {"not_used_assisted"}
-    assert "not_used_assisted" not in not_assisted.values()
+    totals = score_totals(STATE, VERSION, ASSISTED_FEATURES)
+
+    # Withheld features are still scored, so they keep a real direction.
+    for name in four:
+        assert assisted[name] == f"withheld_{direction(totals[name])}"
+        assert not_assisted[name] == direction(totals[name])
+    assert {assisted[name] for name in USED - set(four)} <= {
+        "raised",
+        "lowered",
+        "no_effect",
+    }
 
 
 @pytest.mark.parametrize(
@@ -113,3 +122,7 @@ def test_real_model_maps_every_input_to_a_feature():
 
     assert set(effects) == set(FEATURES)
     assert "unavailable" not in effects.values()
+    # Measured in ml/assisted_withholding.py: the missing indicator raises the
+    # score and the imputed device-email count lowers it.
+    assert effects["session_length_in_minutes"] == "withheld_raised"
+    assert effects["device_distinct_emails_8w"] == "withheld_lowered"

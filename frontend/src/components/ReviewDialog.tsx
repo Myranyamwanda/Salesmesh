@@ -45,11 +45,26 @@ const EFFECT_LABELS: Record<FeatureEffect, string> = {
   lowered: "Lowered the score",
   no_effect: "No real effect",
   not_used_bank_scale: "Not used by the model (bank-scale feature)",
-  not_used_assisted: "Not used (assisted registration)",
+  withheld_raised:
+    "Raised the score (withheld on an assisted registration, scored as missing)",
+  withheld_lowered:
+    "Lowered the score (withheld on an assisted registration, scored as missing)",
+  withheld_no_effect:
+    "No real effect (withheld on an assisted registration, scored as missing)",
   unavailable: "Not available (the model that scored this is not loaded)",
 };
 
-export function ReasonList({ reasons }: { reasons: Reason[] }) {
+// Assisted registrations never measure the form time, so this reason is
+// expected for them and says nothing about the customer.
+const SESSION_NOT_MEASURED = "num__missingindicator_session_length_in_minutes";
+
+export function ReasonList({
+  reasons,
+  assisted = false,
+}: {
+  reasons: Reason[];
+  assisted?: boolean;
+}) {
   if (!reasons.length) {
     return <Typography color="text.secondary">No reasons recorded.</Typography>;
   }
@@ -58,7 +73,12 @@ export function ReasonList({ reasons }: { reasons: Reason[] }) {
       {reasons.map((reason) => (
         <li key={reason.code}>
           <SourceChip source={reason.source} />
-          <span>{reason.text}</span>
+          <span>
+            {reason.text}
+            {assisted &&
+              reason.code === SESSION_NOT_MEASURED &&
+              " (expected: registered on the agent's device)"}
+          </span>
         </li>
       ))}
     </ul>
@@ -188,7 +208,10 @@ export function ReviewDialog({
               <Typography component="h3" variant="subtitle1" gutterBottom>
                 Reasons
               </Typography>
-              <ReasonList reasons={assessment.reasons} />
+              <ReasonList
+                reasons={assessment.reasons}
+                assisted={assessment.customer.assisted}
+              />
               <Typography
                 component="h3"
                 variant="subtitle1"

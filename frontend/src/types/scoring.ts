@@ -63,7 +63,9 @@ export type FeatureEffect =
   | "lowered"
   | "no_effect"
   | "not_used_bank_scale"
-  | "not_used_assisted"
+  | "withheld_raised"
+  | "withheld_lowered"
+  | "withheld_no_effect"
   | "unavailable";
 
 export type AssessmentDetail = {
