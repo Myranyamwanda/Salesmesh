@@ -172,8 +172,10 @@ export function SettingsPage() {
             <TextField
               key={field.name}
               label={field.label}
-              inputMode="decimal"
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                htmlInput: { inputMode: "decimal" },
+              }}
               {...register(field.name)}
               error={Boolean(errors[field.name])}
               helperText={errors[field.name]?.message ?? field.help}
