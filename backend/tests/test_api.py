@@ -6,9 +6,11 @@ import pytest
 from fastapi import HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.testclient import TestClient
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import InterfaceError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 
 from app.core.config import get_settings
+from app.core.errors import DATABASE_UNAVAILABLE
 from app.core.logging import JsonFormatter
 from app.db.session import get_db
 from app.main import create_app
@@ -94,6 +96,7 @@ def test_validation_does_not_echo_input(api):
     response = client_for(application).get("/validation-test?count=private-value")
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
+    assert response.json()["error"]["message"] == "Check the count field."
     assert "private-value" not in response.text
 
 
@@ -122,7 +125,9 @@ def test_unexpected_errors_and_cors(api):
         "/failure-test", headers={"Origin": get_settings().frontend_url}
     )
     assert response.status_code == 500
-    assert response.json()["error"]["code"] == "internal_error"
+    error = response.json()["error"]
+    assert error["code"] == "internal_error"
+    assert error["request_id"] in error["message"]
     assert "private-value" not in response.text
     assert (
         response.headers["Access-Control-Allow-Origin"] == get_settings().frontend_url
@@ -155,3 +160,27 @@ def test_json_formatter_only_logs_allowed_metadata():
     rendered = JsonFormatter().format(record)
     assert json.loads(rendered)["request_id"] == "request-id"
     assert "private-value" not in rendered
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        OperationalError("SELECT 1", {}, Exception("private-value")),
+        InterfaceError("SELECT 1", {}, Exception("private-value")),
+        PoolTimeoutError("private-value"),
+    ],
+)
+def test_a_lost_database_gets_a_specific_503(api, failure):
+    application, _ = api
+
+    @application.get("/database-test")
+    def database_test():
+        raise failure
+
+    response = client_for(application).get("/database-test")
+
+    assert response.status_code == 503
+    error = response.json()["error"]
+    assert error["code"] == "database_unavailable"
+    assert error["message"] == DATABASE_UNAVAILABLE
+    assert "private-value" not in response.text
