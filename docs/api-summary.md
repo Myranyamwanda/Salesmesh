@@ -46,7 +46,7 @@ token from `/auth/firebase`, not an access token. See
 | Method and Path | Access | Body / Purpose |
 | --- | --- | --- |
 | GET /join/{code} | Public | The agent's `display_name` and the client's `client_name` only |
-| POST /join/{code}/register | Public (agent token for assisted mode) | Registration form plus `consent: true`, `session_length_minutes`, `device_id`, `user_agent`, and `assisted`; scores the customer and returns only `{"message": "Registration received", "reference": "SM-7K3Q-9XPA"}` |
+| POST /join/{code}/register | Public (agent token for assisted mode) | Registration form plus `consent: true`, `session_length_minutes`, `device_id`, `submission_id`, `user_agent`, and `assisted`; a repeat with the same `submission_id` returns the first registration; scores the customer and returns only `{"message": "Registration received", "reference": "SM-7K3Q-9XPA"}` |
 
 Both endpoints return the same 404 "This link is not active. Contact your
 agent." for an unknown code, for an agent who is not approved, active, and
@@ -171,7 +171,10 @@ must tell apart use a stable code, such as `email_not_verified`,
 `account_link_conflict`, `account_exists`, `email_not_permanent`,
 `mfa_invalid_code`, `mfa_locked`, `mfa_session_expired`, and
 `mfa_not_configured` (the full list is in [Authentication](authentication.md)).
-Tokens are never included in error details.
+Tokens are never included in error details. A validation error names the
+first invalid field, a lost database is 503 `database_unavailable`, and an
+unexpected error's message includes the request ID (see
+[Failure scenarios](failure-scenarios.md)).
 The `request_id` matches the `X-Request-ID` response header and the server log.
 
 ```json
