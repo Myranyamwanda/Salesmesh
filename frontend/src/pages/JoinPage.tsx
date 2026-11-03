@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import CheckCircleOutlined from "@mui/icons-material/CheckCircleOutlined";
+import CloudOff from "@mui/icons-material/CloudOff";
 import LinkOff from "@mui/icons-material/LinkOff";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -25,13 +26,14 @@ import { useParams } from "react-router-dom";
 import { z } from "zod";
 import * as portalApi from "../api/portal";
 import { useAuth } from "../hooks/useAuth";
-import { apiErrorMessage } from "../utils/errors";
+import { apiErrorCode, apiErrorMessage } from "../utils/errors";
 import {
   COUNTRY_GROUPS,
   PRIVACY_CONTACT_EMAIL,
   countryName,
   getDeviceId,
   minutesBetween,
+  newSubmissionId,
 } from "../utils/registration";
 
 const months = z
@@ -87,8 +89,6 @@ function submitMessage(error: unknown) {
   if (axios.isAxiosError(error)) {
     if (error.response?.status === 429)
       return "Too many registrations from this network. Please try again later.";
-    if (error.response?.status === 422)
-      return "Please check the form and try again.";
   }
   return apiErrorMessage(
     error,
@@ -146,6 +146,29 @@ function InactiveLink() {
   );
 }
 
+function LinkUnavailable({
+  error,
+  onRetry,
+}: {
+  error: unknown;
+  onRetry: () => void;
+}) {
+  return (
+    <section className="public-state" role="alert">
+      <CloudOff className="public-state-icon" aria-hidden="true" />
+      <Typography component="h1" variant="h5">
+        We could not check this link
+      </Typography>
+      <Typography color="text.secondary">
+        {apiErrorMessage(error, "Registration is temporarily unavailable.")}
+      </Typography>
+      <Button variant="contained" sx={{ mt: 2 }} onClick={onRetry}>
+        Try again
+      </Button>
+    </section>
+  );
+}
+
 function RegistrationReceived({ reference }: { reference: string }) {
   return (
     <section className="public-state" role="status">
@@ -176,6 +199,8 @@ export function JoinPage() {
   const { code = "" } = useParams();
   const { user } = useAuth();
   const openedAt = useRef<number | null>(null);
+  // Kept across failed attempts, so a retry can never register twice.
+  const [submissionId] = useState(newSubmissionId);
   const [privacyOpen, setPrivacyOpen] = useState(false);
 
   useEffect(() => {
@@ -200,6 +225,7 @@ export function JoinPage() {
     control,
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<JoinValues>({
     resolver: zodResolver(joinSchema),
@@ -227,10 +253,23 @@ export function JoinPage() {
           Date.now(),
         ),
         device_id: getDeviceId(),
+        submission_id: submissionId,
         user_agent: navigator.userAgent,
         assisted: isOwnLink && values.assisted,
       }),
+    onError: (error) => {
+      if (apiErrorCode(error) === "email_not_permanent") {
+        setError(
+          "email",
+          { message: apiErrorMessage(error, "Use a permanent email address") },
+          { shouldFocus: true },
+        );
+      }
+    },
   });
+  const emailRefused =
+    submitMutation.isError &&
+    apiErrorCode(submitMutation.error) === "email_not_permanent";
 
   if (linkQuery.isPending) {
     return (
@@ -240,7 +279,19 @@ export function JoinPage() {
     );
   }
   if (linkQuery.isError) {
-    return <InactiveLink />;
+    // Only a 404 means the link is inactive. An outage must not say so.
+    if (
+      axios.isAxiosError(linkQuery.error) &&
+      linkQuery.error.response?.status === 404
+    ) {
+      return <InactiveLink />;
+    }
+    return (
+      <LinkUnavailable
+        error={linkQuery.error}
+        onRetry={() => void linkQuery.refetch()}
+      />
+    );
   }
   if (submitMutation.isSuccess) {
     return <RegistrationReceived reference={submitMutation.data.reference} />;
@@ -393,8 +444,10 @@ export function JoinPage() {
             <FormHelperText error>{errors.consent.message}</FormHelperText>
           )}
         </div>
-        {submitMutation.isError && (
-          <Alert severity="error">{submitMessage(submitMutation.error)}</Alert>
+        {submitMutation.isError && !emailRefused && (
+          <Alert severity="error">
+            {submitMessage(submitMutation.error)} Your details are still here.
+          </Alert>
         )}
         <Button
           type="submit"
