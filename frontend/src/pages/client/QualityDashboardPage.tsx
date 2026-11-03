@@ -23,6 +23,7 @@ import {
 } from "../../components/DataComponents";
 import { chart } from "../../tokens";
 import type { ClientEligibility, MonthQuality } from "../../types/scoring";
+import { apiErrorMessage } from "../../utils/errors";
 
 type AgentEligibility = ClientEligibility["agents"][number];
 
@@ -55,7 +56,8 @@ function ExportSection() {
       </Typography>
       {exportMutation.isError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          The export could not be downloaded. Please try again.
+          The export could not be downloaded.{" "}
+          {apiErrorMessage(exportMutation.error, "Try again.")}
         </Alert>
       )}
       {exportMutation.isSuccess && (
@@ -93,7 +95,10 @@ function EligibilitySection() {
         a total, so no agent is judged before a reviewer has decided.
       </Typography>
       {eligibilityQuery.isError && (
-        <PageError message="Commission eligibility could not be loaded." />
+        <PageError
+          message="Commission eligibility could not be loaded."
+          error={eligibilityQuery.error}
+        />
       )}
       <div className="kpi-grid">
         <KpiCard label="Eligible" value={eligibility?.eligible ?? null} />
@@ -183,7 +188,10 @@ export function QualityDashboardPage() {
         description="Customers registered for you by your agents, with a 12-month trend. Fake registrations are counted only after a SalesMesh reviewer has confirmed them."
       />
       {qualityQuery.isError && (
-        <PageError message="Registration quality could not be loaded." />
+        <PageError
+          message="Registration quality could not be loaded."
+          error={qualityQuery.error}
+        />
       )}
       <section className="kpi-grid" aria-label="Registration quality">
         <KpiCard label="Registrations" value={quality?.registrations ?? null} />

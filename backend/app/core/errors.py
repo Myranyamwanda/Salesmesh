@@ -5,9 +5,15 @@ import fastapi
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import InterfaceError, OperationalError
+from sqlalchemy.exc import TimeoutError as PoolTimeoutError
 from starlette.exceptions import HTTPException
 
 logger = logging.getLogger(__name__)
+
+DATABASE_UNAVAILABLE = (
+    "SalesMesh cannot reach its database right now. Try again in a few minutes."
+)
 
 
 class CodedHTTPException(fastapi.HTTPException):
@@ -35,6 +41,22 @@ def error_response(
     )
 
 
+def validation_message(exc: RequestValidationError) -> str:
+    """Name the first invalid field. Pydantic's input is never echoed."""
+    first = exc.errors()[0]
+    if first["type"] == "json_invalid":
+        return "The request body is not valid JSON."
+    # loc is like ("body", "email") or ("query", "count"); numbers are positions.
+    names = [part for part in first["loc"][1:] if isinstance(part, str)]
+    if not names:
+        return "Check the request and try again."
+    field = names[-1].replace("_", " ")
+    if first["type"] == "value_error":
+        reason = first["msg"].removeprefix("Value error, ")
+        return f"Check the {field} field. {reason}."
+    return f"Check the {field} field."
+
+
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(HTTPException)
     async def http_error(request: Request, exc: HTTPException) -> JSONResponse:
@@ -52,13 +74,27 @@ def register_error_handlers(app: FastAPI) -> None:
     async def validation_error(
         request: Request, exc: RequestValidationError
     ) -> JSONResponse:
+        return error_response(request, 422, "validation_error", validation_message(exc))
+
+    @app.exception_handler(OperationalError)
+    @app.exception_handler(InterfaceError)
+    @app.exception_handler(PoolTimeoutError)
+    async def database_error(request: Request, exc: Exception) -> JSONResponse:
+        logger.error(
+            "database_unavailable", extra={"request_id": request.state.request_id}
+        )
         return error_response(
-            request, 422, "validation_error", "Request validation failed"
+            request, 503, "database_unavailable", DATABASE_UNAVAILABLE
         )
 
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, exc: Exception) -> JSONResponse:
         logger.error("unhandled_error", extra={"request_id": request.state.request_id})
         return error_response(
-            request, 500, "internal_error", "An unexpected error occurred"
+            request,
+            500,
+            "internal_error",
+            "The server could not finish this request. Try again. If it keeps "
+            f"happening, give an administrator this reference: "
+            f"{request.state.request_id}",
         )

@@ -100,7 +100,10 @@ export async function getModel() {
 }
 
 export async function reloadModel() {
-  const { data } = await api.post<ModelStatus>("/admin/model/reload");
+  // Loading from S3 and running the golden check can take longer than a request.
+  const { data } = await api.post<ModelStatus>("/admin/model/reload", null, {
+    timeout: 120000,
+  });
   return data;
 }
 

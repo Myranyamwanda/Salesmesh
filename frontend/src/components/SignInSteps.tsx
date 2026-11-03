@@ -68,7 +68,8 @@ export function VerifyEmailStep({
       await action();
     } catch (cause) {
       setError(
-        firebaseErrorMessage(cause) ?? "Something went wrong. Try again.",
+        firebaseErrorMessage(cause) ??
+          "That step did not finish. Check your connection and try again.",
       );
     } finally {
       setBusy(false);

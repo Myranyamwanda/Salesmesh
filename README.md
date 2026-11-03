@@ -471,6 +471,7 @@ salesmesh/
 | [Workspace pages](docs/workspace-pages.md) | Public join page and the admin, agent, and client pages |
 | [API summary](docs/api-summary.md) | Endpoints, access rules, and error format |
 | [Authentication](docs/authentication.md) | Firebase and SalesMesh roles, sign-in and admin MFA diagrams, account creation, Firebase setup |
+| [Failure scenarios](docs/failure-scenarios.md) | What users see when the database, backend, Firebase, DNS, or model fails, and the drill |
 | [Limitations and future work](docs/limitations-and-future-work.md) | What the system does not do yet, and what comes next |
 | [Development workflow](docs/development-workflow.md) | Compose, hooks, CI, and branch protection |
 | [Backend foundation](docs/backend-foundation.md) | Phase 2: settings, database, logging, and tests |

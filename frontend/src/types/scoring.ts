@@ -289,6 +289,7 @@ export type JoinRegistration = {
   consent: true;
   session_length_minutes: number;
   device_id: string | null;
+  submission_id: string;
   user_agent: string;
   assisted: boolean;
 };

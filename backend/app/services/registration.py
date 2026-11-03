@@ -3,9 +3,11 @@
 import secrets
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from fastapi import HTTPException, Request
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, aliased
 
 from app.core.config import Settings
@@ -123,6 +125,18 @@ def check_join_rate(session: Session, ip_hash: str, settings: Settings) -> None:
         )
 
 
+def earlier_submission(
+    session: Session, agent_id: UUID, submission_id: UUID | None
+) -> Customer | None:
+    if submission_id is None:
+        return None
+    return session.scalar(
+        select(Customer).where(
+            Customer.agent_id == agent_id, Customer.submission_id == submission_id
+        )
+    )
+
+
 def register_customer(
     session: Session,
     request: Request,
@@ -136,9 +150,13 @@ def register_customer(
     """Save the customer, build the features, and score them in one transaction.
 
     Raises ModelUnavailableError (nothing is saved) when the model is not ok.
+    A repeat of a saved submission returns the first customer unchanged.
     """
     link = active_join_link(session, code)
     profile = link.profile
+    existing = earlier_submission(session, profile.user_id, payload.submission_id)
+    if existing is not None:
+        return existing
     if payload.assisted and (signed_in is None or signed_in.id != profile.user_id):
         raise HTTPException(
             403, "Assisted registration requires the agent to be signed in"
@@ -192,6 +210,7 @@ def register_customer(
         current_address_months=payload.current_address_months,
         previous_address_months=payload.previous_address_months,
         device_id=payload.device_id,
+        submission_id=payload.submission_id,
         ip_address_hash=ip_hash,
         assisted=payload.assisted,
         consent_at=now,
@@ -199,7 +218,15 @@ def register_customer(
         created_at=now,
     )
     session.add(customer)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError:
+        # Two identical requests raced: the unique constraint stopped the second.
+        session.rollback()
+        existing = earlier_submission(session, profile.user_id, payload.submission_id)
+        if existing is None:
+            raise
+        return existing
     score_customer(session, model_service, customer, features)
     session.commit()
     return customer

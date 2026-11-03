@@ -58,7 +58,10 @@ function NetworkSection() {
   return (
     <section aria-label="Network KPIs">
       {kpiQuery.isError && (
-        <PageError message="Network KPIs could not be loaded." />
+        <PageError
+          message="Network KPIs could not be loaded."
+          error={kpiQuery.error}
+        />
       )}
       <ChartCard
         title="Network flag rate"

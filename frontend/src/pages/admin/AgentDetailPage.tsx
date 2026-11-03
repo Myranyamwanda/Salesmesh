@@ -53,7 +53,9 @@ function AgentKpiSection({ agentId }: { agentId: string }) {
   const hasData = months.some((month) => month.reputation !== null);
   return (
     <section aria-label="Monthly KPIs">
-      {kpiQuery.isError && <PageError message="KPIs could not be loaded." />}
+      {kpiQuery.isError && (
+        <PageError message="KPIs could not be loaded." error={kpiQuery.error} />
+      )}
       <ChartCard
         title="Reputation at month end"
         description="Last 12 months. Each point uses only the registrations and reviews known at the end of that month; the current month is as of now."
@@ -234,7 +236,12 @@ export function AgentDetailPage() {
   ];
 
   if (agentQuery.isError) {
-    return <PageError message="This agent could not be loaded." />;
+    return (
+      <PageError
+        message="This agent could not be loaded."
+        error={agentQuery.error}
+      />
+    );
   }
   return (
     <>

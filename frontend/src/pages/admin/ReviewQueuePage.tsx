@@ -68,7 +68,10 @@ export function ReviewQueuePage() {
         description="Flagged registrations waiting for a decision, oldest first. A Rule reason came from a fixed rule; a Model reason from the fraud model."
       />
       {queueQuery.isError && (
-        <PageError message="The review queue could not be loaded." />
+        <PageError
+          message="The review queue could not be loaded."
+          error={queueQuery.error}
+        />
       )}
       <DataTable
         columns={columns}

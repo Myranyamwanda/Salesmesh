@@ -20,7 +20,7 @@ import * as scoringApi from "../api/scoring";
 import type { Decision, FeatureEffect, Reason } from "../types/scoring";
 import { apiErrorMessage } from "../utils/errors";
 import { formatDate, formatDateTime, formatPercent } from "../utils/format";
-import { SourceChip, StatusChip } from "./DataComponents";
+import { PageError, SourceChip, StatusChip } from "./DataComponents";
 import { EraseCustomerDialog } from "./EraseCustomerDialog";
 
 // Plain names for the 13 stored feature values.
@@ -123,7 +123,10 @@ export function ReviewDialog({
             <CircularProgress aria-label="Loading assessment" />
           )}
           {assessmentQuery.isError && (
-            <Alert severity="error">The assessment could not be loaded.</Alert>
+            <PageError
+              message="The assessment could not be loaded."
+              error={assessmentQuery.error}
+            />
           )}
           {assessment && (
             <>

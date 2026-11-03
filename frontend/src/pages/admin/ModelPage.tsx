@@ -60,7 +60,10 @@ export function ModelPage() {
         }
       />
       {modelQuery.isError && (
-        <PageError message="The model status could not be loaded." />
+        <PageError
+          message="The model status could not be loaded."
+          error={modelQuery.error}
+        />
       )}
       {reloadMutation.isSuccess && (
         <Alert severity="success" sx={{ mb: 2 }}>

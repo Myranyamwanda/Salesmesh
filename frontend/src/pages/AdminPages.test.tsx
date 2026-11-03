@@ -268,6 +268,13 @@ describe("admin user management", () => {
         name: `Deactivate ${pendingAgent.email}`,
       }),
     );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Deactivate this account?",
+    });
+    expect(setActive).not.toHaveBeenCalled();
+    await interaction.click(
+      within(dialog).getByRole("button", { name: "Deactivate account" }),
+    );
     await waitFor(() =>
       expect(setActive).toHaveBeenCalledWith(pendingAgent.id, false),
     );

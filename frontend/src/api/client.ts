@@ -28,8 +28,12 @@ export function getAccessToken() {
   return accessToken;
 }
 
+// A request that never answers becomes a clear error, not an endless spinner.
+const REQUEST_TIMEOUT_MS = 20000;
+
 export const api = axios.create({
   baseURL,
+  timeout: REQUEST_TIMEOUT_MS,
   withCredentials: true,
   headers: { Accept: "application/json" },
 });
@@ -40,7 +44,11 @@ export function refreshAccessToken() {
       .post<AccessTokenResponse>(
         `${baseURL}/auth/refresh`,
         {},
-        { withCredentials: true, headers: { Accept: "application/json" } },
+        {
+          timeout: REQUEST_TIMEOUT_MS,
+          withCredentials: true,
+          headers: { Accept: "application/json" },
+        },
       )
       .then(({ data }) => {
         setAccessToken(data.access_token);

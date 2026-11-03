@@ -1,5 +1,6 @@
 import { cleanup, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { AxiosError } from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as portalApi from "../api/portal";
 import { httpError, makeUser, renderPage } from "../test/render";
@@ -177,5 +178,82 @@ describe("public join page", () => {
     expect(
       await screen.findByText(/Too many registrations from this network/),
     ).toBeInTheDocument();
+  });
+
+  it("says an outage is an outage, and lets the customer retry", async () => {
+    vi.mocked(portalApi.getJoinLink).mockRejectedValueOnce(
+      new AxiosError("Network Error", "ERR_NETWORK"),
+    );
+    renderJoin();
+    expect(
+      await screen.findByRole("heading", {
+        name: "We could not check this link",
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Cannot reach SalesMesh/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "This link is not active" }),
+    ).not.toBeInTheDocument();
+
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Try again" }));
+    expect(await screen.findByLabelText("Full name")).toBeInTheDocument();
+  });
+
+  async function submitWithConsent() {
+    const input = await fillRequiredFields();
+    await input.click(screen.getByRole("checkbox", { name: /I agree/ }));
+    const register = screen.getByRole("button", { name: "Register" });
+    await input.click(register);
+    return { input, register };
+  }
+
+  it("keeps one submission ID across a failed attempt", async () => {
+    vi.mocked(portalApi.registerCustomer).mockRejectedValueOnce(
+      new AxiosError("Network Error", "ERR_NETWORK"),
+    );
+    renderJoin();
+    const { input, register } = await submitWithConsent();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      /Cannot reach SalesMesh.*Your details are still here/,
+    );
+    expect(screen.getByLabelText("Full name")).toHaveValue("Wanjiru Kamau");
+    await input.click(register);
+
+    await screen.findByText("Registration received");
+    const calls = vi.mocked(portalApi.registerCustomer).mock.calls;
+    expect(calls).toHaveLength(2);
+    expect(calls[0][1].submission_id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(calls[1][1].submission_id).toBe(calls[0][1].submission_id);
+  });
+
+  it("disables the button while the registration is being sent", async () => {
+    vi.mocked(portalApi.registerCustomer).mockReturnValue(
+      new Promise(() => {}),
+    );
+    renderJoin();
+    await submitWithConsent();
+
+    expect(
+      await screen.findByRole("button", { name: "Submitting…" }),
+    ).toBeDisabled();
+    expect(portalApi.registerCustomer).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a refused email address next to the field", async () => {
+    vi.mocked(portalApi.registerCustomer).mockRejectedValueOnce(
+      httpError(422, "Use a permanent email address", "email_not_permanent"),
+    );
+    renderJoin();
+    await submitWithConsent();
+
+    expect(
+      await screen.findByLabelText("Email address"),
+    ).toHaveAccessibleDescription("Use a permanent email address");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

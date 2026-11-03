@@ -43,7 +43,10 @@ export function MyCustomersPage() {
         description="Customers who registered through your link."
       />
       {customersQuery.isError && (
-        <PageError message="Your customers could not be loaded." />
+        <PageError
+          message="Your customers could not be loaded."
+          error={customersQuery.error}
+        />
       )}
       <DataTable
         columns={columns}

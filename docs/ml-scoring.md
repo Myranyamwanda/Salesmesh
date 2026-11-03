@@ -59,7 +59,9 @@ flowchart TD
     source -- local --> folder[Read MODEL_DIR]
     source -- s3 --> s3[Download from S3<br/>to a temporary folder]
     s3 --> folder
-    folder --> version{metadata sklearn_version<br/>== installed version?}
+    folder --> sums{SHA-256 of each file<br/>== recorded checksum?}
+    sums -- no --> failed
+    sums -- yes --> version{metadata sklearn_version<br/>== installed version?}
     version -- no --> failed[status: failed<br/>model not unpickled]
     version -- yes --> load[Unpickle model.joblib]
     load --> golden{All 20 golden examples<br/>within 1e-5?}
@@ -67,7 +69,12 @@ flowchart TD
     golden -- yes --> ok[status: ok<br/>predictions allowed]
 ```
 
-- **Version check first.** A pickle saved with another scikit-learn version
+- **Checksums first.** The SHA-256 of `model.joblib`, `metadata.json`, and
+  `golden_examples.json` must match `backend/app/data/model-<version>.sha256`, a
+  copy of `ml/model_contract/model-v1.sha256` (a test keeps the two equal).
+  Unpickling runs code, so a changed or replaced file is refused before it is
+  unpickled. A new model version needs its own checksum file.
+- **Version check next.** A pickle saved with another scikit-learn version
   can fail or silently change predictions, so `model.joblib` is only unpickled
   when the versions match. `requirements.txt` pins `scikit-learn==1.7.2`, and
   also numpy, pandas, and joblib at the versions the golden check passed with.
