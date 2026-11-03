@@ -73,11 +73,17 @@ whether I found it by reading the code and then added a test to guard it.
 - **Browsers:** the checks use Chromium only. Safari on iPhone was not tested
   automatically.
 
-## Manual checks (developer)
+## Manual checks (pending)
 
-1. **Phone:** start the stack with `.\scripts\dev.ps1 up-lan` (see README,
-   "Testing on a Phone"), open an agent's `/join` link on your phone and
-   register once.
+**Status on 2026-11-03: not done yet.** The phone and keyboard checks below
+will be carried out during the usability test with participants, and the
+results will be recorded here. Until then, only the automated checks above
+have been run.
+
+1. **Phone:** start a separate preview stack in LAN mode
+   (`docker compose -p salesmesh-preview -f docker-compose.yml -f docker-compose.lan.yml`,
+   with `$env:LAN_IP` set; see README, "Testing on a Phone"), open an agent's
+   `/join` link on a phone and register once.
    - The number keypad appears for the two month fields.
    - Errors appear under the fields.
    - Nothing scrolls sideways.
