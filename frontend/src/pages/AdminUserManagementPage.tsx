@@ -88,6 +88,7 @@ export function AdminUserManagementPage() {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [organisationFor, setOrganisationFor] = useState<AuthUser | null>(null);
+  const [deactivating, setDeactivating] = useState<AuthUser | null>(null);
 
   const usersQuery = useQuery({
     queryKey: ["admin", "users", page, limit],
@@ -316,9 +317,10 @@ export function AdminUserManagementPage() {
               },
             }}
             disabled={row.id === currentUser?.id || activeMutation.isPending}
-            onChange={(_, checked) =>
-              activeMutation.mutate({ id: row.id, active: checked })
-            }
+            onChange={(_, checked) => {
+              if (checked) activeMutation.mutate({ id: row.id, active: true });
+              else setDeactivating(row);
+            }}
           />
           {row.role === "agent" && row.status === "pending" && (
             <Stack direction="row" spacing={0.5}>
@@ -496,6 +498,37 @@ export function AdminUserManagementPage() {
           {notice}
         </Alert>
       </Snackbar>
+      <Dialog
+        open={deactivating !== null}
+        onClose={() => setDeactivating(null)}
+        aria-labelledby="deactivate-title"
+      >
+        <DialogTitle id="deactivate-title">
+          Deactivate this account?
+        </DialogTitle>
+        <DialogContent>
+          <Typography>
+            {deactivating?.email} will be signed out and cannot sign in. If this
+            is an agent, their referral link stops working. You can activate the
+            account again later.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeactivating(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              if (deactivating) {
+                activeMutation.mutate({ id: deactivating.id, active: false });
+              }
+              setDeactivating(null);
+            }}
+          >
+            Deactivate account
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }
