@@ -356,6 +356,7 @@ export function JoinPage() {
         <TextField
           select
           label="Country"
+          autoComplete="country"
           slotProps={{ select: { native: true } }}
           {...register("country")}
         >
@@ -371,14 +372,14 @@ export function JoinPage() {
         </TextField>
         <TextField
           label="How many months have you lived at your current address?"
-          inputMode="numeric"
+          slotProps={{ htmlInput: { inputMode: "numeric" } }}
           {...register("currentAddressMonths")}
           error={Boolean(errors.currentAddressMonths)}
           helperText={errors.currentAddressMonths?.message}
         />
         <TextField
           label="How many months did you live at your previous address? (optional)"
-          inputMode="numeric"
+          slotProps={{ htmlInput: { inputMode: "numeric" } }}
           {...register("previousAddressMonths")}
           error={Boolean(errors.previousAddressMonths)}
           helperText={errors.previousAddressMonths?.message}
@@ -427,6 +428,17 @@ export function JoinPage() {
                   <Checkbox
                     checked={field.value}
                     onChange={(event) => field.onChange(event.target.checked)}
+                    // Lets the form move focus here when consent is missing,
+                    // and screen readers read the error with the checkbox.
+                    slotProps={{
+                      input: {
+                        ref: field.ref,
+                        "aria-invalid": Boolean(errors.consent),
+                        "aria-describedby": errors.consent
+                          ? "consent-error"
+                          : undefined,
+                      },
+                    }}
                   />
                 }
                 label={`I agree that SalesMesh may process my personal data for registration and fraud prevention, and share my details with ${clientName} for onboarding (Kenya Data Protection Act 2019).`}
@@ -441,7 +453,9 @@ export function JoinPage() {
             How we use your data
           </MuiLink>
           {errors.consent && (
-            <FormHelperText error>{errors.consent.message}</FormHelperText>
+            <FormHelperText id="consent-error" error>
+              {errors.consent.message}
+            </FormHelperText>
           )}
         </div>
         {submitMutation.isError && !emailRefused && (

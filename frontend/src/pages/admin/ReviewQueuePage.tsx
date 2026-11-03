@@ -74,6 +74,7 @@ export function ReviewQueuePage() {
         />
       )}
       <DataTable
+        label="Review queue"
         columns={columns}
         rows={queueQuery.data?.items ?? []}
         rowKey={(row) => row.assessment_id}

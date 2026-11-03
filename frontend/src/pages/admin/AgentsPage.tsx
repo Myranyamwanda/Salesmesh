@@ -145,6 +145,9 @@ export function AgentsPage() {
         variant="outlined"
         square
         className="data-table-wrap"
+        tabIndex={0}
+        role="region"
+        aria-label="Agents ranking"
       >
         <Table size="small" aria-label="Agents ranking">
           <TableHead>

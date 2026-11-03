@@ -5,7 +5,8 @@
 export const colors = {
   ink: "#141b2d",
   muted: "#535e75",
-  subtle: "#6a7488",
+  // At least 4.5:1 on canvas, paper, and tint (WCAG 1.4.3).
+  subtle: "#626c80",
   line: "#e1e6ef",
   lineSoft: "#edf0f6",
   canvas: "#f4f6fa",
@@ -18,7 +19,10 @@ export const colors = {
   navyDeep: "#0c1328",
   onNavy: "#f3f5fb",
   onNavyMuted: "#b4bdd3",
+  // Decorative fills only: 2.2:1 on white, too light for text.
   accent: "#e8a33d",
+  // Amber for text and outlines, 5.7:1 on white.
+  accentText: "#8f5b00",
   success: "#17795a",
   successTint: "#e4f3ed",
   warning: "#a35c00",

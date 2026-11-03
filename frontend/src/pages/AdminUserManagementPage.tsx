@@ -439,6 +439,7 @@ export function AdminUserManagementPage() {
         </Alert>
       )}
       <DataTable
+        label="Users"
         columns={columns}
         rows={rows}
         rowKey={(row) => row.id}

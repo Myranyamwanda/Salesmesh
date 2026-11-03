@@ -213,12 +213,15 @@ export type DataColumn<Row> = {
 };
 
 export function DataTable<Row>({
+  label,
   columns,
   rows,
   rowKey,
   loading = false,
   emptyLabel = "No records found.",
 }: {
+  /** Names the table and its scroll area for screen readers. */
+  label: string;
   columns: DataColumn<Row>[];
   rows: Row[];
   rowKey: (row: Row, index: number) => string;
@@ -231,13 +234,18 @@ export function DataTable<Row>({
     );
   }
   return (
+    // A wide table scrolls sideways on a phone; tabIndex lets keyboard users
+    // scroll it too (WCAG 2.1.1), and the region name says what it holds.
     <TableContainer
       component={Paper}
       variant="outlined"
       square
       className="data-table-wrap"
+      tabIndex={0}
+      role="region"
+      aria-label={label}
     >
-      <Table size="small" aria-label="Data table">
+      <Table size="small" aria-label={label}>
         <TableHead>
           <TableRow>
             {columns.map((column) => (

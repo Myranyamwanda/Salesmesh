@@ -98,7 +98,7 @@ flowchart LR
 | Backend | FastAPI, pydantic-settings, SQLAlchemy 2.0, Alembic, firebase-admin, PyJWT, pyotp, cryptography, dnspython, phonenumbers |
 | Machine learning | scikit-learn 1.7.2, pandas, numpy, joblib (training in Jupyter notebooks) |
 | Database | PostgreSQL 16 (Docker) |
-| Tooling | Docker Compose, Ruff, pytest, ESLint, Prettier, Vitest, pre-commit, GitHub Actions, Dependabot |
+| Tooling | Docker Compose, Ruff, pytest, ESLint, Prettier, Vitest, Playwright with axe-core, pre-commit, GitHub Actions, Dependabot |
 
 See [architecture](docs/architecture.md), [ML integration](docs/ml-integration.md),
 and the [authentication overview](docs/authentication.md) for diagrams.
@@ -296,12 +296,18 @@ Push-Location frontend
 npm ci
 npm test
 npm run build
+npx playwright install chromium
+npm run test:e2e
 Pop-Location
 ```
 
 `test` runs the backend tests in the API container against a separate
 `salesmesh_test` database, never against development data. The first
 `npm ci` takes a few minutes (about 3½ in the clean-clone check).
+`test:e2e` builds the frontend and runs the accessibility and phone-width
+checks in Chromium against mocked API responses, so it needs no backend or
+Firebase; `playwright install` downloads Chromium once. See
+[docs/accessibility.md](docs/accessibility.md).
 
 ### 10. Git hooks (optional)
 
@@ -325,11 +331,12 @@ large files and private keys.
 | `.\scripts\dev.ps1 reset-mfa -Email <address>` | Remove an admin's authenticator (lost phone); the next sign-in sets up a new one |
 | `.\scripts\dev.ps1 deactivate-user -Email <address>` | Deactivate an account (kept for audit history); refuses to leave no usable admin |
 | `.\scripts\dev.ps1 fetch-model` | Download the model v1 files from the GitHub Release `model-v1` and verify their SHA-256 (no `.env` needed) |
-| `.\scripts\dev.ps1 seed-demo` | Create demo users (in SalesMesh and Firebase) and about 3,300 scored demo customers (needs `DEMO_PASSWORD` and the Firebase settings; safe to rerun) |
+| `.\scripts\dev.ps1 seed-demo` | Create demo users (in SalesMesh and Firebase) and about 3,400 scored demo customers (needs `DEMO_PASSWORD` and the Firebase settings; safe to rerun) |
 | `.\scripts\dev.ps1 reset-demo` | Delete only the demo data and the demo Firebase accounts |
 | `.\scripts\dev.ps1 test` | Run backend tests against the separate test database |
 | `.\scripts\dev.ps1 lint` | Run Ruff and ESLint |
 | `npm test` / `npm run build` (in `frontend/`) | Run frontend tests / production build |
+| `npm run test:e2e` (in `frontend/`) | Accessibility (axe, WCAG 2.2 AA), keyboard, and 360 px phone checks in Chromium |
 
 ## Testing on a Phone
 
