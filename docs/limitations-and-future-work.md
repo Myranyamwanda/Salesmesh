@@ -24,6 +24,8 @@ the model itself (data, fairness, precision, drift) are in the
 | Integration API | The reputation API needs an admin token; there is no service account for unattended module-to-module calls |
 | Reports | The client customer CSV is the only file export; KPI tables are on screen only. Agents are benchmarked against the network, not clients against each other |
 | Fraud patterns | Collusion is detected only as one device registering many emails |
+| Assisted registrations | They are scored without four device features, so they have their own threshold (0.008039), random audits (10%), and an assisted-share alert. At that threshold about 1 in 4 assisted fraud cases is flagged and about 19 in 20 assisted flags are genuine; the device rule never applies (see the [model card](model-card.md#assisted-registrations-v130-check)) |
+| Audits and commission | A randomly audited registration stays eligible until a reviewer confirms it as fake, so that agents cannot tell which registrations are audited. If it is confirmed fake after a commission was paid, a future commission module must reverse that payment (clawback); SalesMesh only reports the change to not eligible |
 | Audit log | Entries cannot be changed through the application, but the database is not tamper-proof; routine admin page views are not logged |
 
 The [SRS traceability](srs-traceability.md) table lists which requirements

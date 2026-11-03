@@ -70,13 +70,16 @@ admin-only (see
 
 ## Admin Area
 
-- **Review queue:** probability, threshold, and the top reasons. Each reason has
-  a **Model** or **Rule** label. The review dialog shows the customer, the model
+- **Review queue:** flagged registrations and random audits, with probability,
+  threshold, and the top reasons. Each reason has a **Model**, **Rule**, or
+  **Audit** label. The review dialog shows the customer, the model
   version and threshold stored at scoring, what the probability means, all
   reasons, and the raw feature values with each one's effect on the score, and
   records "Confirm real" or "Confirm fake" with optional notes.
 - **Agents ranking:** customers, flags, confirmed fake, pending, assisted share,
-  reputation, risk score, band, and client, sorted lowest reputation first.
+  reputation, risk score, band, and client, sorted lowest reputation first. A
+  "High assisted share" label marks agents whose assisted share is far above
+  the network's (also in the Overview benchmark and on Agent detail).
 - **Agent detail:** the same figures, the display name, the client assignment,
   a **Reputation at month end** line chart and a **Monthly KPIs** table for
   the last 12 months, and the agent's customers with their reference,
@@ -91,7 +94,7 @@ admin-only (see
 - **Erase customer data:** in the review dialog, with a typed-email
   confirmation and warnings for confirmed-fake or pending customers (see
   [Reputation and review](reputation-and-review.md#erasure-requests)).
-- **Settings:** the six scoring settings, each with a short explanation and the
+- **Settings:** the nine scoring settings, each with a short explanation and the
   same validation as the backend.
 - **Audit log:** now also shows each entry's subject, such as
   `assessment:<id>`.

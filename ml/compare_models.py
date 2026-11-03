@@ -27,7 +27,6 @@ from importlib.metadata import version
 from pathlib import Path
 
 import joblib
-import matplotlib
 import numpy as np
 import pandas as pd
 import sklearn
@@ -40,9 +39,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score, roc_curve
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 
 REPO = Path(__file__).resolve().parent.parent
 METADATA = REPO / "ml" / "model_contract" / "metadata.json"
@@ -327,7 +323,18 @@ def style(axis) -> None:
         axis.spines[side].set_visible(False)
 
 
+def pyplot():
+    """Imported only when drawing, so other scripts can reuse the helpers."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    return plt
+
+
 def plot_roc(rows, scores, y_test, target: Path) -> None:
+    plt = pyplot()
     figure, axis = plt.subplots(figsize=(7, 5.4), facecolor=SURFACE)
     style(axis)
     axis.plot([0, 1], [0, 1], color=REFERENCE, linestyle=":", label="Dummy (AUC 0.500)")
@@ -356,6 +363,7 @@ def plot_roc(rows, scores, y_test, target: Path) -> None:
 
 
 def plot_recall(rows, target: Path) -> None:
+    plt = pyplot()
     shown = [row for row in rows if row["model"] in COLOURS]
     positions = np.arange(len(shown))
     height = 0.34

@@ -267,9 +267,10 @@ Google (see [Authentication](docs/authentication.md#replacing-an-admin-whose-ema
 .\scripts\dev.ps1 seed-demo
 ```
 
-This takes about two minutes. It creates a demo admin, 3 clients, and 40
-agents (4 of them fraudulent) with about 3,300 customers scored by the real
-model, creates the 44 demo users in Firebase, and prints the logins. It also
+This takes about two minutes. It creates a demo admin, 3 clients, and 41
+agents (5 of them fraudulent, one of them through assisted mode) with about
+3,400 customers scored by the real model, creates the 45 demo users in
+Firebase, and prints the logins. It also
 prints the **demo admin's authenticator setup key once**: add it to your
 authenticator app ("Enter a setup key") straight away. Running it again adds
 nothing; `.\scripts\dev.ps1 reset-demo` removes only the demo data and the

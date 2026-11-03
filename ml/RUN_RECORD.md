@@ -15,6 +15,26 @@ the notebooks are unchanged.
   recall 32.9% against the published 34.4%, at a false-positive rate of 4.6%
   against 5.0%.
 
+### Three sets of test-month figures
+
+| Figures | Threshold | Recall | Precision | FPR |
+| --- | --- | --- | --- | --- |
+| Published (`metadata.json`) | 0.035 | 34.4% | 8.9% | 5.0% |
+| Validation threshold | 0.0356 | 32.9% | 9.3% | 4.6% |
+| Deployed pipeline | 0.035 | 29.3% | 9.3% | 4.1% |
+
+- **Published:** model v1 on all 13 features, at a threshold chosen on the same
+  test months, so slightly optimistic.
+- **Validation threshold:** a model fitted on months 0-4, with the threshold
+  chosen on month 5; the estimate without the test-month leak.
+- **Deployed pipeline:** what SalesMesh sends the model, with values clipped to
+  the training range and the date-of-birth count sent as missing
+  (`ml/assisted_withholding.py`, `baf_test_months.as_entered`).
+
+Assisted registrations have their own threshold, 0.008039, chosen the same way
+with the four device features withheld (`ml/assisted_threshold.py`; see the
+[model card](../docs/model-card.md#assisted-registrations-v130-check)).
+
 ## SageMaker Run (model v1)
 
 Model v1 was built with notebooks `01` to `06` on Amazon SageMaker. They read

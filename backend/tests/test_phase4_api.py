@@ -23,8 +23,13 @@ CONFIG = {
     "high_risk_below": 90,
     "watch_below": 92,
     "device_email_rule_min": 3,
+    "assisted_threshold": 0.008039,
+    "audit_share": 0.1,
+    "assisted_alert_multiple": 2.0,
 }
 SECRET_WORDS = (
+    "audit",
+    "alert",
     "reputation",
     "risk",
     "band",
@@ -366,6 +371,11 @@ def test_scoring_config_read_and_update(api):
         {"high_risk_below": 93},
         {"watch_below": 101},
         {"device_email_rule_min": 2},
+        {"assisted_threshold": 0},
+        {"assisted_threshold": 1},
+        {"audit_share": -0.1},
+        {"audit_share": 1.1},
+        {"assisted_alert_multiple": 1},
     ],
 )
 def test_invalid_scoring_config_is_rejected(api, change):

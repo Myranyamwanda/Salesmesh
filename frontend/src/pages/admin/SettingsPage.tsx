@@ -44,6 +44,18 @@ const settingsSchema = z
       (value) => Number.isInteger(value) && value >= 3,
       "Must be a whole number of at least 3",
     ),
+    assisted_threshold: number("Enter a number between 0 and 1").refine(
+      (value) => value > 0 && value < 1,
+      "Must be between 0 and 1",
+    ),
+    audit_share: number("Enter a number from 0 to 1").refine(
+      (value) => value <= 1,
+      "Must be from 0 to 1",
+    ),
+    assisted_alert_multiple: number("Enter a number above 1").refine(
+      (value) => value > 1,
+      "Must be greater than 1",
+    ),
   })
   .refine((values) => values.high_risk_below <= values.watch_below, {
     path: ["watch_below"],
@@ -86,6 +98,21 @@ const fields: {
     name: "device_email_rule_min",
     label: "Device email rule",
     help: "Flag a registration when one device was used for at least this many different email addresses in 8 weeks. At least 3, because the model never saw more than 2.",
+  },
+  {
+    name: "assisted_threshold",
+    label: "Assisted registration threshold",
+    help: "Flag an assisted registration at or above this probability, between 0 and 1. Assisted registrations withhold four device details, which lowers every score; 0.008039 gave a 5% false-positive rate on validation data (see the model card).",
+  },
+  {
+    name: "audit_share",
+    label: "Random audit share",
+    help: "Share of unflagged assisted registrations sent to the review queue for a random check, from 0 to 1. An audit is not a flag: it counts only if a reviewer confirms the registration as fake.",
+  },
+  {
+    name: "assisted_alert_multiple",
+    label: "Assisted-share alert",
+    help: "Mark an agent (admins only) whose assisted share is more than this many times the network's, once they have the customers needed for a band. Above 1.",
   },
 ];
 

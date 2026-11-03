@@ -45,11 +45,26 @@ const EFFECT_LABELS: Record<FeatureEffect, string> = {
   lowered: "Lowered the score",
   no_effect: "No real effect",
   not_used_bank_scale: "Not used by the model (bank-scale feature)",
-  not_used_assisted: "Not used (assisted registration)",
+  withheld_raised:
+    "Raised the score (withheld on an assisted registration, scored as missing)",
+  withheld_lowered:
+    "Lowered the score (withheld on an assisted registration, scored as missing)",
+  withheld_no_effect:
+    "No real effect (withheld on an assisted registration, scored as missing)",
   unavailable: "Not available (the model that scored this is not loaded)",
 };
 
-export function ReasonList({ reasons }: { reasons: Reason[] }) {
+// Assisted registrations never measure the form time, so this reason is
+// expected for them and says nothing about the customer.
+const SESSION_NOT_MEASURED = "num__missingindicator_session_length_in_minutes";
+
+export function ReasonList({
+  reasons,
+  assisted = false,
+}: {
+  reasons: Reason[];
+  assisted?: boolean;
+}) {
   if (!reasons.length) {
     return <Typography color="text.secondary">No reasons recorded.</Typography>;
   }
@@ -58,7 +73,12 @@ export function ReasonList({ reasons }: { reasons: Reason[] }) {
       {reasons.map((reason) => (
         <li key={reason.code}>
           <SourceChip source={reason.source} />
-          <span>{reason.text}</span>
+          <span>
+            {reason.text}
+            {assisted &&
+              reason.code === SESSION_NOT_MEASURED &&
+              " (expected: registered on the agent's device)"}
+          </span>
         </li>
       ))}
     </ul>
@@ -164,7 +184,11 @@ export function ReviewDialog({
                 </div>
                 <div>
                   <dt>Threshold at scoring</dt>
-                  <dd>{formatPercent(assessment.threshold)}</dd>
+                  <dd>
+                    {assessment.threshold_kind === "assisted"
+                      ? `${formatPercent(assessment.threshold, 2)} (assisted registration)`
+                      : formatPercent(assessment.threshold)}
+                  </dd>
                 </div>
                 <div>
                   <dt>Model version</dt>
@@ -177,6 +201,14 @@ export function ReviewDialog({
                   </dd>
                 </div>
               </dl>
+              {assessment.audit_selected && !assessment.flagged && (
+                <Alert severity="info" sx={{ mb: 2 }}>
+                  Random audit: this assisted registration was not flagged. It
+                  was picked at random for a check, because assisted
+                  registrations withhold device details. It does not count as a
+                  flag unless you confirm it as fake.
+                </Alert>
+              )}
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 The probability is the model&apos;s estimate that this
                 registration is fake. It is not proof. The model flags a
@@ -188,7 +220,10 @@ export function ReviewDialog({
               <Typography component="h3" variant="subtitle1" gutterBottom>
                 Reasons
               </Typography>
-              <ReasonList reasons={assessment.reasons} />
+              <ReasonList
+                reasons={assessment.reasons}
+                assisted={assessment.customer.assisted}
+              />
               <Typography
                 component="h3"
                 variant="subtitle1"

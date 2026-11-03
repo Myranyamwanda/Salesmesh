@@ -130,7 +130,26 @@ adaptations:
 | `device_distinct_emails_8w` | Distinct emails from the browser's device ID in the last 56 days, including this one |
 
 In assisted registrations (an agent registers the customer on the agent's own
-device), the four device and session features are set to missing.
+device), the four device and session features are set to missing. The model
+imputes them, which lowers every score below 0.035 (see the
+[model card](model-card.md#assisted-registrations-v130-check)).
+
+Three safeguards (v1.3.0) close that gap without changing the model, its
+features, or the 0.035 threshold for other registrations:
+
+1. **Assisted threshold.** An assisted registration is flagged at a probability
+   of 0.008039 or more (`scoring_config.assisted_threshold`). Each assessment
+   records which threshold was applied (`threshold_kind`), and the review dialog
+   shows it.
+2. **Random audit.** A share of the unflagged assisted registrations
+   (`scoring_config.audit_share`, default 10%), chosen with Python's `secrets`
+   module, goes to the review queue with the reason "Random audit (assisted
+   registration)" and an **Audit** label. An audit is not a flag: it changes no
+   status, reputation, flag rate, or eligibility unless a reviewer confirms the
+   registration as fake, which then counts as usual.
+3. **Assisted-share alert.** Admins see "High assisted share" next to an agent
+   with at least `min_users_for_band` (30) registrations whose assisted share is
+   more than `assisted_alert_multiple` (default 2) times the network's.
 
 ## Hybrid Scoring: Model + Rules
 
@@ -179,7 +198,7 @@ registration.
 | `raised`, `lowered` | Raised the score, Lowered the score | The total is at least 0.01 from zero |
 | `no_effect` | No real effect | The total is closer to zero than 0.01 |
 | `not_used_bank_scale` | Not used by the model (bank-scale feature) | `date_of_birth_distinct_emails_4w`, which is stored but sent as None |
-| `not_used_assisted` | Not used (assisted registration) | The four device features of an assisted registration |
+| `withheld_raised`, `withheld_lowered`, `withheld_no_effect` | Raised, Lowered, or No real effect "(withheld on an assisted registration, scored as missing)" | The four device features of an assisted registration: the model imputes them, so they still move the score |
 | `unavailable` | Not available (the model that scored this is not loaded) | The model is not ok, or another version is loaded |
 
 An effect shows direction, not size. Numeric inputs compare the value with the

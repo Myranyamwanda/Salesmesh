@@ -3,7 +3,7 @@
 
 export type Page<T> = { items: T[]; total: number };
 
-export type ReasonSource = "model" | "rule";
+export type ReasonSource = "model" | "rule" | "audit";
 
 export type Reason = {
   source: ReasonSource;
@@ -29,6 +29,8 @@ export type QueueItem = {
   created_at: string;
   probability: number;
   threshold: number;
+  /** A random audit of an assisted registration, not a flag. */
+  audit: boolean;
   reasons: Reason[];
   customer_name: string;
   agent: AgentSummary;
@@ -63,7 +65,9 @@ export type FeatureEffect =
   | "lowered"
   | "no_effect"
   | "not_used_bank_scale"
-  | "not_used_assisted"
+  | "withheld_raised"
+  | "withheld_lowered"
+  | "withheld_no_effect"
   | "unavailable";
 
 export type AssessmentDetail = {
@@ -71,7 +75,9 @@ export type AssessmentDetail = {
   model_version: string;
   probability: number;
   threshold: number;
+  threshold_kind: "standard" | "assisted";
   flagged: boolean;
+  audit_selected: boolean;
   reasons: Reason[];
   features: Record<string, string | number | null>;
   feature_effects: Record<string, FeatureEffect>;
@@ -103,6 +109,8 @@ export type AgentRanking = {
   confirmed_fake: number;
   pending_review: number;
   assisted_share: number;
+  /** Admin only: assisted share far above the network's. */
+  assisted_alert: boolean;
   reputation: number;
   risk_score: number;
   band: Band;
@@ -177,6 +185,7 @@ export type BenchmarkRow = {
   flag_rate: number | null;
   difference: number | null;
   enough_data: boolean;
+  assisted_alert: boolean;
 };
 
 export type NetworkKpis = {
@@ -198,6 +207,9 @@ export type ScoringConfig = {
   high_risk_below: number;
   watch_below: number;
   device_email_rule_min: number;
+  assisted_threshold: number;
+  audit_share: number;
+  assisted_alert_multiple: number;
 };
 
 export type ScoringConfigRead = ScoringConfig & {

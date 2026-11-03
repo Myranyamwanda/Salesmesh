@@ -7,6 +7,10 @@ compare the value with the training average. The categories of source and
 device_os are not centred, so for those the sign only follows the coefficient
 of the category.
 
+In an assisted registration the four device features are withheld. The model
+still scores them, as imputed values and "was missing" indicators, so they get
+a real direction marked as withheld (see docs/model-card.md).
+
 Effects use the model that produced the score. If that model is not the one
 loaded now, they are "unavailable" rather than taken from a different model.
 """
@@ -23,7 +27,9 @@ type FeatureEffect = Literal[
     "lowered",
     "no_effect",
     "not_used_bank_scale",
-    "not_used_assisted",
+    "withheld_raised",
+    "withheld_lowered",
+    "withheld_no_effect",
     "unavailable",
 ]
 
@@ -77,10 +83,10 @@ def feature_effects(
     for name in features:
         if name in NOT_SENT_TO_MODEL:
             effects[name] = "not_used_bank_scale"
-        elif assisted and name in ASSISTED_UNKNOWN:
-            effects[name] = "not_used_assisted"
         elif name in totals:
-            effects[name] = direction(totals[name])
+            effect = direction(totals[name])
+            withheld = assisted and name in ASSISTED_UNKNOWN
+            effects[name] = f"withheld_{effect}" if withheld else effect
         else:
             effects[name] = "unavailable"
     return effects

@@ -52,7 +52,12 @@ from app.services.erasure import erase_customer
 from app.services.periods import recent_months
 from app.services.pipeline import registration_status
 from app.services.registration import link_is_active
-from app.services.reputation import AgentReputation, agent_reputations
+from app.services.reputation import (
+    AgentReputation,
+    agent_reputations,
+    assisted_alert,
+    network_assisted_share,
+)
 from app.services.reviews import review_assessment
 
 router = APIRouter(prefix="/admin", tags=["Scoring administration"])
@@ -65,13 +70,16 @@ type Limit = Annotated[int, Query(ge=1, le=100)]
 def review_queue(
     session: Database, _: Admin, offset: Offset = 0, limit: Limit = 25
 ) -> QueuePage:
-    """Flagged assessments without a review, oldest first."""
+    """Flagged or audited assessments without a review, oldest first."""
     waiting = (
         select(RiskAssessment, Customer, AgentProfile)
         .join(Customer, Customer.id == RiskAssessment.customer_id)
         .join(AgentProfile, AgentProfile.user_id == Customer.agent_id)
         .outerjoin(Review, Review.assessment_id == RiskAssessment.id)
-        .where(RiskAssessment.flagged, Review.id.is_(None))
+        .where(
+            RiskAssessment.flagged | RiskAssessment.audit_selected,
+            Review.id.is_(None),
+        )
     )
     total = session.scalar(select(func.count()).select_from(waiting.subquery()))
     rows = session.execute(
@@ -85,6 +93,7 @@ def review_queue(
             created_at=assessment.created_at,
             probability=assessment.probability,
             threshold=assessment.threshold,
+            audit=assessment.audit_selected and not assessment.flagged,
             reasons=assessment.reasons[:3],
             customer_name=customer.full_name,
             agent=AgentSummary(id=profile.user_id, display_name=profile.display_name),
@@ -112,7 +121,9 @@ def read_assessment(
         model_version=assessment.model_version,
         probability=assessment.probability,
         threshold=assessment.threshold,
+        threshold_kind=assessment.threshold_kind,
         flagged=assessment.flagged,
+        audit_selected=assessment.audit_selected,
         reasons=assessment.reasons,
         features=assessment.features,
         feature_effects=feature_effects(
@@ -167,7 +178,7 @@ def agent_rows(session, agent_id: UUID | None = None):
 
 
 def ranking(
-    profile, user, client, client_profile, stats: AgentReputation
+    profile, user, client, client_profile, stats: AgentReputation, alert: bool
 ) -> AgentRanking:
     return AgentRanking(
         id=profile.user_id,
@@ -191,6 +202,7 @@ def ranking(
         confirmed_fake=stats.confirmed_fake,
         pending_review=stats.pending_review,
         assisted_share=stats.assisted_share,
+        assisted_alert=alert,
         reputation=stats.reputation,
         risk_score=stats.risk_score,
         band=stats.band,
@@ -200,8 +212,14 @@ def ranking(
 @router.get("/agents", response_model=list[AgentRanking])
 def list_agents(session: Database, _: Admin) -> list[AgentRanking]:
     """Every agent with reputation, lowest (most at risk) first."""
-    stats = agent_reputations(session, config_row(session))
-    rows = [ranking(*row, stats[row[0].user_id]) for row in agent_rows(session)]
+    config = config_row(session)
+    stats = agent_reputations(session, config)
+    share = network_assisted_share(stats.values())
+    rows = [
+        ranking(*row, mine, assisted_alert(mine, share, config))
+        for row in agent_rows(session)
+        for mine in [stats[row[0].user_id]]
+    ]
     return sorted(rows, key=lambda row: (row.reputation, row.display_name))
 
 
@@ -217,7 +235,10 @@ def read_agent(
     agent_id: UUID, session: Database, _: Admin, offset: Offset = 0, limit: Limit = 25
 ) -> AgentDetail:
     row = find_agent(session, agent_id)
-    stats = agent_reputations(session, config_row(session), [agent_id])[agent_id]
+    config = config_row(session)
+    every_agent = agent_reputations(session, config)
+    stats = every_agent[agent_id]
+    alert = assisted_alert(stats, network_assisted_share(every_agent.values()), config)
     rows = session.execute(
         select(Customer, RiskAssessment, Review.decision)
         .outerjoin(RiskAssessment, RiskAssessment.customer_id == Customer.id)
@@ -248,7 +269,7 @@ def read_agent(
             )
         )
     return AgentDetail(
-        **ranking(*row, stats).model_dump(),
+        **ranking(*row, stats, alert).model_dump(),
         customers=customers,
         customers_total=stats.n_users,
     )

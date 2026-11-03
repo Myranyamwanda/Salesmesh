@@ -37,6 +37,7 @@ const queueItem: QueueItem = {
   created_at: "2026-10-10T08:00:00Z",
   probability: 0.0612,
   threshold: 0.035,
+  audit: false,
   reasons: [ruleReason, modelReason],
   customer_name: "Wanjiru Kamau",
   agent: { id: "agent-1", display_name: "Amina Otieno" },
@@ -47,7 +48,9 @@ const assessment: AssessmentDetail = {
   model_version: "v1",
   probability: 0.0612,
   threshold: 0.035,
+  threshold_kind: "standard",
   flagged: true,
+  audit_selected: false,
   reasons: [ruleReason, modelReason],
   features: { device_os: "windows", prev_address_months_count: null },
   feature_effects: {
@@ -94,6 +97,7 @@ function agent(overrides: Partial<AgentRanking>): AgentRanking {
     confirmed_fake: 1,
     pending_review: 1,
     assisted_share: 0.25,
+    assisted_alert: false,
     reputation: 94.5,
     risk_score: 5.5,
     band: "Low risk",
@@ -151,6 +155,30 @@ describe("review queue", () => {
     expect(reasons[0]).toHaveTextContent(ruleReason.text);
     expect(reasons[1]).toHaveTextContent("Model");
     expect(reasons[1]).toHaveTextContent(modelReason.text);
+  });
+
+  it("labels a random audit as Audit, not as a flag", async () => {
+    vi.spyOn(scoringApi, "getReviewQueue").mockResolvedValue({
+      items: [
+        {
+          ...queueItem,
+          audit: true,
+          reasons: [
+            {
+              source: "audit",
+              code: "audit__assisted",
+              text: "Random audit (assisted registration)",
+            },
+          ],
+        },
+      ],
+      total: 1,
+    });
+    renderPage(<ReviewQueuePage />, { user: admin });
+
+    const reason = await screen.findByRole("listitem");
+    expect(reason).toHaveTextContent("Audit");
+    expect(reason).toHaveTextContent("Random audit (assisted registration)");
   });
 
   it("records a decision with notes", async () => {
@@ -227,6 +255,19 @@ describe("agents ranking", () => {
     expect(rowNames()).toEqual(["Chebet", "Daudi", "Brian", "Amina"]);
     await input.click(screen.getByRole("button", { name: "Customers" }));
     expect(rowNames()[0]).toBe("Daudi");
+  });
+
+  it("marks agents with a high assisted share in text", async () => {
+    vi.spyOn(scoringApi, "listAgents").mockResolvedValue([
+      agent({ id: "a", display_name: "Amina", assisted_alert: true }),
+      agent({ id: "b", display_name: "Brian" }),
+    ]);
+    renderPage(<AgentsPage />, { user: admin });
+
+    const amina = (await screen.findByText("Amina")).closest("tr")!;
+    const brian = screen.getByText("Brian").closest("tr")!;
+    expect(amina).toHaveTextContent("High assisted share");
+    expect(brian).not.toHaveTextContent("High assisted share");
   });
 
   it("shows every band as a text badge and filters by band", async () => {
@@ -402,6 +443,9 @@ describe("settings page", () => {
     high_risk_below: 90,
     watch_below: 92,
     device_email_rule_min: 3,
+    assisted_threshold: 0.008039,
+    audit_share: 0.1,
+    assisted_alert_multiple: 2,
     updated_at: "2026-10-15T08:00:00Z",
     updated_by: null,
   };
@@ -447,6 +491,9 @@ describe("settings page", () => {
     ["Device email rule", "2", "Must be a whole number of at least 3"],
     ["Expected flag rate (p0)", "1.5", "Must be between 0 and 1"],
     ["Smoothing strength (k)", "0", "Must be greater than 0"],
+    ["Assisted registration threshold", "0", "Must be between 0 and 1"],
+    ["Random audit share", "1.5", "Must be from 0 to 1"],
+    ["Assisted-share alert", "1", "Must be greater than 1"],
   ])("rejects %s = %s", async (label, value, message) => {
     const save = vi.spyOn(scoringApi, "updateScoringConfig");
     await renderSettings();
@@ -456,7 +503,7 @@ describe("settings page", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
-  it("saves all six settings as numbers", async () => {
+  it("saves all nine settings as numbers", async () => {
     const save = vi
       .spyOn(scoringApi, "updateScoringConfig")
       .mockResolvedValue({ ...config, device_email_rule_min: 4 });
@@ -471,6 +518,9 @@ describe("settings page", () => {
         high_risk_below: 90,
         watch_below: 92,
         device_email_rule_min: 4,
+        assisted_threshold: 0.008039,
+        audit_share: 0.1,
+        assisted_alert_multiple: 2,
       }),
     );
     expect(await screen.findByText("Settings saved.")).toBeInTheDocument();

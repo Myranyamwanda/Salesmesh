@@ -10,8 +10,17 @@ const assessment: AssessmentDetail = {
   model_version: "v1",
   probability: 0.0612,
   threshold: 0.035,
+  threshold_kind: "standard",
   flagged: true,
-  reasons: [],
+  audit_selected: false,
+  reasons: [
+    {
+      source: "model",
+      code: "num__missingindicator_session_length_in_minutes",
+      text: "Time spent on the form was not measured",
+      contribution: 0.23,
+    },
+  ],
   features: {
     email_is_free: 1,
     keep_alive_session: 1,
@@ -26,7 +35,7 @@ const assessment: AssessmentDetail = {
     source: "no_effect",
     phone_mobile_valid: "unavailable",
     date_of_birth_distinct_emails_4w: "not_used_bank_scale",
-    device_os: "not_used_assisted",
+    device_os: "withheld_lowered",
   },
   created_at: "2026-10-10T08:00:00Z",
   customer: {
@@ -100,7 +109,51 @@ describe("ReviewDialog explanation", () => {
       "Not used by the model (bank-scale feature)",
     );
     expect(effectOf("Device operating system")).toBe(
-      "Not used (assisted registration)",
+      "Lowered the score (withheld on an assisted registration, scored as missing)",
+    );
+  });
+
+  it("marks the form-time reason as expected on an assisted registration", async () => {
+    await openDialog();
+
+    expect(
+      screen.getByText(/Time spent on the form was not measured/),
+    ).toHaveTextContent("(expected: registered on the agent's device)");
+  });
+
+  it("shows the assisted threshold and explains a random audit", async () => {
+    vi.spyOn(scoringApi, "getAssessment").mockResolvedValue({
+      ...assessment,
+      threshold: 0.008039,
+      threshold_kind: "assisted",
+      flagged: false,
+      audit_selected: true,
+      reasons: [
+        {
+          source: "audit",
+          code: "audit__assisted",
+          text: "Random audit (assisted registration)",
+        },
+      ],
+    });
+    renderPage(
+      <ReviewDialog assessmentId="assessment-1" onClose={() => {}} />,
+      {
+        user: makeUser("admin"),
+      },
+    );
+
+    const threshold = await screen.findByText("Threshold at scoring");
+    expect(threshold.parentElement).toHaveTextContent(
+      "0.80% (assisted registration)",
+    );
+    expect(
+      screen.getByText(/Random audit: this assisted registration/),
+    ).toHaveTextContent(
+      "does not count as a flag unless you confirm it as fake",
+    );
+    expect(screen.getByRole("listitem")).toHaveTextContent(
+      "AuditRandom audit (assisted registration)",
     );
   });
 });

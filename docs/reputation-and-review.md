@@ -175,6 +175,14 @@ it calculates no amounts and makes no payments.
 | under_review (flagged, no decision yet) or received (not yet scored) | pending |
 | rejected (confirmed fake) | not_eligible |
 
+A random audit of an assisted registration is not a flag: the registration
+stays **eligible** until a reviewer confirms it as fake, because marking it
+pending would show agents which registrations are audited. A registration
+confirmed fake after it was eligible becomes not_eligible; if a commission
+module has already paid for it, that module must reverse the payment
+(clawback). Audits also do not count in reputation or the KPI flag rate until
+they are confirmed fake.
+
 The mapping is in `backend/app/services/eligibility.py` and is derived on read,
 so it follows every review at once. Admins see eligibility per customer, per
 agent, and per registration month on the **Commission eligibility** page.

@@ -73,10 +73,14 @@ about **9 in 10 flagged applications are genuine**. That is acceptable only
 because every flag goes to a person.
 
 **Threshold note.** The threshold 0.035 was chosen on the test months, the same
-months as these metrics, so they are slightly optimistic. Choosing it on month 5
-instead, with a model fitted on months 0-4, gives a threshold of 0.0356 and, on
-the test months, recall of 32.9%, precision of 9.3%, and a false-positive rate
-of 4.6%. The deployed threshold is unchanged.
+months as these metrics, so they are slightly optimistic. The deployed threshold
+is unchanged. Three sets of figures describe the same model on test months 6-7:
+
+| Figures | Threshold | Recall | Precision | FPR | What they show |
+| --- | --- | --- | --- | --- | --- |
+| Published (`metadata.json`) | 0.035 | 34.4% | 8.9% | 5.0% | The model on all 13 features, at a threshold chosen on these same months |
+| Validation threshold | 0.0356 | 32.9% | 9.3% | 4.6% | A model fitted on months 0-4 at a threshold chosen on month 5: the estimate without the test-month leak |
+| Deployed pipeline | 0.035 | 29.3% | 9.3% | 4.1% | What SalesMesh actually sends: values clipped to the training range and the date-of-birth count sent as missing |
 
 **v1.3.0 comparison.** Random forest (ROC-AUC 0.820) and untuned gradient
 boosting (0.825) scored slightly higher than model v1 (0.817), but with worse
@@ -141,10 +145,12 @@ reputation = 100 * (1 - (flags + k * p0) / (n_users + k))    p0 = 0.0539, k = 10
   agents were High risk, and of 190 honest agents 4 were High risk and 15
   Watch.
 
-In the seeded demo (3,328 customers), 5.8% of registrations were flagged,
-close to the expected platform rate of 5.39%. After human review of flags
-older than 60 days, the four fraudulent agents had the four lowest reputations
-(87.7-90.4) and the lowest honest agent had 95.2. Reviews that confirmed
+In the seeded demo (3,388 customers), 6.3% of registrations were flagged,
+close to the expected platform rate of 5.39%. After human review of flags and
+audits older than 60 days, the five fraudulent agents had the five lowest
+reputations (86.8-94.9) and the lowest honest agent had 95.2. The fifth, the
+assisted-mode agent added in v1.3.0, is Low risk by reputation (94.9) and is
+picked out by the assisted-share alert instead. Reviews that confirmed
 customers as real removed false flags from honest agents, so human review
 widened the separation between honest and fraudulent agents.
 
@@ -192,9 +198,105 @@ module may show payout status to agents.
   9% precision: most flagged customers are genuine. **Human review is
   required** for every flag, and the score must never be used to reject a
   customer automatically.
+- **Assisted registrations are scored without four features.** An assisted
+  registration sends its four device and session features as missing, which
+  lowers every score below 0.035. Since v1.3.0 they have their own threshold,
+  random audits, and an alert per agent; at that threshold the model finds
+  about a quarter of assisted fraud, with about 1 in 20 flags being fraud. See
+  [Assisted registrations](#assisted-registrations-v130-check).
 - **Fairness.** Removing age improved the FPR ratio to 0.47 but did not reach
   equality, and other groups were not measured because BAF has no such
   attributes. Older applicants are still flagged about twice as often.
+
+## Assisted Registrations (v1.3.0 check)
+
+`ml/assisted_withholding.py` scores the same rows twice, as entered and with the
+four features withheld, through the backend's own scoring code. It is read-only
+and changes no model, threshold, or rule. Results are in
+`ml/results/v1.3.0/assisted_withholding.json`.
+
+| Data | Flag rate as entered | Flag rate withheld | Highest probability withheld | Mean probability change |
+| --- | --- | --- | --- | --- |
+| Demo customers (3,328, replayed from the seed) | 6.3% | 0.0% | 0.012 | -0.0069 (median -0.0013) |
+| BAF test months (205,011 rows) | 4.4% | 0.0% | 0.0346 (threshold 0.035) | -0.0055 (median -0.0012) |
+
+In the demo data itself, 0 of 309 assisted customers are flagged, against 193 of
+3,019 (6.4%) others. Withholding lowers the score of about 4 in 5 rows, and on
+average leaves 61% of the original probability.
+
+The mean change in the logistic score per feature (BAF test months) explains
+the direction:
+
+| Withheld feature | Mean change | Why |
+| --- | --- | --- |
+| `device_distinct_emails_8w` | -0.89 | Imputed as 1 with a missing indicator, which the model reads as low risk |
+| `keep_alive_session` | -0.29 | Imputed as the median (kept signed in), the low-risk value |
+| `session_length_in_minutes` | +0.22 | The missing indicator adds +0.23 |
+| `device_os` | +0.22 | No category, so the device term is zero |
+
+The "Time spent on the form was not measured" reason comes from that +0.23. It
+appears among the stored reasons of 194 of the 309 assisted demo customers (63%),
+although none of them is flagged. It is an artefact of assisted mode, not a sign
+of fraud.
+
+What follows:
+
+- **Fairness.** Assisted customers are not scored higher; the opposite holds.
+  The review dialog used to label these features "Not used (assisted
+  registration)", which was not accurate. It now shows each one's real
+  direction, marked "withheld on an assisted registration, scored as
+  missing", and marks the form-time reason as expected for assisted
+  registrations.
+- **Detection gap.** An agent could use assisted mode to keep fraudulent
+  registrations below the threshold, and the device rule never fires in
+  assisted mode. The admin Agents page shows each agent's assisted share; a
+  high share is a reason to review that agent's registrations by hand.
+- **Closed in v1.3.0.** See the safeguards below.
+
+Three safeguards (v1.3.0) close that gap without changing the model, its
+features, or the 0.035 threshold for other registrations:
+
+1. **Assisted threshold.** An assisted registration is flagged at a probability
+   of 0.008039 or more (`scoring_config.assisted_threshold`). Each assessment
+   records which threshold was applied (`threshold_kind`), and the review dialog
+   shows it.
+2. **Random audit.** A share of the unflagged assisted registrations
+   (`scoring_config.audit_share`, default 10%), chosen with Python's `secrets`
+   module, goes to the review queue with the reason "Random audit (assisted
+   registration)" and an **Audit** label. An audit is not a flag: it changes no
+   status, reputation, flag rate, or eligibility unless a reviewer confirms the
+   registration as fake, which then counts as usual.
+3. **Assisted-share alert.** Admins see "High assisted share" next to an agent
+   with at least `min_users_for_band` (30) registrations whose assisted share is
+   more than `assisted_alert_multiple` (default 2) times the network's.
+
+### Choosing the assisted threshold
+
+`ml/assisted_threshold.py` uses the Phase 1 method: model v1's setup is fitted
+on months 0-4, the four features are withheld, and the threshold giving a 5%
+false-positive rate on month 5 is taken. Results are in
+`ml/results/v1.3.0/assisted_threshold.json`.
+
+| Assisted registrations, features withheld | Threshold | Recall | Precision | FPR | FPR ratio |
+| --- | --- | --- | --- | --- | --- |
+| Month 5 (where it was chosen) | 0.008039 | 22.3% | 5.1% | 5.0% | 0.90 |
+| Test months 6-7, model fitted on months 0-4 | 0.008039 | 18.6% | 5.5% | 4.5% | 0.93 |
+| Test months 6-7, deployed model v1 | 0.008039 | 24.3% | 4.9% | 6.7% | 0.96 |
+
+- The month 0-4 model gives the clean estimate; the deployed model, fitted on
+  months 0-5, scores slightly higher, so in use about 6.7% of genuine assisted
+  customers are flagged rather than 5%. Choosing the threshold with the deployed
+  model on month 5 would hit 5% exactly, but month 5 was part of its training,
+  which is the leak Phase 1 removed.
+- About 19 in 20 assisted flags are genuine customers, against about 9 in 10
+  for other registrations, so the review queue gets proportionally more false
+  alarms from assisted mode.
+- The FPR ratio by age is close to 1 (0.96), because the withheld features carry
+  much of the age difference.
+
+The as-entered figures use the deployed pipeline (clipped values, date-of-birth
+count sent as missing), so they are below the published test metrics: recall
+29.3% at a 4.1% false-positive rate, against 34.4% at 5.0%.
 
 ## Reproducibility
 
