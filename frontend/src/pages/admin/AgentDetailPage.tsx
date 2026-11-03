@@ -295,6 +295,7 @@ export function AgentDetailPage() {
         </>
       )}
       <DataTable
+        label="Customers"
         columns={columns}
         rows={agent?.customers ?? []}
         rowKey={(row) => row.id}

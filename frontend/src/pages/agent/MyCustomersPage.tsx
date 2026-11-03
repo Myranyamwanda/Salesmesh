@@ -49,6 +49,7 @@ export function MyCustomersPage() {
         />
       )}
       <DataTable
+        label="My customers"
         columns={columns}
         rows={customersQuery.data?.items ?? []}
         rowKey={(row) => `${row.registered_at}-${row.full_name}`}

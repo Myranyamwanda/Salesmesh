@@ -105,6 +105,7 @@ export function MonitoringCard() {
         </>
       )}
       <DataTable
+        label="Monthly model monitoring"
         columns={columns}
         rows={monitoring?.months ?? []}
         rowKey={(row) => row.month}

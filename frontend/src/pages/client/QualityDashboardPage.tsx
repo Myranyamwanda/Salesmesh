@@ -113,6 +113,7 @@ function EligibilitySection() {
         />
       </div>
       <DataTable
+        label="Eligibility by agent"
         columns={eligibilityColumns}
         rows={eligibility?.agents ?? []}
         // Display names are not unique; the list order is stable (by name).
@@ -215,6 +216,7 @@ export function QualityDashboardPage() {
         {quality && <QualityChart trend={quality.trend} />}
       </ChartCard>
       <DataTable
+        label="Monthly trend"
         columns={columns}
         rows={quality?.trend ?? []}
         rowKey={(row) => row.month}

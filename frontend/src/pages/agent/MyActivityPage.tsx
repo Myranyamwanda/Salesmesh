@@ -97,6 +97,7 @@ export function MyActivityPage() {
         than 10 registrations only the total is shown.
       </Typography>
       <DataTable
+        label="Monthly totals"
         columns={columns}
         rows={months}
         rowKey={(row) => row.month}

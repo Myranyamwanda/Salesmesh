@@ -106,6 +106,7 @@ export function EligibilityPage() {
         By registration month
       </Typography>
       <DataTable
+        label="Eligibility by registration month"
         columns={monthColumns}
         rows={months}
         rowKey={(row) => row.month}
@@ -133,6 +134,7 @@ export function EligibilityPage() {
         </TextField>
       </div>
       <DataTable
+        label="Eligibility by agent"
         columns={agentColumns(counts)}
         rows={report?.agents ?? []}
         rowKey={(row) => row.agent.id}

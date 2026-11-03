@@ -106,6 +106,7 @@ function NetworkSection() {
         because a few flags would swing their rate.
       </Typography>
       <DataTable
+        label="Flag-rate benchmark"
         columns={benchmarkColumns}
         rows={kpis?.benchmark ?? []}
         rowKey={(row) => row.agent.id}
@@ -182,6 +183,7 @@ export function OverviewPage() {
         description="The lowest-reputation agents that are not Low risk."
       >
         <DataTable
+          label="Agents that need attention"
           columns={columns}
           rows={attention}
           rowKey={(row) => row.id}

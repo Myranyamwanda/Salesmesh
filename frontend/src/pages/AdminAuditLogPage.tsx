@@ -128,6 +128,7 @@ export function AdminAuditLogPage() {
         />
       )}
       <DataTable
+        label="Audit events"
         columns={columns}
         rows={rows}
         rowKey={(entry) => entry.id}

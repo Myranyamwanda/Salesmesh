@@ -121,6 +121,7 @@ export function KpiTable<Row extends MonthKpi>({
 }) {
   return (
     <DataTable
+      label="Monthly KPIs"
       columns={[...kpiColumns<Row>(), ...extra]}
       // Newest month first for reading; charts run oldest to newest.
       rows={[...rows].reverse()}
