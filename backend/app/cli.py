@@ -187,14 +187,15 @@ def run_seed_demo() -> None:
             f"{summary.firebase['reused']} reused."
         )
         print(
-            f"Created {plan.agents} agents, {plan.clients} clients, and "
+            f"Created {plan.agents + bool(plan.abuser)} agents, "
+            f"{plan.clients} clients, and "
             f"{summary.customers} scored customers."
         )
         print(
             f"Flagged: {summary.flagged} | reviewed automatically: "
             f"{summary.reviewed['confirmed_fake']} confirmed fake, "
             f"{summary.reviewed['confirmed_real']} confirmed real | "
-            f"pending review: {summary.pending}"
+            f"pending review: {summary.pending} | random audits: {summary.audited}"
         )
         bands = sorted(summary.bands.items())
         print("Agent bands: " + ", ".join(f"{band} {count}" for band, count in bands))

@@ -21,6 +21,7 @@ from app.demo import (
     REVIEW_NOTE,
     DemoPlan,
     DemoRow,
+    abuser_rows,
     agent_email,
     assign_rows,
     client_email,
@@ -59,6 +60,8 @@ SMALL = DemoPlan(
     assisted_share=0.0,
     history_days=120,
     auto_review_after=timedelta(days=60),
+    # Tested on its own below, so the other tests keep their simple counts.
+    abuser_customers=0,
 )
 
 
@@ -455,3 +458,53 @@ def test_demo_accounts_can_sign_in(auth_context, fake_firebase, sample):  # noqa
     assert response.status_code == 200
     me = client.get("/auth/me", headers=bearer_headers(response))
     assert me.json()["email"] == ADMIN_EMAIL
+
+
+ABUSER = replace(SMALL, abuser_customers=10)
+
+
+def test_assisted_mode_abuser_is_added_after_the_regular_agents(db_session, sample):
+    without = seed(db_session, sample, plan=SMALL, threshold=1.0)
+    before = {
+        customer.email: (customer.full_name, customer.agent_id, customer.created_at)
+        for customer in db_session.scalars(select(Customer))
+    }
+    agents_before = {
+        profile.display_name for profile in db_session.scalars(select(AgentProfile))
+    }
+    reset_demo(db_session, FakeFirebase(), SMALL)
+
+    summary = seed(db_session, sample, plan=ABUSER, threshold=1.0)
+
+    abuser = db_session.scalar(select(User).where(User.email == agent_email(7)))
+    customers = db_session.scalars(
+        select(Customer).where(Customer.agent_id == abuser.id)
+    ).all()
+    assert summary.customers == without.customers + 10
+    assert len(customers) == 10
+    assert sum(customer.assisted for customer in customers) == 6
+    assert db_session.get(AgentProfile, abuser.id).client_id is not None
+    # The first agents and their customers are unchanged.
+    regular = {
+        customer.email: (customer.full_name, customer.created_at)
+        for customer in db_session.scalars(
+            select(Customer).where(Customer.agent_id != abuser.id)
+        )
+    }
+    assert {email: (name, when) for email, (name, _, when) in before.items()} == regular
+    assert agents_before < {
+        profile.display_name for profile in db_session.scalars(select(AgentProfile))
+    }
+
+
+def test_abuser_assisted_rows_are_partly_fraud(sample):
+    assigned = assign_rows(sample, ABUSER, random.Random(ABUSER.seed))
+    planned = abuser_rows(sample, assigned, ABUSER, random.Random(1))
+
+    assisted = [row for row, is_assisted in planned if is_assisted]
+    assert len(planned) == 10
+    assert len(assisted) == 6
+    assert sum(row.fraud_bool for row in assisted) == 2
+    assert sum(row.fraud_bool for row, is_assisted in planned if not is_assisted) == 0
+    used = {id(row) for rows in assigned.values() for row in rows}
+    assert not any(id(row) in used for row, _ in planned)
