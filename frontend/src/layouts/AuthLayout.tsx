@@ -5,7 +5,7 @@ export function AuthLayout({ children }: PropsWithChildren) {
   return (
     <main className="auth-frame">
       <aside className="brand-panel" aria-label="SalesMesh">
-        <Link className="brand-lockup" to="/login" aria-label="SalesMesh home">
+        <Link className="brand-lockup" to="/login">
           <span className="brand-mark" aria-hidden="true">
             S
           </span>

@@ -122,7 +122,12 @@ function SideNavigation({
       </Link>
       <Divider />
       <Typography className="nav-section-label">WORKSPACE</Typography>
-      <List className="workspace-nav" disablePadding>
+      <List
+        component="nav"
+        aria-label="Workspace"
+        className="workspace-nav"
+        disablePadding
+      >
         {navItems[role].map(({ label, path, icon: Icon }) => {
           const selected =
             location.pathname === path ||
@@ -148,7 +153,12 @@ function SideNavigation({
       <Box className="workspace-sidebar-bottom">
         <Divider />
         <Typography className="nav-section-label">ACCOUNT</Typography>
-        <List className="workspace-nav" disablePadding>
+        <List
+          component="nav"
+          aria-label="Account"
+          className="workspace-nav"
+          disablePadding
+        >
           <ListItemButton
             component={NavLink}
             to="/profile"
@@ -204,6 +214,10 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
 
   return (
     <Box className="workspace-app">
+      {/* First on the page, so keyboard users can jump past the menus. */}
+      <a className="skip-link" href="#main">
+        Skip to main content
+      </a>
       <AppBar position="fixed" elevation={0} className="workspace-topbar">
         <Toolbar className="workspace-toolbar">
           <IconButton
@@ -278,7 +292,7 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
         <SideNavigation role={role} onNavigate={() => setMobileOpen(false)} />
       </Drawer>
 
-      <Box component="main" className="workspace-main">
+      <Box component="main" id="main" tabIndex={-1} className="workspace-main">
         <Toolbar className="workspace-topbar-spacer" />
         <div className="workspace-content">
           <Suspense fallback={<PageLoading />}>

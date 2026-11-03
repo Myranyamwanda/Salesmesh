@@ -1388,3 +1388,25 @@ a:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* Hidden until it receives keyboard focus (WCAG 2.4.1 Bypass Blocks). */
+.skip-link {
+  position: fixed;
+  z-index: 2000;
+  top: 8px;
+  left: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-sm);
+  color: var(--paper);
+  background: var(--primary-dark);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.workspace-main:focus {
+  outline: none;
+}

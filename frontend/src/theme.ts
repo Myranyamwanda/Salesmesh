@@ -11,7 +11,8 @@ export const theme = createTheme({
       dark: colors.primaryDark,
       light: colors.primaryTint,
     },
-    secondary: { main: colors.accent },
+    // Used for text (the Rule chip), so the darker amber.
+    secondary: { main: colors.accentText },
     background: { default: colors.canvas, paper: colors.paper },
     text: { primary: colors.ink, secondary: colors.muted },
     divider: colors.line,
@@ -32,7 +33,23 @@ export const theme = createTheme({
   shape: { borderRadius: radius.md },
   components: {
     // Publishing the tokens here keeps styles.css free of its own colours.
-    MuiCssBaseline: { styleOverrides: { ":root": cssVariables } },
+    MuiCssBaseline: {
+      styleOverrides: {
+        ":root": { ...cssVariables, "--focus-ring": colors.primary },
+        // On the navy panels the blue ring would be hard to see.
+        ".workspace-drawer .MuiDrawer-paper, .brand-panel": {
+          "--focus-ring": colors.onNavy,
+        },
+        // One visible keyboard focus ring everywhere (WCAG 2.4.7). MUI removes
+        // the browser outline on buttons, so it is restored here. Text fields
+        // keep their own 2 px focused border instead.
+        ":focus-visible, .MuiButtonBase-root.Mui-focusVisible": {
+          outline: "3px solid var(--focus-ring)",
+          outlineOffset: "2px",
+        },
+        ".MuiInputBase-input:focus-visible": { outline: "none" },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: { minHeight: 44, borderRadius: radius.md, boxShadow: "none" },
