@@ -237,8 +237,11 @@ of fraud.
 What follows:
 
 - **Fairness.** Assisted customers are not scored higher; the opposite holds.
-  The label "Not used (assisted registration)" in the review dialog is not
-  accurate: the features are imputed and do change the score.
+  The review dialog used to label these features "Not used (assisted
+  registration)", which was not accurate. It now shows each one's real
+  direction, marked "withheld on an assisted registration, scored as
+  missing", and marks the form-time reason as expected for assisted
+  registrations.
 - **Detection gap.** An agent could use assisted mode to keep fraudulent
   registrations below the threshold, and the device rule never fires in
   assisted mode. The admin Agents page shows each agent's assisted share; a
