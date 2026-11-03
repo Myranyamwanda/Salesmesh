@@ -2,12 +2,14 @@
 
 Loading runs these steps in order:
 
-1. Read metadata.json and compare its "sklearn_version" with the installed
+1. Compare the SHA-256 of each model file with the checksums recorded for that
+   model version. Unpickling runs code, so a changed file is never unpickled.
+2. Read metadata.json and compare its "sklearn_version" with the installed
    scikit-learn. On a mismatch, model.joblib is never unpickled, because a
    pickle from another version can fail or silently change its predictions.
-2. Unpickle model.joblib. It is a CalibratedClassifierCV that already
+3. Unpickle model.joblib. It is a CalibratedClassifierCV that already
    contains all preprocessing, so it takes the 13 raw feature values.
-3. Score the golden examples one row at a time, through the same function
+4. Score the golden examples one row at a time, through the same function
    used for real requests, and compare with the expected probabilities.
 
 Only when every step passes is the model "ok". Otherwise it is "failed", the
@@ -15,6 +17,7 @@ reason is kept for the health check and the admin model page, and every
 prediction is refused.
 """
 
+import hashlib
 import json
 import logging
 from collections.abc import Mapping
@@ -30,11 +33,12 @@ import sklearn
 from fastapi import Request
 
 from app.core.config import Settings
-from app.ml.model_source import ModelSourceError, download_from_s3
+from app.ml.model_source import MODEL_FILES, ModelSourceError, download_from_s3
 
 logger = logging.getLogger(__name__)
 
 GOLDEN_TOLERANCE = 1e-5
+CHECKSUM_DIR = Path(__file__).resolve().parent.parent / "data"
 REQUIRED_METADATA = (
     "model_version",
     "sklearn_version",
@@ -134,12 +138,32 @@ def read_json(path: Path) -> Any:
         raise ModelLoadError(f"Model file is not valid JSON: {path.name}") from exc
 
 
-def load_folder(folder: Path, source: str) -> ModelState:
+def verify_checksums(folder: Path, version: str, checksum_dir: Path) -> None:
+    """Refuse model files that differ from those recorded for this version."""
+    recorded = checksum_dir / f"model-{version}.sha256"
+    if not recorded.is_file():
+        raise ModelLoadError(f"No checksums are recorded for model version {version}")
+    lines = recorded.read_text(encoding="utf-8").splitlines()
+    expected = {name: digest for digest, name in map(str.split, lines)}
+    for name in MODEL_FILES:
+        path = folder / name
+        if not path.is_file():
+            raise ModelLoadError(f"Model file not found: {name}")
+        if hashlib.sha256(path.read_bytes()).hexdigest() != expected.get(name):
+            raise ModelLoadError(f"{name} does not match its recorded checksum")
+
+
+def load_folder(
+    folder: Path, source: str, checksum_dir: Path | None = None
+) -> ModelState:
+    """Load and check one model folder. checksum_dir None skips the checksums."""
     loaded_at = datetime.now(UTC)
     metadata = read_json(folder / "metadata.json")
     missing = [key for key in REQUIRED_METADATA if key not in metadata]
     if missing:
         raise ModelLoadError(f"metadata.json is missing: {', '.join(missing)}")
+    if checksum_dir is not None:
+        verify_checksums(folder, metadata["model_version"], checksum_dir)
 
     def failed(error: str, golden: GoldenCheck | None = None) -> ModelState:
         return ModelState(
@@ -186,9 +210,9 @@ def load_model_state(settings: Settings) -> ModelState:
             # The files are only needed while loading; the model stays in memory.
             with TemporaryDirectory() as folder:
                 download_from_s3(settings, Path(folder))
-                state = load_folder(Path(folder), source)
+                state = load_folder(Path(folder), source, CHECKSUM_DIR)
         else:
-            state = load_folder(settings.model_dir, source)
+            state = load_folder(settings.model_dir, source, CHECKSUM_DIR)
     except (ModelLoadError, ModelSourceError) as exc:
         state = ModelState(
             status="failed", source=source, error=str(exc), loaded_at=datetime.now(UTC)
