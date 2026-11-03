@@ -24,6 +24,7 @@ the model itself (data, fairness, precision, drift) are in the
 | Integration API | The reputation API needs an admin token; there is no service account for unattended module-to-module calls |
 | Reports | The client customer CSV is the only file export; KPI tables are on screen only. Agents are benchmarked against the network, not clients against each other |
 | Fraud patterns | Collusion is detected only as one device registering many emails |
+| Assisted registrations | The model cannot flag them: withholding the four device features lowers every score below the threshold, and the device rule does not apply. Watch each agent's assisted share (see the [model card](model-card.md#assisted-registrations-v130-check)) |
 | Audit log | Entries cannot be changed through the application, but the database is not tamper-proof; routine admin page views are not logged |
 
 The [SRS traceability](srs-traceability.md) table lists which requirements

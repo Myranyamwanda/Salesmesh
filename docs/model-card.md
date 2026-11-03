@@ -192,9 +192,63 @@ module may show payout status to agents.
   9% precision: most flagged customers are genuine. **Human review is
   required** for every flag, and the score must never be used to reject a
   customer automatically.
+- **Assisted registrations cannot be flagged by the model.** An assisted
+  registration sends its four device and session features as missing. The
+  model imputes them, with "was missing" indicators for two, and the result
+  lowers the score so far that no assisted registration reaches the threshold.
+  This is a detection gap, not a penalty: assisted customers are never flagged
+  unfairly, but fraud registered in assisted mode is not caught by the model.
+  See [Assisted registrations](#assisted-registrations-v130-check).
 - **Fairness.** Removing age improved the FPR ratio to 0.47 but did not reach
   equality, and other groups were not measured because BAF has no such
   attributes. Older applicants are still flagged about twice as often.
+
+## Assisted Registrations (v1.3.0 check)
+
+`ml/assisted_withholding.py` scores the same rows twice, as entered and with the
+four features withheld, through the backend's own scoring code. It is read-only
+and changes no model, threshold, or rule. Results are in
+`ml/results/v1.3.0/assisted_withholding.json`.
+
+| Data | Flag rate as entered | Flag rate withheld | Highest probability withheld | Mean probability change |
+| --- | --- | --- | --- | --- |
+| Demo customers (3,328, replayed from the seed) | 6.3% | 0.0% | 0.012 | -0.0069 (median -0.0013) |
+| BAF test months (205,011 rows) | 4.4% | 0.0% | 0.0346 (threshold 0.035) | -0.0055 (median -0.0012) |
+
+In the demo data itself, 0 of 309 assisted customers are flagged, against 193 of
+3,019 (6.4%) others. Withholding lowers the score of about 4 in 5 rows, and on
+average leaves 61% of the original probability.
+
+The mean change in the logistic score per feature (BAF test months) explains
+the direction:
+
+| Withheld feature | Mean change | Why |
+| --- | --- | --- |
+| `device_distinct_emails_8w` | -0.89 | Imputed as 1 with a missing indicator, which the model reads as low risk |
+| `keep_alive_session` | -0.29 | Imputed as the median (kept signed in), the low-risk value |
+| `session_length_in_minutes` | +0.22 | The missing indicator adds +0.23 |
+| `device_os` | +0.22 | No category, so the device term is zero |
+
+The "Time spent on the form was not measured" reason comes from that +0.23. It
+appears among the stored reasons of 194 of the 309 assisted demo customers (63%),
+although none of them is flagged. It is an artefact of assisted mode, not a sign
+of fraud.
+
+What follows:
+
+- **Fairness.** Assisted customers are not scored higher; the opposite holds.
+  The label "Not used (assisted registration)" in the review dialog is not
+  accurate: the features are imputed and do change the score.
+- **Detection gap.** An agent could use assisted mode to keep fraudulent
+  registrations below the threshold, and the device rule never fires in
+  assisted mode. The admin Agents page shows each agent's assisted share; a
+  high share is a reason to review that agent's registrations by hand.
+- **Not changed in v1.3.0.** v1.3.0 adds no new scoring. A dedicated rule or
+  threshold for assisted registrations is future work.
+
+The as-entered figures use the deployed pipeline (clipped values, date-of-birth
+count sent as missing), so they are below the published test metrics: recall
+29.3% at a 4.1% false-positive rate, against 34.4% at 5.0%.
 
 ## Reproducibility
 

@@ -24,6 +24,7 @@ The dataset itself is never committed (`data/` is ignored by Git).
 | `src/` | One module per pipeline stage; each points to the notebook that implements it |
 | `artifacts/` | Generated model output (ignored by Git) |
 | `compare_models.py` | v1.3.0 comparison of model v1 with a baseline and tree models; changes nothing in model v1 |
+| `assisted_withholding.py` | v1.3.0 read-only check of what withholding the four assisted features does to the scores |
 | `results/v1.3.0/` | Comparison results, charts, and the machine-written run record |
 | `RUN_RECORD.md` | How the SageMaker run and the comparison were done, the results, and why model v1 was kept |
 

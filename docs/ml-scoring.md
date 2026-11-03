@@ -130,7 +130,10 @@ adaptations:
 | `device_distinct_emails_8w` | Distinct emails from the browser's device ID in the last 56 days, including this one |
 
 In assisted registrations (an agent registers the customer on the agent's own
-device), the four device and session features are set to missing.
+device), the four device and session features are set to missing. The model
+imputes them, which lowers the score so far that the model cannot flag an
+assisted registration (see the
+[model card](model-card.md#assisted-registrations-v130-check)).
 
 ## Hybrid Scoring: Model + Rules
 
