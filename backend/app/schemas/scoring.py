@@ -37,6 +37,8 @@ class QueueItem(BaseModel):
     created_at: datetime
     probability: float
     threshold: float
+    # True for a random audit of an assisted registration (not a flag).
+    audit: bool
     reasons: list[dict[str, Any]]
     customer_name: str
     agent: AgentSummary
@@ -69,7 +71,9 @@ class AssessmentDetail(BaseModel):
     model_version: str
     probability: float
     threshold: float
+    threshold_kind: Literal["standard", "assisted"]
     flagged: bool
+    audit_selected: bool
     reasons: list[dict[str, Any]]
     features: dict[str, Any]
     feature_effects: dict[str, FeatureEffect]
@@ -101,6 +105,8 @@ class AgentRanking(BaseModel):
     confirmed_fake: int
     pending_review: int
     assisted_share: float
+    # Admin-only: assisted share far above the network's (see reputation.py).
+    assisted_alert: bool
     reputation: float
     risk_score: float
     band: str
@@ -166,6 +172,9 @@ class ScoringConfigInput(BaseModel):
     watch_below: float = Field(ge=0, le=100)
     # Must stay above the training max of device_distinct_emails_8w (2).
     device_email_rule_min: int = Field(ge=3)
+    assisted_threshold: float = Field(gt=0, lt=1)
+    audit_share: float = Field(ge=0, le=1)
+    assisted_alert_multiple: float = Field(gt=1)
 
     @model_validator(mode="after")
     def check_band_order(self) -> Self:

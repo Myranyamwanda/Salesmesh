@@ -47,6 +47,9 @@ class RiskAssessment(Base):
     __table_args__ = (
         CheckConstraint("probability >= 0 AND probability <= 1", name="probability"),
         CheckConstraint("threshold >= 0 AND threshold <= 1", name="threshold"),
+        CheckConstraint(
+            "threshold_kind IN ('standard', 'assisted')", name="threshold_kind"
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -59,7 +62,14 @@ class RiskAssessment(Base):
     )
     probability: Mapped[float] = mapped_column(Float)
     threshold: Mapped[float] = mapped_column(Float)
+    # Which threshold was applied: the model's (standard) or the one for
+    # assisted registrations, whose four device features are withheld.
+    threshold_kind: Mapped[str] = mapped_column(String(10), server_default="standard")
     flagged: Mapped[bool] = mapped_column(Boolean, index=True)
+    # Picked at random for review (assisted registrations only). Not a flag: it
+    # changes no status, reputation, KPI, or eligibility until a reviewer
+    # confirms the registration as fake.
+    audit_selected: Mapped[bool] = mapped_column(Boolean, server_default="false")
     reasons: Mapped[list[Any]] = mapped_column(JSONB)
     features: Mapped[dict[str, Any]] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(
@@ -107,6 +117,12 @@ class ScoringConfig(Base):
         ),
         # Must stay above the training max of device_distinct_emails_8w (2.0).
         CheckConstraint("device_email_rule_min >= 3", name="device_email_rule_min"),
+        CheckConstraint(
+            "assisted_threshold > 0 AND assisted_threshold < 1",
+            name="assisted_threshold",
+        ),
+        CheckConstraint("audit_share >= 0 AND audit_share <= 1", name="audit_share"),
+        CheckConstraint("assisted_alert_multiple > 1", name="assisted_alert_multiple"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
@@ -118,6 +134,12 @@ class ScoringConfig(Base):
     # Rule: flag when one device registered at least this many distinct emails
     # in 8 weeks, a level the model never saw in training.
     device_email_rule_min: Mapped[int] = mapped_column(Integer, server_default="3")
+    # 5% FPR on month 5 with the four features withheld (ml/assisted_threshold.py).
+    assisted_threshold: Mapped[float] = mapped_column(Float, server_default="0.008039")
+    # Share of unflagged assisted registrations sent for a random audit.
+    audit_share: Mapped[float] = mapped_column(Float, server_default="0.1")
+    # Mark an agent whose assisted share is more than this times the network's.
+    assisted_alert_multiple: Mapped[float] = mapped_column(Float, server_default="2")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
