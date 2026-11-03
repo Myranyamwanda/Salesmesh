@@ -91,8 +91,8 @@ sequenceDiagram
 
 ## Demo Data
 
-`.\scripts\dev.ps1 seed-demo` creates a demo admin, 3 clients, and 40 agents
-(4 fraudulent) on `@demo.example.com`, all verified, approved, and active,
+`.\scripts\dev.ps1 seed-demo` creates a demo admin, 3 clients, and 41 agents
+(5 fraudulent) on `@demo.example.com`, all verified, approved, and active,
 in SalesMesh and in Firebase, with `DEMO_PASSWORD` from `.env`. The demo admin
 also gets an authenticator; its setup key is printed once. About 3,300 rows of
 `ml/model_contract/demo_sample.csv` become customers spread over the last 12
@@ -105,7 +105,11 @@ months.
 - Every customer is scored by the same `score_customer()` as a live
   registration. About 10% are marked assisted, with the same device features
   set to missing.
-- Flags older than 60 days are reviewed automatically by the demo admin from
+- Agent 41 abuses assisted mode: 36 of its 60 customers are assisted, and 14
+  of those are fraud rows. It is added after the first 40 agents, from unused
+  rows and with its own seeded generators, so their data is unchanged. Random
+  audits use a seeded generator too, so the demo is the same on every run.
+- Flags and random audits older than 60 days are reviewed automatically by the demo admin from
   the dataset label (`fraud_bool` 1 is confirmed fake, 0 confirmed real, note
   "Demo review based on dataset label") through the same review service as
   the API. Newer flags stay pending for a live review during a demonstration.

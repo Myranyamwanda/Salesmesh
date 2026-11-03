@@ -131,9 +131,25 @@ adaptations:
 
 In assisted registrations (an agent registers the customer on the agent's own
 device), the four device and session features are set to missing. The model
-imputes them, which lowers the score so far that the model cannot flag an
-assisted registration (see the
+imputes them, which lowers every score below 0.035 (see the
 [model card](model-card.md#assisted-registrations-v130-check)).
+
+Three safeguards (v1.3.0) close that gap without changing the model, its
+features, or the 0.035 threshold for other registrations:
+
+1. **Assisted threshold.** An assisted registration is flagged at a probability
+   of 0.008039 or more (`scoring_config.assisted_threshold`). Each assessment
+   records which threshold was applied (`threshold_kind`), and the review dialog
+   shows it.
+2. **Random audit.** A share of the unflagged assisted registrations
+   (`scoring_config.audit_share`, default 10%), chosen with Python's `secrets`
+   module, goes to the review queue with the reason "Random audit (assisted
+   registration)" and an **Audit** label. An audit is not a flag: it changes no
+   status, reputation, flag rate, or eligibility unless a reviewer confirms the
+   registration as fake, which then counts as usual.
+3. **Assisted-share alert.** Admins see "High assisted share" next to an agent
+   with at least `min_users_for_band` (30) registrations whose assisted share is
+   more than `assisted_alert_multiple` (default 2) times the network's.
 
 ## Hybrid Scoring: Model + Rules
 
