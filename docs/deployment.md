@@ -203,16 +203,40 @@ The first build takes several minutes. The script ends with
 
 ```bash
 C="docker compose -f docker-compose.prod.yml"
-$C exec backend python manage.py create-admin --email you@example.com
+$C exec backend python manage.py create-admin --email you+prod@example.com
 $C exec backend python manage.py seed-demo
 ```
 
-`create-admin` prints a one-time set-password link. `seed-demo` creates the 45
-`@demo.example.com` accounts (reusing the Firebase users that already exist)
-and prints the demo admin's TOTP key once; add it to an authenticator app.
-The demo accounts share `DEMO_PASSWORD` and are reachable from the internet:
-use a strong value, and run `$C exec backend python manage.py reset-demo` when
-the demonstration is over.
+`create-admin` prints a one-time set-password link; open it, set a password,
+then sign in and set up the authenticator app. `seed-demo` prints the demo
+admin's TOTP key once; add it to the authenticator app as a separate entry
+(each environment's database has its own key). The demo accounts share
+`DEMO_PASSWORD` and are reachable from the internet, so use a strong value.
+
+#### Shared Firebase project: one admin email per environment
+
+Development and production use the same Firebase project, so a Firebase user
+(and its password) is shared by every environment that knows its email.
+SalesMesh roles, approval, sessions, and authenticator keys stay separate,
+because each environment has its own database.
+
+- **Use a separate admin email per environment** (for example a `+prod`
+  address). `create-admin` with an email that already exists in Firebase
+  reuses that Firebase user, and setting a password from the link would
+  change the password of your development admin too.
+- **`seed-demo` on the server** reuses the 45 existing `@demo.example.com`
+  Firebase users and sets each one to `DEMO_PASSWORD`, verified, and enabled.
+  With the same `DEMO_PASSWORD` as development, local demo sign-ins keep
+  working; a different value would change the local demo password as well.
+  A demo account deactivated locally is re-enabled in Firebase, but
+  SalesMesh still refuses it locally (its local record stays inactive).
+- **Never run `reset-demo` on the server** (or locally) while the other
+  environment still uses the demo data: it deletes the shared demo Firebase
+  users, and the other environment's demo sign-ins stop working until its
+  own `seed-demo` is rerun after a `reset-demo` there.
+- **`deactivate-user` disables the Firebase user**, so it locks that email
+  out of every environment. Deactivate only production-only accounts on the
+  server.
 
 ### 11. Daily backups
 
