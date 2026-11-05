@@ -482,6 +482,7 @@ salesmesh/
 | [Failure scenarios](docs/failure-scenarios.md) | What users see when the database, backend, Firebase, DNS, or model fails, and the drill |
 | [Limitations and future work](docs/limitations-and-future-work.md) | What the system does not do yet, and what comes next |
 | [Development workflow](docs/development-workflow.md) | Compose, hooks, CI, and branch protection |
+| [Production deployment](docs/deployment.md) | Lightsail server, HTTPS with Caddy, backups, updates, and rollback |
 | [Backend foundation](docs/backend-foundation.md) | Phase 2: settings, database, logging, and tests |
 | [Backend authentication](docs/backend-authentication.md) | Phase 3 (historical, before Firebase): security design and settings |
 | [Frontend authentication](docs/frontend-authentication.md) | Phase 4 (historical, before Firebase): session handling and auth pages |

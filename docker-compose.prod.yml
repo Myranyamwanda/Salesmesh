@@ -1,0 +1,132 @@
+# Production: one server, one domain, HTTPS. See docs/deployment.md.
+#   docker compose -f docker-compose.prod.yml up -d --wait
+# Only Caddy (web) publishes ports. The browser uses https://<DOMAIN>/ for the
+# app and https://<DOMAIN>/api/... for the API (same origin).
+# The development setup (docker-compose.yml) is separate and unchanged.
+
+# Fixed project name: containers and volumes never mix with the development
+# project ("salesmesh"), even in the same folder. COMPOSE_PROJECT_NAME or -p
+# overrides it (the laptop test uses salesmesh-prodtest).
+name: salesmesh-prod
+
+x-logging: &logging
+  # Docker keeps at most 3 x 10 MB of logs per service, so the disk never fills.
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    # No published port: only the backend (same Docker network) can connect.
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    logging: *logging
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      # The only browser origin allowed by CORS and the cookie Origin check.
+      FRONTEND_URL: https://${DOMAIN:?Set DOMAIN in .env}
+      FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-admin.json
+      MODEL_DIR: /app/models/v1
+    volumes:
+      # Firebase service-account key from the server, read-only (never in Git).
+      - type: bind
+        source: ${FIREBASE_CREDENTIALS_PATH:?Set FIREBASE_CREDENTIALS_PATH in .env}
+        target: /run/secrets/firebase-admin.json
+        read_only: true
+        bind:
+          create_host_path: false
+      # Model files from scripts/fetch-model.sh, read-only.
+      - ./backend/models:/app/models:ro
+      # Demo sample for seed-demo (tracked model contract), read-only.
+      - ./ml/model_contract:/ml/model_contract:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Migrations run before the server starts, as in development.
+    # --proxy-headers: rate limits and the foreign-request feature use the
+    # client IP from Caddy's X-Forwarded-For header. Trusting any sender is
+    # safe here because the backend publishes no port; only Caddy reaches it.
+    # --no-access-log: access lines contain client IPs and /join codes.
+    command:
+      - sh
+      - -c
+      - >-
+        alembic upgrade head &&
+        exec uvicorn app.main:app --host 0.0.0.0 --port 8000
+        --workers ${BACKEND_WORKERS:-2}
+        --proxy-headers --forwarded-allow-ips "*"
+        --no-access-log
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3)
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    logging: *logging
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: ../deploy/web.Dockerfile
+      additional_contexts:
+        deploy: ./deploy
+      args:
+        VITE_API_URL: /api
+        VITE_PRIVACY_CONTACT_EMAIL: ${VITE_PRIVACY_CONTACT_EMAIL:?Set VITE_PRIVACY_CONTACT_EMAIL in .env}
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:?Set VITE_FIREBASE_API_KEY in .env}
+        VITE_FIREBASE_AUTH_DOMAIN: ${VITE_FIREBASE_AUTH_DOMAIN:?Set VITE_FIREBASE_AUTH_DOMAIN in .env}
+        VITE_FIREBASE_PROJECT_ID: ${VITE_FIREBASE_PROJECT_ID:?Set VITE_FIREBASE_PROJECT_ID in .env}
+        VITE_FIREBASE_APP_ID: ${VITE_FIREBASE_APP_ID:?Set VITE_FIREBASE_APP_ID in .env}
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?Set DOMAIN in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # Certificates and Caddy state survive restarts and rebuilds.
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      # Caddy's admin endpoint (inside the container only).
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *logging
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
