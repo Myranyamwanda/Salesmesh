@@ -153,7 +153,8 @@ def write_demo_sample(features: list[str]) -> int:
 
 
 def write_json(path: Path, value) -> None:
-    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+    # LF on Windows too, so the release files hash the same as the Git copies.
+    path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8", newline="\n")
 
 
 def main() -> None:
@@ -261,7 +262,7 @@ def main() -> None:
         f"{hashlib.sha256((ARTIFACTS / name).read_bytes()).hexdigest()}  {name}\n"
         for name in (*MODEL_FILES, "coefficients.json")
     )
-    (CONTRACT / "model-v2.sha256").write_text(checksums, encoding="utf-8")
+    (CONTRACT / "model-v2.sha256").write_text(checksums, encoding="utf-8", newline="\n")
     demo_rows = write_demo_sample(features)
 
     # Check the export the way the backend will: reload and replay the golden rows.
