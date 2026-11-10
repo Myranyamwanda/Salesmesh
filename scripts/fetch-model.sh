@@ -1,17 +1,24 @@
 #!/usr/bin/env bash
-# Download the model v1 files and keep only files whose SHA-256 checksum
-# matches ml/model_contract/model-v1.sha256. Linux counterpart of
-# scripts/fetch-model.ps1 (same release, same checks).
-#   scripts/fetch-model.sh [release-url] [target-dir]
+# Download one model version's files and keep only files whose SHA-256
+# checksum matches ml/model_contract/<version>/model-<version>.sha256. Linux
+# counterpart of scripts/fetch-model.ps1 (same releases, same checks).
+#   scripts/fetch-model.sh            model v2 (v1.4.0 and later)
+#   scripts/fetch-model.sh v1         model v1, to roll back to v1.3.0-rc1
+#   scripts/fetch-model.sh <version> [release-url] [target-dir]
 #
 # The model files are never committed to Git. They are attached to the GitHub
-# Release "model-v1".
+# Releases "model-v1" and "model-v2".
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-RELEASE_URL="${1:-https://github.com/Myranyamwanda/Salesmesh/releases/download/model-v1}"
-TARGET="${2:-$ROOT/backend/models/v1}"
-CHECKSUM_FILE="$ROOT/ml/model_contract/model-v1.sha256"
+VERSION="${1:-v2}"
+case "$VERSION" in
+  v1|v2) ;;
+  *) echo "Unknown model version: $VERSION (use v1 or v2)." >&2; exit 1 ;;
+esac
+RELEASE_URL="${2:-https://github.com/Myranyamwanda/Salesmesh/releases/download/model-$VERSION}"
+TARGET="${3:-$ROOT/backend/models/$VERSION}"
+CHECKSUM_FILE="$ROOT/ml/model_contract/$VERSION/model-$VERSION.sha256"
 
 mkdir -p "$TARGET"
 rejected=()
@@ -53,7 +60,7 @@ while read -r expected name; do
 done < <(tr -d '\r' < "$CHECKSUM_FILE")
 
 if [ "${#rejected[@]}" -gt 0 ]; then
-  echo "Not saved: ${rejected[*]}. Check the model-v1 release assets." >&2
+  echo "Not saved: ${rejected[*]}. Check the model-$VERSION release assets." >&2
   exit 1
 fi
-echo "All model v1 files are in $TARGET and match model-v1.sha256."
+echo "All model $VERSION files are in $TARGET and match model-$VERSION.sha256."
