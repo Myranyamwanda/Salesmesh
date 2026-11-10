@@ -12,7 +12,6 @@ COMPOSE=(docker compose -f docker-compose.prod.yml)
 REF="${1:-}"
 
 [ -f .env ] || { echo "Missing $ROOT/.env (copy .env.production.example)." >&2; exit 1; }
-[ -f backend/models/v1/model.joblib ] || { echo "Model files missing: run scripts/fetch-model.sh." >&2; exit 1; }
 # Like Docker Compose, a DOMAIN in the environment wins over the one in .env.
 DOMAIN="${DOMAIN:-$( (grep -E '^DOMAIN=' .env || true) | tail -n1 | cut -d= -f2- | tr -d '"'"'"'\r')}"
 [ -n "$DOMAIN" ] || { echo "Set DOMAIN in .env." >&2; exit 1; }
@@ -34,7 +33,15 @@ if [ "$REF" != "--no-pull" ]; then
     exit 1
   fi
 fi
-echo "== Deploying $(git describe --tags --always)"
+# The model the checked-out code expects (MODEL_DIR in docker-compose.prod.yml),
+# read after the checkout, so a tag that needs another model is caught.
+MODEL="$(sed -n 's#^ *MODEL_DIR: /app/models/\(v[0-9]*\) *$#\1#p' docker-compose.prod.yml)"
+[ -n "$MODEL" ] || { echo "MODEL_DIR not found in docker-compose.prod.yml." >&2; exit 1; }
+[ -f "backend/models/$MODEL/model.joblib" ] || {
+  echo "Model $MODEL files missing: run scripts/fetch-model.sh $MODEL, then deploy again." >&2
+  exit 1
+}
+echo "== Deploying $(git describe --tags --always) with model $MODEL"
 
 # One image at a time keeps the build inside 2 GB of memory.
 echo "== Building"

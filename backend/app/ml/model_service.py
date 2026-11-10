@@ -8,9 +8,14 @@ Loading runs these steps in order:
    scikit-learn. On a mismatch, model.joblib is never unpickled, because a
    pickle from another version can fail or silently change its predictions.
 3. Unpickle model.joblib. It is a CalibratedClassifierCV that already
-   contains all preprocessing, so it takes the 13 raw feature values.
+   contains all preprocessing, so it takes the raw feature values (11 for
+   model v2) in metadata.json "features" order.
 4. Score the golden examples one row at a time, through the same function
    used for real requests, and compare with the expected probabilities.
+5. Check that metadata.json "features" is exactly the list this version of
+   SalesMesh builds (app.ml.features.FEATURE_NAMES). A model for other
+   features (for example v1 after v1.4.0) would pass its own golden check
+   but fail every registration, so it is refused at load time instead.
 
 Only when every step passes is the model "ok". Otherwise it is "failed", the
 reason is kept for the health check and the admin model page, and every
@@ -21,7 +26,7 @@ import hashlib
 import json
 import logging
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -202,6 +207,24 @@ def load_folder(
     )
 
 
+def check_feature_names(state: ModelState) -> ModelState:
+    """Refuse a model whose features differ from those SalesMesh builds."""
+    # Imported here: app.ml.features needs the database models, which the
+    # model checks themselves do not.
+    from app.ml.features import FEATURE_NAMES
+
+    features = tuple(state.metadata.get("features", ()))
+    if state.status != "ok" or features == FEATURE_NAMES:
+        return state
+    return replace(
+        state,
+        status="failed",
+        model=None,
+        error=f"Model {state.metadata.get('model_version')} expects features "
+        "that this version of SalesMesh does not build; check MODEL_DIR",
+    )
+
+
 def load_model_state(settings: Settings) -> ModelState:
     """Load and verify the model. Never raises: a failure becomes a failed state."""
     source = settings.model_source
@@ -213,6 +236,7 @@ def load_model_state(settings: Settings) -> ModelState:
                 state = load_folder(Path(folder), source, CHECKSUM_DIR)
         else:
             state = load_folder(settings.model_dir, source, CHECKSUM_DIR)
+        state = check_feature_names(state)
     except (ModelLoadError, ModelSourceError) as exc:
         state = ModelState(
             status="failed", source=source, error=str(exc), loaded_at=datetime.now(UTC)

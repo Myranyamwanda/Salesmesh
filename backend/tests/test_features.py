@@ -43,7 +43,6 @@ def registration(**overrides):
         "country": "KE",
         "current_address_months": 24,
         "previous_address_months": None,
-        "keep_signed_in": True,
         "session_length_minutes": 4.5,
         "device_id": uuid4(),
         "user_agent": WINDOWS,
@@ -55,31 +54,17 @@ def registration(**overrides):
 
 def test_feature_order_matches_model_contract():
     contract = json.loads(
-        (ROOT_DIR / "ml" / "model_contract" / "metadata.json").read_text("utf-8")
+        (ROOT_DIR / "ml" / "model_contract" / "v2" / "metadata.json").read_text("utf-8")
     )
     assert f.FEATURE_NAMES == tuple(contract["features"])
 
 
-@pytest.mark.parametrize(
-    ("name", "email", "expected"),
-    [
-        ("Amina Otieno", "amina.otieno@gmail.com", 1.0),
-        ("Amina Otieno", "AMINA_OTIENO99@gmail.com", 1.0),
-        ("Amina Otieno", "amina-otieno@example.com", 1.0),
-        ("Amina Otieno", "xyz@gmail.com", 0.0),
-        ("Amina Otieno", "123@gmail.com", 0.0),
-    ],
-)
-def test_name_email_similarity(name, email, expected):
-    assert f.name_email_similarity(name, email) == expected
-
-
-def test_name_email_similarity_is_partial_for_partial_match():
-    assert 0 < f.name_email_similarity("Amina Otieno", "aotieno@gmail.com") < 1
-
-
-def test_normalise_for_similarity():
-    assert f.normalise_for_similarity("Amina O_tieno-9.") == "aminaotieno"
+def test_model_v2_drops_similarity_and_keep_alive():
+    # Data minimisation (v1.4.0): neither is computed, stored, or collected.
+    for name in ("name_email_similarity", "keep_alive_session"):
+        assert name not in f.FEATURE_NAMES
+        assert not hasattr(f, name)
+    assert "keep_signed_in" not in f.RegistrationData.__dataclass_fields__
 
 
 def test_address_months():
@@ -166,10 +151,6 @@ def test_device_os(user_agent, expected):
     assert f.device_os(user_agent) == expected
 
 
-def test_keep_alive_session():
-    assert (f.keep_alive_session(True), f.keep_alive_session(False)) == (1, 0)
-
-
 def test_device_distinct_emails_8w(db_session):
     agent = make_user(db_session)
     device = uuid4()
@@ -191,7 +172,6 @@ def test_build_features_returns_all_features_in_order(db_session):
 
     assert tuple(features) == f.FEATURE_NAMES
     assert features == {
-        "name_email_similarity": 1.0,
         "prev_address_months_count": None,
         "current_address_months_count": 24.0,
         "date_of_birth_distinct_emails_4w": 0,
@@ -202,7 +182,6 @@ def test_build_features_returns_all_features_in_order(db_session):
         "source": "INTERNET",
         "session_length_in_minutes": 4.5,
         "device_os": "windows",
-        "keep_alive_session": 1,
         "device_distinct_emails_8w": 1,
     }
 
@@ -260,7 +239,7 @@ def test_model_input_keeps_missing_values_missing():
 
 def test_real_ranges_cover_every_numeric_feature():
     contract = json.loads(
-        (ROOT_DIR / "ml" / "model_contract" / "metadata.json").read_text("utf-8")
+        (ROOT_DIR / "ml" / "model_contract" / "v2" / "metadata.json").read_text("utf-8")
     )
     assert set(contract["numeric_ranges"]) == set(contract["numeric_features"])
     assert contract["numeric_ranges"]["device_distinct_emails_8w"]["max"] == 2.0

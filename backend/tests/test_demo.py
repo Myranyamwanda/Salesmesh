@@ -24,6 +24,7 @@ from app.demo import (
     abuser_rows,
     agent_email,
     assign_rows,
+    clear_demo_data,
     client_email,
     is_demo_email,
     planned_emails,
@@ -32,7 +33,7 @@ from app.demo import (
     reset_demo,
     seed_demo,
 )
-from app.ml.features import ASSISTED_UNKNOWN
+from app.ml.features import ASSISTED_UNKNOWN, FEATURE_NAMES
 from app.ml.model_service import ModelService, ModelUnavailableError
 from app.models import (
     AgentProfile,
@@ -104,7 +105,7 @@ def test_sample_has_features_and_labels_but_no_age(sample):
     assert len(sample) == 5000
     assert sum(row.fraud_bool for row in sample) == 300
     assert "customer_age" not in sample[0].features
-    assert len(sample[0].features) == 13
+    assert tuple(sample[0].features) == FEATURE_NAMES
 
 
 def test_fraudulent_agents_get_forty_percent_fraud_rows(sample):
@@ -300,6 +301,57 @@ def test_reset_removes_only_demo_data(db_session, sample):
     assert db_session.get(AgentProfile, real_agent.id).client_id is None
     # A reset can be followed by a fresh seed.
     assert seed(db_session, sample).created
+
+
+def make_usable_admin(session):
+    admin = make_user(session, role="admin")
+    admin.status = "approved"
+    admin.email_verified_at = NOW
+    admin.firebase_uid = "real-admin-uid"
+    admin.totp_enabled_at = NOW
+    return admin
+
+
+def test_clear_demo_data_keeps_firebase_accounts_for_the_next_seed(db_session, sample):
+    real_admin = make_usable_admin(db_session)
+    real_agent = make_user(db_session)
+    real_customer = make_customer(db_session, real_agent)
+    db_session.commit()
+    firebase = FakeFirebase()
+    seed(db_session, sample, firebase=firebase)
+    accounts = dict(firebase.users)
+
+    removed = clear_demo_data(db_session)
+
+    assert removed["users"] == 1 + 3 + 6
+    assert removed["customers"] > 0
+    db_session.expire_all()
+    assert count(db_session, User, User.email.like("%@demo.example.com")) == 0
+    assert count(db_session, Review) == 0
+    assert db_session.get(User, real_admin.id) is not None
+    assert db_session.get(Customer, real_customer.id) is not None
+    # Firebase is never called: the shared demo accounts survive unchanged.
+    assert firebase.users == accounts
+    # The next seed reuses every account and links the same Firebase users.
+    summary = seed(db_session, sample, firebase=firebase)
+    assert summary.created
+    assert (summary.firebase["created"], summary.firebase["reused"]) == (0, 10)
+    admin = db_session.scalar(select(User).where(User.email == ADMIN_EMAIL))
+    assert firebase.users[admin.firebase_uid]["email"] == ADMIN_EMAIL
+
+
+def test_clear_demo_data_refuses_without_a_usable_real_admin(db_session, sample):
+    seed(db_session, sample)
+    demo_users = count(db_session, User, User.email.like("%@demo.example.com"))
+    # A real admin without an authenticator cannot sign in, so does not count.
+    unusable = make_user(db_session, role="admin")
+    unusable.status = "approved"
+    db_session.commit()
+
+    with pytest.raises(ValueError, match="no usable administrator"):
+        clear_demo_data(db_session)
+
+    assert count(db_session, User, User.email.like("%@demo.example.com")) == demo_users
 
 
 def customer_snapshot(session):

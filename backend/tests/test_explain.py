@@ -8,7 +8,6 @@ from app.ml.explain import REASON_TEXTS, contributions, explain
 from app.ml.model_service import feature_frame, load_folder
 
 FEATURES = {
-    "name_email_similarity": 0.05,
     "prev_address_months_count": None,
     "current_address_months_count": 300.0,
     "date_of_birth_distinct_emails_4w": None,
@@ -19,7 +18,6 @@ FEATURES = {
     "source": "INTERNET",
     "session_length_in_minutes": 4.0,
     "device_os": "windows",
-    "keep_alive_session": 0,
     "device_distinct_emails_8w": 1,
 }
 
@@ -65,14 +63,10 @@ def test_explain_returns_top_positive_reasons_with_text():
 def test_explain_never_shows_hidden_codes():
     model = tiny_model()
     hidden = {code for code, text in REASON_TEXTS.items() if text is None}
-    for keep_alive in (0, 1):
-        for os_name in CONTRACT["categorical_features"]["device_os"]:
-            features = FEATURES | {
-                "device_os": os_name,
-                "keep_alive_session": keep_alive,
-            }
-            codes = {r["code"] for r in explain(model, CONTRACT, features, top=22)}
-            assert not codes & hidden
+    for os_name in [*CONTRACT["categorical_features"]["device_os"], None]:
+        features = FEATURES | {"device_os": os_name}
+        codes = {r["code"] for r in explain(model, CONTRACT, features, top=22)}
+        assert not codes & hidden
 
 
 def test_tiny_model_names_match_reason_dictionary():
@@ -87,7 +81,7 @@ def test_tiny_model_names_match_reason_dictionary():
 
 @pytest.mark.skipif(
     not (REAL_MODEL_DIR / "model.joblib").is_file(),
-    reason="Model files are not in Git; download them to backend/models/v1",
+    reason="Model files are not in Git; download them to backend/models/v2",
 )
 def test_real_model_reasons():
     state = load_folder(REAL_MODEL_DIR, "local")

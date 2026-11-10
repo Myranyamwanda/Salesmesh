@@ -183,7 +183,6 @@ def register_customer(
         country=payload.country,
         current_address_months=payload.current_address_months,
         previous_address_months=payload.previous_address_months,
-        keep_signed_in=payload.keep_signed_in,
         session_length_minutes=payload.session_length_minutes,
         device_id=payload.device_id,
         user_agent=payload.user_agent,

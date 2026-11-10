@@ -1,8 +1,10 @@
 # ML Model Service
 
-The backend serves the trained fake-customer detector: `v1`, a calibrated
-logistic regression trained on the BAF Base dataset. The training work in
-`ml/notebooks/` is finished and is not changed by the backend. This page
+The backend serves the trained fake-customer detector: `v2` (since v1.4.0), a
+calibrated logistic regression trained on the BAF Base dataset with 11
+features. Model v1 (13 features, `ml/notebooks/`) is kept for rollback; v2 is
+the same method without `name_email_similarity` and `keep_alive_session`
+(`ml/train_v2.py`, see the [model card](model-card.md#model-v2-v140)). This page
 describes how the backend loads and checks the model, turns a customer
 registration into model features, and scores it with the model plus
 transparent rules. Agent reputation is added in a later phase.
@@ -12,11 +14,12 @@ transparent rules. Agent reputation is added in a later phase.
 | File | Purpose |
 | --- | --- |
 | `model.joblib` | scikit-learn `CalibratedClassifierCV` (sigmoid) wrapping `Pipeline(prep, model)`. All preprocessing is inside it. |
-| `metadata.json` | Model contract: feature order, categories, threshold (0.035), `sklearn_version`, and test metrics |
+| `metadata.json` | Model contract: feature order, categories, threshold (0.03539), assisted threshold (0.014058, informational; the value used is in Settings), `sklearn_version`, and test metrics |
 | `golden_examples.json` | 20 inputs with the probabilities the model produced at export time |
 
-Copies of the contract files are tracked in `ml/model_contract/`. The model
-files themselves live in `backend/models/v1/`, which Git ignores. Docker
+Copies of the contract files are tracked in `ml/model_contract/v2/` (and
+`v1/` for the previous model). The model files themselves live in
+`backend/models/v2/`, which Git ignores. Docker
 Compose mounts that folder read-only at `/app/models`, so the model is never
 baked into an image.
 
@@ -27,26 +30,33 @@ There are two sources:
 
 1. **GitHub Release (default).** The four files (`model.joblib`,
    `metadata.json`, `golden_examples.json`, `coefficients.json`) are attached
-   to the GitHub Release `model-v1`. Run:
+   to the GitHub Release `model-v2` (`model-v1` for the previous model). Run:
 
    ```powershell
    .\scripts\dev.ps1 fetch-model
    ```
 
    [`scripts/fetch-model.ps1`](../scripts/fetch-model.ps1) downloads each file
-   into `backend/models/v1/` and checks its SHA-256 against
-   [`ml/model_contract/model-v1.sha256`](../ml/model_contract/model-v1.sha256),
-   which is tracked in Git. A file that does not match is deleted, never kept,
+   into `backend/models/v2/` and checks its SHA-256 against
+   [`ml/model_contract/v2/model-v2.sha256`](../ml/model_contract/v2/model-v2.sha256),
+   which is tracked in Git. `.\scripts\fetch-model.ps1 -Version v1` (or
+   `scripts/fetch-model.sh v1` on Linux) fetches model v1 for a rollback.
+   A file that does not match is deleted, never kept,
    and the command fails. Files that are already present and match are not
    downloaded again. The command needs no `.env`.
 
 2. **S3 (alternative).** Set `MODEL_SOURCE=s3`, `MODEL_S3_BUCKET`,
    `MODEL_S3_PREFIX`, and read-only AWS keys in `.env`. The API then downloads
-   the files at startup (see Settings below), and `backend/models/v1/` is not
-   needed.
+   the files at startup (see Settings below; the default prefix is
+   `models/final/v2`), and `backend/models/v2/` is not needed.
 
-Either way, the API still runs its own checks at startup: scikit-learn
-version, then the 20 golden examples.
+Either way, the API still runs its own checks at startup: checksums,
+scikit-learn version, the 20 golden examples, and finally that the model's
+features are exactly the ones this version of SalesMesh builds. A model that
+passes its own golden check but expects other features (for example
+`MODEL_DIR=models/v1` left in `.env` after v1.4.0) is marked failed, with the
+reason on `/health` and the Model page, instead of failing every
+registration.
 
 ## Loading and Checks
 
@@ -66,12 +76,15 @@ flowchart TD
     version -- yes --> load[Unpickle model.joblib]
     load --> golden{All 20 golden examples<br/>within 1e-5?}
     golden -- no --> failed
-    golden -- yes --> ok[status: ok<br/>predictions allowed]
+    golden -- yes --> names{metadata features ==<br/>features SalesMesh builds?}
+    names -- no --> failed
+    names -- yes --> ok[status: ok<br/>predictions allowed]
 ```
 
 - **Checksums first.** The SHA-256 of `model.joblib`, `metadata.json`, and
   `golden_examples.json` must match `backend/app/data/model-<version>.sha256`, a
-  copy of `ml/model_contract/model-v1.sha256` (a test keeps the two equal).
+  copy of `ml/model_contract/<version>/model-<version>.sha256` (a test keeps
+  them equal; both v1 and v2 are recorded).
   Unpickling runs code, so a changed or replaced file is refused before it is
   unpickled. A new model version needs its own checksum file.
 - **Version check next.** A pickle saved with another scikit-learn version
@@ -96,9 +109,9 @@ flowchart TD
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `MODEL_SOURCE` | `local` | `local` or `s3` |
-| `MODEL_DIR` | `models/v1` | Local folder; relative paths start from `backend/` |
+| `MODEL_DIR` | `models/v2` | Local folder; relative paths start from `backend/` |
 | `MODEL_S3_BUCKET` | none | Required when `MODEL_SOURCE=s3` |
-| `MODEL_S3_PREFIX` | `models/final/v1` | Key prefix of the three files |
+| `MODEL_S3_PREFIX` | `models/final/v2` | Key prefix of the three files |
 | `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` | none | Optional; empty values use the default AWS credential chain |
 
 ## Status Endpoints
@@ -116,7 +129,6 @@ adaptations:
 
 | Feature | How SalesMesh produces it |
 | --- | --- |
-| `name_email_similarity` | `difflib` ratio between the full name and the email local part, both lowercased without digits, dots, underscores, spaces, and hyphens. The exact BAF formula is not published. |
 | `prev_address_months_count`, `current_address_months_count` | Form answers; an empty previous address is missing |
 | `date_of_birth_distinct_emails_4w` | Distinct emails with the same date of birth in the last 28 days. Stored, but **not sent to the model** (see limitations). |
 | `email_is_free` | Email domain is in `FREE_EMAIL_DOMAINS` |
@@ -126,23 +138,27 @@ adaptations:
 | `source` | Always `INTERNET` |
 | `session_length_in_minutes` | Measured by the browser from opening the form to submitting it |
 | `device_os` | Fixed user-agent mapping: Android/iOS → `other`, Windows → `windows`, Mac → `macintosh`, X11 Linux → `linux`, other X11 → `x11`, else `other` |
-| `keep_alive_session` | "Keep me signed in" checkbox |
 | `device_distinct_emails_8w` | Distinct emails from the browser's device ID in the last 56 days, including this one |
 
-In assisted registrations (an agent registers the customer on the agent's own
-device), the four device and session features are set to missing. The model
-imputes them, which lowers every score below 0.035 (see the
-[model card](model-card.md#assisted-registrations-v130-check)).
+Model v1 also used `name_email_similarity` (a `difflib` ratio between the name
+and the email local part) and `keep_alive_session` (a "Keep me signed in" box
+on `/join`). Since v1.4.0 neither is computed, stored, or collected; snapshots
+scored by v1 keep them as history.
 
-Three safeguards (v1.3.0) close that gap without changing the model, its
-features, or the 0.035 threshold for other registrations:
+In assisted registrations (an agent registers the customer on the agent's own
+device), the three device and session features are set to missing. The model
+imputes them, which lowers every score (see the
+[model card](model-card.md#assisted-registrations-with-model-v2)).
+
+Three safeguards (v1.3.0) close that gap:
 
 1. **Assisted threshold.** An assisted registration is flagged at a probability
-   of 0.008039 or more (`scoring_config.assisted_threshold`). Each assessment
+   of 0.014058 or more with model v2 (0.008039 with v1;
+   `scoring_config.assisted_threshold`, set by migration 0011). Each assessment
    records which threshold was applied (`threshold_kind`), and the review dialog
    shows it.
 2. **Random audit.** A share of the unflagged assisted registrations
-   (`scoring_config.audit_share`, default 10%), chosen with Python's `secrets`
+   (`scoring_config.audit_share`, default 20% since v1.4.0, 10% before), chosen with Python's `secrets`
    module, goes to the review queue with the reason "Random audit (assisted
    registration)" and an **Audit** label. An audit is not a flag: it changes no
    status, reputation, flag rate, or eligibility unless a reviewer confirms the
@@ -161,7 +177,8 @@ the **raw** feature values as the assessment snapshot, then:
    `date_of_birth_distinct_emails_4w` is replaced by missing. A linear model
    extrapolates without limit, so an unseen value such as 10 emails on one
    device would otherwise dominate the score.
-2. **Scores with the model.** The model flags when probability >= 0.035.
+2. **Scores with the model.** The model flags when probability >= 0.03539
+   (model v2's `metadata.json` threshold), or the assisted threshold.
 3. **Applies transparent rules to the raw values.** Clipping hides extreme
    values from the model, so a rule handles them instead. The device rule
    flags when the raw `device_distinct_emails_8w` is at least
@@ -198,7 +215,7 @@ registration.
 | `raised`, `lowered` | Raised the score, Lowered the score | The total is at least 0.01 from zero |
 | `no_effect` | No real effect | The total is closer to zero than 0.01 |
 | `not_used_bank_scale` | Not used by the model (bank-scale feature) | `date_of_birth_distinct_emails_4w`, which is stored but sent as None |
-| `withheld_raised`, `withheld_lowered`, `withheld_no_effect` | Raised, Lowered, or No real effect "(withheld on an assisted registration, scored as missing)" | The four device features of an assisted registration: the model imputes them, so they still move the score |
+| `withheld_raised`, `withheld_lowered`, `withheld_no_effect` | Raised, Lowered, or No real effect "(withheld on an assisted registration, scored as missing)" | The three device features of an assisted registration: the model imputes them, so they still move the score |
 | `unavailable` | Not available (the model that scored this is not loaded) | The model is not ok, or another version is loaded |
 
 An effect shows direction, not size. Numeric inputs compare the value with the
@@ -220,8 +237,8 @@ administrators only.
   for this feature, so it becomes neutral. The real count is still stored.
 - **Country lookup.** Until a real IP-to-country provider is configured,
   `foreign_request` is always missing.
-- **Model quality.** At the chosen threshold the model finds about 34% of
-  fraud at a 5% false-positive rate, with about 9% precision, so most flagged
+- **Model quality.** At its threshold model v2 finds about 31% of fraud at a
+  5% false-positive rate, with about 8% precision, so most flagged
   customers are genuine. Every flag needs human review.
 
 ## Monitoring
@@ -237,6 +254,6 @@ without assessments are `null`, not 0. The Model page charts them against p0.
 `backend/tests/test_model_service.py` uses a small fake model to test version
 mismatch, golden-check failure, NaN results, feature-name validation, missing
 files, and S3 downloads, so these tests run in CI. The golden test on the real
-model and the startup test are skipped when `backend/models/v1/model.joblib` is
+model and the startup test are skipped when `backend/models/v2/model.joblib` is
 absent, which is always the case in GitHub Actions because model files are not
 committed.

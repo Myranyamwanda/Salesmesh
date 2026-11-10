@@ -21,7 +21,6 @@ FORM = {
     "date_of_birth": "1995-05-17",
     "country": "KE",
     "current_address_months": 24,
-    "keep_signed_in": True,
     "consent": True,
     "session_length_minutes": 4.5,
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",

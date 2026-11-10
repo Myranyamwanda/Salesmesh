@@ -1,16 +1,87 @@
-# Model Card: SalesMesh Fake-Customer Detector (v1)
+# Model Card: SalesMesh Fake-Customer Detector (v2)
 
 ## Summary
 
 | | |
 | --- | --- |
-| Name and version | `salesmesh-fake-user-detector`, `v1` |
+| Name and version | `salesmesh-fake-user-detector`, `v2` (since v1.4.0; `v1` kept for rollback) |
 | Purpose | Estimate the probability that a customer registered by a sales agent is fake, so that suspicious registrations are reviewed by a person and agents who register many fake customers can be identified |
 | Model | Logistic regression (C = 0.01, `class_weight="balanced"`) with sigmoid calibration (`CalibratedClassifierCV`, `ensemble=False`); all preprocessing inside one scikit-learn pipeline |
 | Library | scikit-learn 1.7.2 (the API refuses to load the model with another version) |
-| Output | Probability of a fake customer; flagged at or above the threshold 0.035 |
+| Output | Probability of a fake customer; flagged at or above the threshold 0.03539 (assisted registrations: 0.014058) |
 | Intended users | SalesMesh administrators, as decision support; never shown to agents or customers |
-| Training notebooks | `ml/notebooks/01`–`06`; export contract in `ml/model_contract/` |
+| Training | Model v1: `ml/notebooks/01`–`06`. Model v2: `ml/train_v2.py`, the same method without two features. Contracts in `ml/model_contract/v1/` and `ml/model_contract/v2/` |
+
+## Model v2 (v1.4.0)
+
+Model v2 is model v1 without two features, after supervisor feedback and an
+ablation study ([`ml/results/v1.4.0/ablation.md`](../ml/results/v1.4.0/ablation.md)):
+
+- **`name_email_similarity`** was not valid for SalesMesh users: many genuine
+  people use emails unrelated to their name. In the BAF test months, model v1
+  flagged honest applicants with a similarity below 0.2 at a false-positive
+  rate of 8.6%, against 3.4% for everyone else, and they made up 42% of all
+  honest flags. Without the feature their rate is 5.2% against 4.6%. SalesMesh
+  no longer computes or stores the similarity (data minimisation), and our
+  difflib formula was never the unpublished BAF formula anyway.
+- **`keep_alive_session`** came from a "Keep me signed in" box on `/join`, which
+  makes little sense on a one-time registration form and has been removed.
+  Removing the box but keeping the feature would give every customer the same
+  imputed value, so the model was retrained instead.
+
+Everything else is unchanged: the pipeline, `C=0.01`, balanced class weights,
+sigmoid calibration, the BAF preparation, training on months 0-5, and the
+20 golden examples chosen as in notebook 05 (`ml/train_v2.py`).
+
+**Thresholds.** Both are the last ROC point at or below 5% FPR on month 5, so the
+test months play no part:
+
+- **Standard, 0.03539:** chosen as in v1.3.0, from a model fitted on months
+  0-4. On the test months, model v2 at this threshold has a 5.02% FPR.
+- **Assisted, 0.014058:** chosen with model v2 itself on month 5 with the
+  three device features withheld. The v1.3.0 method (a months 0-4 model) gave
+  0.012417, but with the device features withheld every score falls in a
+  narrow band, so the small calibration difference between the two fits moves
+  the whole band across the threshold. At 0.012417, model v2 flagged 12.5% of
+  genuine assisted test applicants (v1 had the same effect, at 6.7%). At
+  0.014058 the test FPR is 4.2% and recall is 12.9%, the same recall as the
+  months 0-4 model at its own threshold. This reverses the v1.3.0 choice
+  below, because the gap is now too large to accept. Migration 0011 sets the
+  new value unless an administrator has changed it.
+
+### v1 against v2 on test months 6-7
+
+The fair comparison uses the validation method for both: a model fitted on
+months 0-4 with the threshold chosen on month 5 (`ablation.json`).
+
+| Model | Features | ROC-AUC | PR-AUC | Brier | Recall | Precision | FPR | FPR ratio |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v1 | 13 | 0.8165 | 0.0826 | 0.0134 | 32.9% | 9.3% | 4.6% | 0.468 |
+| **v2** | **11** | **0.7938** | **0.0684** | **0.0135** | **29.5%** | **8.1%** | **4.7%** | **0.510** |
+
+The deployed models, fitted on months 0-5, at their deployed thresholds:
+
+| Model, threshold | Inputs | Recall | Precision | FPR | FPR ratio |
+| --- | --- | --- | --- | --- | --- |
+| v1, 0.035 | Raw (published; threshold chosen on the test months) | 34.4% | 8.9% | 5.0% | 0.474 |
+| **v2, 0.03539** | **Raw (`metadata.json` `metrics_test`)** | **30.6%** | **8.0%** | **5.0%** | **0.508** |
+| v1, 0.035 | Deployed pipeline (clipped, date-of-birth count missing) | 29.3% | 9.3% | 4.1% | 0.629 |
+| **v2, 0.03539** | **Deployed pipeline** | **27.1%** | **7.8%** | **4.6%** | **0.769** |
+| v1, 0.008039 | Assisted (4 features withheld) | 24.3% | 4.9% | 6.7% | 0.96 |
+| **v2, 0.014058** | **Assisted (3 features withheld)** | **12.9%** | **4.2%** | **4.2%** | **0.77** |
+
+The cost is about 3 points of recall and 1 point of precision; the gain is
+fairer treatment of users whose email does not contain their name, and a
+better age FPR ratio. In assisted mode the cost is larger: v2's flags find
+about half as much assisted fraud (see
+[Assisted registrations with model v2](#assisted-registrations-with-model-v2)).
+
+**History and rollback.** Assessments scored by v1 keep their 13-value
+snapshot, threshold, and reasons; the review dialog shows feature effects only
+for the model that is loaded, so v1 assessments show them as unavailable. The
+`model-v1` release, its checksums, and `ml/model_contract/v1/` stay, so the
+v1.3.0-rc1 tag with model v1 can be redeployed (see
+[deployment](deployment.md#rolling-back-to-the-previous-tag)).
 
 ## Data
 
@@ -25,12 +96,13 @@
   testing (205,011 rows), so the test imitates future applications.
 - **Class balance:** about 1.4% fraud in the test months (2,878 of 205,011),
   which is why precision is low at any useful recall.
-- **Features:** 13 BAF columns, chosen because SalesMesh can produce
-  them from a registration (see [ML model service](ml-scoring.md)).
+- **Features:** model v1 used 13 BAF columns, chosen because SalesMesh can
+  produce them from a registration (see [ML model service](ml-scoring.md));
+  model v2 uses 11 of them.
   `customer_age` was removed for fairness. Velocity counts and `zip_count_4w`
   were removed because they are bank-scale counts with no added value here.
 
-## Model Comparison
+## Model Comparison (model v1)
 
 From `ml/notebooks/04_evaluation.ipynb`, on the test months. "FPR ratio" is the
 false-positive rate of applicants under 50 divided by that of applicants 50 or
@@ -54,9 +126,10 @@ of recall. The random forest was no better than logistic regression and is
 harder to explain. The transfer-safe model lost 12 points of recall, so the two
 risky features were kept and treated as documented adaptations instead.
 
-## Test Metrics (chosen model)
+## Test Metrics (model v1)
 
-From `metadata.json` `metrics_test`, at the threshold 0.035 (5% FPR):
+Model v2's are in [Model v2](#model-v2-v140) and its `metadata.json`.
+From model v1's `metadata.json` `metrics_test`, at the threshold 0.035 (5% FPR):
 
 | Metric | Value | Metric | Value |
 | --- | --- | --- | --- |
@@ -89,13 +162,14 @@ results, and reasons are in the [run record](../ml/RUN_RECORD.md).
 
 ## How SalesMesh Uses the Model: Model + Rules
 
-1. **Features.** Each registration is turned into the 13 features by
+1. **Features.** Each registration is turned into the 11 features by
    `backend/app/ml/features.py`, with documented adaptations (for example the
    BAF home phone becomes an optional secondary phone).
 2. **Clipping.** Numeric values are clipped to the training minimum and
    maximum before the model sees them, because a linear model extrapolates
    without limit. The stored snapshot keeps the raw values.
-3. **Model.** The probability is compared with the threshold 0.035.
+3. **Model.** The probability is compared with the threshold 0.03539, or
+   0.014058 for an assisted registration.
 4. **Rules.** Extreme values that clipping hides are handled by transparent
    rules. The device rule flags a registration when one device was used for at
    least `device_email_rule_min` (default 3) different emails in 8 weeks; the
@@ -145,7 +219,9 @@ reputation = 100 * (1 - (flags + k * p0) / (n_users + k))    p0 = 0.0539, k = 10
   agents were High risk, and of 190 honest agents 4 were High risk and 15
   Watch.
 
-In the seeded demo (3,388 customers), 6.3% of registrations were flagged,
+With model v1 (v1.3.0; for model v2 see the
+[demo check](#assisted-registrations-with-model-v2)), in the seeded demo
+(3,388 customers), 6.3% of registrations were flagged,
 close to the expected platform rate of 5.39%. After human review of flags and
 audits older than 60 days, the five fraudulent agents had the five lowest
 reputations (86.8-94.9) and the lowest honest agent had 95.2. The fifth, the
@@ -178,10 +254,10 @@ module may show payout status to agents.
 - **Not Kenyan data.** BAF is synthetic bank application data from another
   market. Real SalesMesh registrations will differ, and the model must be
   re-evaluated (and probably retrained) on labelled SalesMesh data.
-- **Feature adaptations.** The home phone is mapped to a secondary phone, the
-  name–email similarity formula is our own (the BAF formula is not published),
-  and `foreign_request` is always missing until an IP-to-country provider is
-  configured.
+- **Feature adaptations.** The home phone is mapped to a secondary phone, and
+  `foreign_request` is always missing until an IP-to-country provider is
+  configured. (Model v1 also used our own name–email similarity formula, as the
+  BAF formula is not published; model v2 dropped the feature.)
 - **Date of birth count is neutralised.** In BAF,
   `date_of_birth_distinct_emails_4w` is a bank-scale count (mean 9.5 for
   legitimate applications, 7.4 for fraud) with a negative coefficient. On a
@@ -194,21 +270,22 @@ module may show payout status to agents.
   The admin Model page shows the monthly model flag rate and mean probability
   against p0; a sustained difference from p0 can indicate drift, and the
   threshold or p0 should then be recalibrated with reviewed cases.
-- **Low precision.** About 34% recall at a 5% false-positive rate, with about
-  9% precision: most flagged customers are genuine. **Human review is
+- **Low precision.** Model v2 finds about 31% of fake applications at a 5%
+  false-positive rate, with about 8% precision: most flagged customers are
+  genuine. **Human review is
   required** for every flag, and the score must never be used to reject a
   customer automatically.
-- **Assisted registrations are scored without four features.** An assisted
-  registration sends its four device and session features as missing, which
-  lowers every score below 0.035. Since v1.3.0 they have their own threshold,
-  random audits, and an alert per agent; at that threshold the model finds
-  about a quarter of assisted fraud, with about 1 in 20 flags being fraud. See
-  [Assisted registrations](#assisted-registrations-v130-check).
-- **Fairness.** Removing age improved the FPR ratio to 0.47 but did not reach
-  equality, and other groups were not measured because BAF has no such
+- **Assisted registrations are scored without three features.** An assisted
+  registration sends its device and session features as missing, which lowers
+  every score. They have their own threshold, random audits, and an alert per
+  agent. With model v2 the flags alone find about 1 in 8 assisted fraud cases,
+  so the audits and the assisted-share alert matter more. See
+  [Assisted registrations with model v2](#assisted-registrations-with-model-v2).
+- **Fairness.** Removing age improved the FPR ratio to 0.47 (0.51 for model v2)
+  but did not reach equality, and other groups were not measured because BAF has no such
   attributes. Older applicants are still flagged about twice as often.
 
-## Assisted Registrations (v1.3.0 check)
+## Assisted Registrations (v1.3.0 check, model v1)
 
 `ml/assisted_withholding.py` scores the same rows twice, as entered and with the
 four features withheld, through the backend's own scoring code. It is read-only
@@ -261,7 +338,7 @@ features, or the 0.035 threshold for other registrations:
    records which threshold was applied (`threshold_kind`), and the review dialog
    shows it.
 2. **Random audit.** A share of the unflagged assisted registrations
-   (`scoring_config.audit_share`, default 10%), chosen with Python's `secrets`
+   (`scoring_config.audit_share`, default 20% since v1.4.0, 10% before), chosen with Python's `secrets`
    module, goes to the review queue with the reason "Random audit (assisted
    registration)" and an **Audit** label. An audit is not a flag: it changes no
    status, reputation, flag rate, or eligibility unless a reviewer confirms the
@@ -298,10 +375,63 @@ The as-entered figures use the deployed pipeline (clipped values, date-of-birth
 count sent as missing), so they are below the published test metrics: recall
 29.3% at a 4.1% false-positive rate, against 34.4% at 5.0%.
 
+## Assisted Registrations with Model v2
+
+`ml/assisted_v2.py` scores the BAF test months with the device features
+withheld through the deployed input rules, for both deployed models at their
+assisted thresholds, and adds random audits. An audit sends a share of the
+unflagged assisted registrations to a reviewer, so the figures are the
+expected share of fraud and of genuine customers that reach a reviewer
+(`ml/results/v1.4.0/assisted_v2.json`). Audits are not flags: an audited
+customer's status does not change, so the cost of an audit is reviewer time.
+
+| Model | Audit share | Fraud reviewed (recall) | Precision of reviews | Genuine reviewed (FPR) | Reviews per 1,000 assisted |
+| --- | --- | --- | --- | --- | --- |
+| v1, 0.008039 | none | 24.3% | 4.9% | 6.7% | 70 |
+| v1, 0.008039 | 10% (v1.3.0 default) | 31.9% | 2.7% | 16.1% | 163 |
+| v2, 0.014058 | none | 12.9% | 4.2% | 4.2% | 43 |
+| v2, 0.014058 | 10% | 21.6% | 2.2% | 13.8% | 139 |
+| v2, 0.014058 | 15% | 25.9% | 2.0% | 18.6% | 187 |
+| v2, 0.014058 | 20% | 30.3% | 1.8% | 23.3% | 234 |
+
+**Audit share: 20% since v1.4.0 (decided with the developer).** It brings
+the share of assisted fraud that reaches a reviewer (30.3%) back close to model
+v1 with 10% audits (31.9%), for about 71 more reviews per 1,000 assisted
+registrations than v1 needed. Assisted registrations are about 10% of all
+registrations, so that is about 7 more reviews per 1,000 registrations overall.
+Migration 0011 sets it only where an administrator has not changed the v1.3.0
+value; it stays editable in Settings (`audit_share`). The assisted threshold
+stays 0.014058, keeping the 5% false-positive target.
+
+**Demo check (seeded with model v2).** The demo was seeded into a throwaway
+database with model v2 and the same fixed clock as the v1.3.0 check:
+
+| Setting | Flagged | Four original fraudulent agents | Agent 41 (assisted abuser) | Lowest honest agent | Five fraudulent agents are the five lowest | Agent 41 alert |
+| --- | --- | --- | --- | --- | --- | --- |
+| v1 (v1.3.0) | 214 | 86.8-89.5 | 94.9, 3 flags | 95.2 | yes | yes |
+| **v2 as released: threshold 0.014058, audits 20% (defaults)** | **219** | **87.7-90.4** | **97.8, 1 confirmed fake (audit)** | **95.3** | **no** | **yes** |
+| v2, threshold 0.014058, audits 10% | 219 | 87.7-90.4 | 99.2, 0 flags | 95.3 | no | yes |
+| v2, threshold 0.012417, audits 10% (not chosen) | 250 | 87.7-89.5 | 92.1, 5 flags | 95.3 | yes | yes |
+
+With the released defaults, 61 assisted registrations are audited and 219
+registrations flagged. The four original fraudulent agents remain the four
+lowest (three High risk, one Watch). **Agent 41 is now detected by the
+assisted-share alert and by the random audits, not by a low reputation**: v2's
+assisted flags find little of its fraud, so its reputation stays Low risk
+(97.8), and one of its audited registrations is confirmed fake. **Agent 39
+stays the false-alarm example**: an honest agent with 8 of 38 registrations
+assisted (21%, just over twice the network's 10%), so it gets the same alert
+with no fraud behind it. The alert asks an administrator to look; it is not
+evidence on its own.
+
+The v1.3.0-method threshold 0.012417 would restore agent 41's low reputation,
+but at the cost of flagging about 12.5% of genuine assisted customers instead
+of 4.2%; the developer kept 0.014058.
+
 ## Reproducibility
 
-- `ml/model_contract/metadata.json` holds the feature order, categories,
-  numeric ranges, threshold, and metrics.
-- `ml/model_contract/golden_examples.json` holds 20 inputs with their expected
+- `ml/model_contract/v2/metadata.json` holds the feature order, categories,
+  numeric ranges, thresholds, and metrics (`v1/` holds model v1's).
+- `ml/model_contract/v2/golden_examples.json` holds 20 inputs with their expected
   probabilities. The API checks them at every start (tolerance 1e-5) and
   refuses to score if any differs.

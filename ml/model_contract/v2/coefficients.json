@@ -1,0 +1,22 @@
+{
+  "num__prev_address_months_count": 0.140962,
+  "num__current_address_months_count": 0.092053,
+  "num__date_of_birth_distinct_emails_4w": -0.359086,
+  "num__email_is_free": 0.315045,
+  "num__phone_home_valid": -0.566288,
+  "num__phone_mobile_valid": -0.173678,
+  "num__foreign_request": 0.117628,
+  "num__session_length_in_minutes": 0.036539,
+  "num__device_distinct_emails_8w": 0.185089,
+  "num__missingindicator_prev_address_months_count": 0.716455,
+  "num__missingindicator_current_address_months_count": 0.000539,
+  "num__missingindicator_session_length_in_minutes": 0.018868,
+  "num__missingindicator_device_distinct_emails_8w": -0.015601,
+  "cat__source_INTERNET": -0.451604,
+  "cat__source_TELEAPP": 0.379191,
+  "cat__device_os_linux": -0.721352,
+  "cat__device_os_macintosh": 0.284388,
+  "cat__device_os_other": -0.529938,
+  "cat__device_os_windows": 0.852957,
+  "cat__device_os_x11": 0.041531
+}

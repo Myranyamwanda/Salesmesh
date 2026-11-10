@@ -108,7 +108,6 @@ describe("public join page", () => {
   it("sends the form with device, session, and browser details", async () => {
     renderJoin();
     const input = await fillRequiredFields();
-    await input.click(screen.getByLabelText("Keep me signed in"));
     await input.click(screen.getByRole("checkbox", { name: /I agree/ }));
     await input.click(screen.getByRole("button", { name: "Register" }));
 
@@ -124,13 +123,17 @@ describe("public join page", () => {
       country: "KE",
       current_address_months: 24,
       previous_address_months: null,
-      keep_signed_in: true,
       consent: true,
       user_agent: navigator.userAgent,
       assisted: false,
     });
     expect(payload.session_length_minutes).toBeGreaterThanOrEqual(0);
     expect(payload.device_id).toMatch(/^[0-9a-f-]{36}$/);
+    // Model v2 (v1.4.0): no "Keep me signed in" box and no keep_signed_in.
+    expect(payload).not.toHaveProperty("keep_signed_in");
+    expect(
+      screen.queryByLabelText("Keep me signed in"),
+    ).not.toBeInTheDocument();
     expect(
       await screen.findByRole("heading", { name: "Registration received" }),
     ).toBeInTheDocument();

@@ -85,6 +85,7 @@ the admin types the customer's email (see
 | `.\scripts\dev.ps1 up` / `down` | Start or stop all services; the database volume is kept |
 | `docker compose logs -f backend` | Follow API logs, including development emails |
 | `.\scripts\dev.ps1 reset-demo` | Remove only the demo data |
+| `.\scripts\dev.ps1 clear-demo-data` | Remove only the demo data in this database, keeping the demo Firebase accounts |
 | `docker compose down -v` | Delete all local data, including the database volume |
 
 For more detail see the [development workflow](development-workflow.md),

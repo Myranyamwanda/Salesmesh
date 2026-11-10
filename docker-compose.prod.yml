@@ -47,7 +47,7 @@ services:
       # The only browser origin allowed by CORS and the cookie Origin check.
       FRONTEND_URL: https://${DOMAIN:?Set DOMAIN in .env}
       FIREBASE_CREDENTIALS_PATH: /run/secrets/firebase-admin.json
-      MODEL_DIR: /app/models/v1
+      MODEL_DIR: /app/models/v2
     volumes:
       # Firebase service-account key from the server, read-only (never in Git).
       - type: bind

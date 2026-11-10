@@ -62,7 +62,6 @@ const joinSchema = z.object({
   country: z.string().length(2),
   currentAddressMonths: months,
   previousAddressMonths: z.union([z.literal(""), months]),
-  keepSignedIn: z.boolean(),
   consent: z
     .boolean()
     .refine((value) => value, "Please agree before registering"),
@@ -80,7 +79,6 @@ const defaults: JoinValues = {
   country: "KE",
   currentAddressMonths: "",
   previousAddressMonths: "",
-  keepSignedIn: false,
   consent: false,
   assisted: false,
 };
@@ -246,7 +244,6 @@ export function JoinPage() {
           values.previousAddressMonths === ""
             ? null
             : Number(values.previousAddressMonths),
-        keep_signed_in: values.keepSignedIn,
         consent: true,
         session_length_minutes: minutesBetween(
           openedAt.current ?? Date.now(),
@@ -383,21 +380,6 @@ export function JoinPage() {
           {...register("previousAddressMonths")}
           error={Boolean(errors.previousAddressMonths)}
           helperText={errors.previousAddressMonths?.message}
-        />
-        <Controller
-          name="keepSignedIn"
-          control={control}
-          render={({ field }) => (
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={field.value}
-                  onChange={(event) => field.onChange(event.target.checked)}
-                />
-              }
-              label="Keep me signed in"
-            />
-          )}
         />
         {isOwnLink && (
           <Controller

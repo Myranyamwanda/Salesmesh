@@ -9,7 +9,7 @@ Each reason records its "source" ("model" or "rule"), so a reviewer can see
 why a customer was flagged: the model flagged if probability >= threshold, and
 a rule flagged if a reason has source "rule".
 
-Assisted registrations withhold four device features, which lowers every score
+Assisted registrations withhold three device features, which lowers every score
 below the standard threshold (docs/model-card.md). They are therefore compared
 with their own threshold, and a share of the unflagged ones is picked at random
 for review (source "audit"). An audit is not a flag.

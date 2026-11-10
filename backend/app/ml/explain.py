@@ -22,7 +22,6 @@ from app.ml.model_service import feature_frame
 # example "the current address was provided"), or the feature is not sent to
 # the model (date_of_birth_distinct_emails_4w is always imputed).
 REASON_TEXTS: dict[str, str | None] = {
-    "num__name_email_similarity": "Name and email address are not similar",
     "num__prev_address_months_count": "Long time at the previous address",
     "num__current_address_months_count": "Long time at the current address",
     "num__date_of_birth_distinct_emails_4w": None,
@@ -31,7 +30,6 @@ REASON_TEXTS: dict[str, str | None] = {
     "num__phone_mobile_valid": "Mobile number is not valid",
     "num__foreign_request": "Request came from a different country than the one given",
     "num__session_length_in_minutes": "Long time spent filling in the form",
-    "num__keep_alive_session": "Did not choose to stay signed in",
     "num__device_distinct_emails_8w": (
         "This device was used for several email addresses"
     ),

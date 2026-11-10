@@ -1,19 +1,24 @@
-# Download the model v1 files and keep only files whose SHA-256 checksum
-# matches ml/model_contract/model-v1.sha256. Run through:
-#   .\scripts\dev.ps1 fetch-model
+# Download one model version's files and keep only files whose SHA-256
+# checksum matches ml/model_contract/<version>/model-<version>.sha256. Run:
+#   .\scripts\dev.ps1 fetch-model                 model v2 (v1.4.0 and later)
+#   .\scripts\fetch-model.ps1 -Version v1         model v1, for a rollback
 #
 # The model files are never committed to Git. They are attached to the GitHub
-# Release "model-v1". The alternative source is S3 (MODEL_SOURCE=s3 in .env).
+# Releases "model-v1" and "model-v2". The alternative source is S3
+# (MODEL_SOURCE=s3 in .env).
 param(
-    [string]$ReleaseUrl = "https://github.com/Myranyamwanda/Salesmesh/releases/download/model-v1",
+    [ValidateSet("v1", "v2")]
+    [string]$Version = "v2",
+    [string]$ReleaseUrl,
     [string]$Target
 )
 
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"  # The progress bar makes downloads very slow in Windows PowerShell 5.1.
 $RepositoryRoot = Split-Path -Parent $PSScriptRoot
-if (-not $Target) { $Target = Join-Path $RepositoryRoot "backend\models\v1" }
-$ChecksumFile = Join-Path $RepositoryRoot "ml\model_contract\model-v1.sha256"
+if (-not $ReleaseUrl) { $ReleaseUrl = "https://github.com/Myranyamwanda/Salesmesh/releases/download/model-$Version" }
+if (-not $Target) { $Target = Join-Path $RepositoryRoot "backend\models\$Version" }
+$ChecksumFile = Join-Path $RepositoryRoot "ml\model_contract\$Version\model-$Version.sha256"
 
 # GitHub requires TLS 1.2, which older Windows PowerShell does not always enable.
 [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
@@ -68,6 +73,6 @@ foreach ($File in $Expected) {
 }
 
 if ($Rejected.Count -gt 0) {
-    throw "Not saved: $($Rejected -join ', '). Check the model-v1 release assets (see README), or use MODEL_SOURCE=s3."
+    throw "Not saved: $($Rejected -join ', '). Check the model-$Version release assets (see README), or use MODEL_SOURCE=s3."
 }
-Write-Host "All model v1 files are in $Target and match model-v1.sha256."
+Write-Host "All model $Version files are in $Target and match model-$Version.sha256."

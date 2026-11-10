@@ -1,0 +1,362 @@
+[
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 160.0,
+      "date_of_birth_distinct_emails_4w": 8,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 4.818446216544526,
+      "device_os": "macintosh",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.028081,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 122.0,
+      "date_of_birth_distinct_emails_4w": 1,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.13443163151735,
+      "device_os": "other",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.019658,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 63.0,
+      "date_of_birth_distinct_emails_4w": 11,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 8.669218281101646,
+      "device_os": "other",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.001601,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 22.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 13.6218426297347,
+      "device_os": "windows",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.031311,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 29.0,
+      "date_of_birth_distinct_emails_4w": 5,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 3.7752087434370174,
+      "device_os": "windows",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.051855,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 109.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 1,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.355846856034041,
+      "device_os": "windows",
+      "device_distinct_emails_8w": 2.0
+    },
+    "expected_probability": 0.051735,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 229.0,
+      "date_of_birth_distinct_emails_4w": 3,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.639529541531961,
+      "device_os": "windows",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.039702,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 142.0,
+      "date_of_birth_distinct_emails_4w": 9,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 3.0075832519381067,
+      "device_os": "windows",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.044291,
+    "expected_flag": true,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 81.0,
+      "date_of_birth_distinct_emails_4w": 9,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 3.6977228041244334,
+      "device_os": "windows",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.022677,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 57.0,
+      "date_of_birth_distinct_emails_4w": 9,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 8.970417825679215,
+      "device_os": "other",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.005781,
+    "expected_flag": false,
+    "true_label": 1
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 92.0,
+      "date_of_birth_distinct_emails_4w": 3,
+      "email_is_free": 0,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 2.780425340022828,
+      "device_os": "other",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.008818,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 82.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 1,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 43.1915039215456,
+      "device_os": "windows",
+      "device_distinct_emails_8w": 2.0
+    },
+    "expected_probability": 0.05914,
+    "expected_flag": true,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 32.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 1,
+      "source": "INTERNET",
+      "session_length_in_minutes": 4.758084871893612,
+      "device_os": "linux",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.004277,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": 53.0,
+      "current_address_months_count": 8.0,
+      "date_of_birth_distinct_emails_4w": 3,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 1.6539667663065731,
+      "device_os": "other",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.000568,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": 24.0,
+      "current_address_months_count": 29.0,
+      "date_of_birth_distinct_emails_4w": 8,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.106165152965811,
+      "device_os": "other",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.000372,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 155.0,
+      "date_of_birth_distinct_emails_4w": 4,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 5.608643163203468,
+      "device_os": "windows",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.063028,
+    "expected_flag": true,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": 10.0,
+      "current_address_months_count": 3.0,
+      "date_of_birth_distinct_emails_4w": 17,
+      "email_is_free": 1,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 1.5652225354074476,
+      "device_os": "linux",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.000281,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 190.0,
+      "date_of_birth_distinct_emails_4w": 5,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 14.880148596731187,
+      "device_os": "other",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.002843,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 25.0,
+      "date_of_birth_distinct_emails_4w": 6,
+      "email_is_free": 1,
+      "phone_home_valid": 0,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 1.952567273455472,
+      "device_os": "other",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.012484,
+    "expected_flag": false,
+    "true_label": 0
+  },
+  {
+    "features": {
+      "prev_address_months_count": null,
+      "current_address_months_count": 53.0,
+      "date_of_birth_distinct_emails_4w": 5,
+      "email_is_free": 0,
+      "phone_home_valid": 1,
+      "phone_mobile_valid": 1,
+      "foreign_request": 0,
+      "source": "INTERNET",
+      "session_length_in_minutes": 0.8460936817763045,
+      "device_os": "macintosh",
+      "device_distinct_emails_8w": 1.0
+    },
+    "expected_probability": 0.005225,
+    "expected_flag": false,
+    "true_label": 0
+  }
+]
