@@ -41,8 +41,8 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 REPO = Path(__file__).resolve().parent.parent
-METADATA = REPO / "ml" / "model_contract" / "metadata.json"
-CHECKSUMS = REPO / "ml" / "model_contract" / "model-v1.sha256"
+METADATA = REPO / "ml" / "model_contract" / "v1" / "metadata.json"
+CHECKSUMS = REPO / "ml" / "model_contract" / "v1" / "model-v1.sha256"
 DEPLOYED_MODEL = REPO / "backend" / "models" / "v1" / "model.joblib"
 
 LABEL = "fraud_bool"
