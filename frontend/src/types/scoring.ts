@@ -297,7 +297,6 @@ export type JoinRegistration = {
   country: string;
   current_address_months: number;
   previous_address_months: number | null;
-  keep_signed_in: boolean;
   consent: true;
   session_length_minutes: number;
   device_id: string | null;

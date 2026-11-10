@@ -23,7 +23,8 @@ import { formatDate, formatDateTime, formatPercent } from "../utils/format";
 import { PageError, SourceChip, StatusChip } from "./DataComponents";
 import { EraseCustomerDialog } from "./EraseCustomerDialog";
 
-// Plain names for the 13 stored feature values.
+// Plain names for the stored feature values. name_email_similarity and
+// keep_alive_session appear only in snapshots scored by model v1 (history).
 const FEATURE_LABELS: Record<string, string> = {
   name_email_similarity: "Name and email similarity",
   prev_address_months_count: "Months at previous address",

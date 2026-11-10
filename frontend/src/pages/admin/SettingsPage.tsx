@@ -102,7 +102,7 @@ const fields: {
   {
     name: "assisted_threshold",
     label: "Assisted registration threshold",
-    help: "Flag an assisted registration at or above this probability, between 0 and 1. Assisted registrations withhold four device details, which lowers every score; 0.008039 gave a 5% false-positive rate on validation data (see the model card).",
+    help: "Flag an assisted registration at or above this probability, between 0 and 1. Assisted registrations withhold three device details, which lowers every score; for model v2, 0.014058 gave a 5% false-positive rate on validation data (see the model card).",
   },
   {
     name: "audit_share",
