@@ -25,7 +25,10 @@ The dataset itself is never committed (`data/` is ignored by Git).
 | `artifacts/` | Generated model output (ignored by Git) |
 | `compare_models.py` | v1.3.0 comparison of model v1 with a baseline and tree models; changes nothing in model v1 |
 | `assisted_withholding.py` | v1.3.0 read-only check of what withholding the four assisted features does to the scores |
+| `assisted_threshold.py` | v1.3.0 choice of the assisted-mode threshold (5% FPR on month 5, device features withheld) |
+| `ablation_features.py` | v1.4.0 ablation: model v1's setup retrained without `name_email_similarity`, `keep_alive_session`, or both; changes nothing in model v1 |
 | `results/v1.3.0/` | Comparison results, charts, and the machine-written run record |
+| `results/v1.4.0/` | Ablation results (`ablation.json`, `ablation.md`) with the dataset SHA-256 and package versions |
 | `RUN_RECORD.md` | How the SageMaker run and the comparison were done, the results, and why model v1 was kept |
 
 The exported model files are published as the GitHub Release `model-v1` and
