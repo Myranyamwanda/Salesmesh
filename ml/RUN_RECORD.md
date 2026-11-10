@@ -1,8 +1,8 @@
 # Run Record
 
-This file records how model v1 was built on SageMaker, and the v1.3.0
-comparison that checks that choice. Model v1, its threshold, its features, and
-the notebooks are unchanged.
+This file records how model v1 was built on SageMaker, the v1.3.0
+comparison that checks that choice, and the v1.4.0 run that built model v2
+(model v1 without two features). The notebooks are unchanged.
 
 ## Summary
 
@@ -181,3 +181,70 @@ These results are not a reason to believe the tree models could not do better:
 gradient boosting was untuned. BAF is also bank data, so the figures describe
 that setting, not SalesMesh's customers (see the
 [model card](../docs/model-card.md)).
+
+## Model v2 Run (v1.4.0)
+
+Model v2 is model v1 without `name_email_similarity` and `keep_alive_session`,
+approved after the ablation in [results/v1.4.0/ablation.md](results/v1.4.0/ablation.md).
+It replaces model v1 in v1.4.0; model v1 stays available for rollback
+(GitHub Release `model-v1`, `model_contract/v1/`).
+
+| Item | Value |
+| --- | --- |
+| Script | `ml/train_v2.py` (training and export), `ml/assisted_v2.py` (assisted check) |
+| Date | 2026-11-10 |
+| Commit | `85fc847` (clean working tree) |
+| Dataset | `Base.csv`, SHA-256 `7bf10a37ce07e72e14c1b09e5efee3d27261baff4facc7da767b0474dcf9b809` (the same file as v1.3.0) |
+| Rows | 1,000,000: months 0-5 for the model, months 0-4 and month 5 for the standard threshold, months 6-7 for testing |
+| Python and packages | Python 3.14.3, scikit-learn 1.7.2, numpy 2.5.4, pandas 3.0.6, joblib 1.6.0, scipy 1.18.1 |
+| Machine | Windows-11-10.0.26300-SP0 |
+
+Method: model v1's pipeline and settings (`compare_models.build_pipeline`,
+`LogisticRegression(C=0.01, class_weight="balanced")`, sigmoid calibration with
+`cv=3, ensemble=False`), with the 11 remaining features. The fit is
+deterministic: three runs gave the same `model.joblib` SHA-256.
+
+| Threshold | Value | How it was chosen |
+| --- | --- | --- |
+| Standard | 0.03539 | 5% FPR on month 5, model fitted on months 0-4 (the v1.3.0 method) |
+| Assisted | 0.014058 | 5% FPR on month 5 with the device features withheld, scored by model v2 itself |
+
+The assisted threshold departs from the v1.3.0 method. That method gives
+0.012417, but at that value model v2 flags 12.5% of genuine assisted test
+applicants instead of 5%, because withheld inputs put every score in a narrow
+band that a small calibration difference shifts as a whole. Both values are in
+`model_v2_training.json` (`rejected_assisted_threshold_months_0_4_model`).
+
+### Results on test months 6-7
+
+| Model | Threshold | ROC-AUC | PR-AUC | Brier | Recall | Precision | FPR | FPR ratio |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| v1, validation method | 0.0356 | 0.8165 | 0.0826 | 0.0134 | 32.9% | 9.3% | 4.6% | 0.468 |
+| v2, validation method | 0.03539 | 0.7938 | 0.0684 | 0.0135 | 29.5% | 8.1% | 4.7% | 0.510 |
+| v2 deployed (months 0-5), raw inputs | 0.03539 | 0.7938 | 0.0684 | 0.0135 | 30.6% | 8.0% | 5.0% | 0.508 |
+| v2 deployed, deployed pipeline | 0.03539 | 0.7879 | | | 27.1% | 7.8% | 4.6% | 0.769 |
+| v2 deployed, assisted | 0.014058 | 0.7313 | | | 12.9% | 4.2% | 4.2% | 0.773 |
+
+The golden examples replay within 4.7e-7 after reloading `model.joblib`, inside
+the backend's 1e-5 tolerance. Checksums (`model_contract/v2/model-v2.sha256`,
+also in `backend/app/data/`):
+
+```text
+4ef6ca3939f39a484bd299bd3a3a4252efeedd739f69beea62b173cfd25192f5  model.joblib
+69d62af600dc8c4748feb5e9f8edb4f51b6560fd834e2673bd5558b70449e9d5  metadata.json
+3441a6708f27c0f3e93e0cf6f66c1a183f0e9f695ab90d8bef32a0c7a0398912  golden_examples.json
+f2b71cce23960dbfb07b4b9455c6dacd1f6330e9073e3c7b79735439bc479d7a  coefficients.json
+```
+
+To repeat it, keeping `Base.csv` outside the repository:
+
+```powershell
+ml\.venv\Scripts\python.exe ml\train_v2.py --data C:\path\to\Base.csv
+ml\.venv\Scripts\python.exe ml\assisted_v2.py --data C:\path\to\Base.csv
+```
+
+`train_v2.py` writes the model files to `ml/artifacts/v2/` (ignored by Git) and
+the tracked contract to `model_contract/v2/`; the model files are published as
+the GitHub Release `model-v2`. The model card's
+[Model v2](../docs/model-card.md#model-v2-v140) section has the full v1 against
+v2 comparison, the audit-share analysis, and the demo check.

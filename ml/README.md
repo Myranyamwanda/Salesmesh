@@ -20,7 +20,7 @@ The dataset itself is never committed (`data/` is ignored by Git).
 
 | Path | Contents |
 | --- | --- |
-| `model_contract/` | Tracked copies of the contract: `metadata.json` (features, categories, ranges, threshold, metrics), `golden_examples.json`, `demo_sample.csv` (5,000 test rows for demo data), and `model-v1.sha256` |
+| `model_contract/v1/`, `model_contract/v2/` | Tracked copies of each model's contract: `metadata.json` (features, categories, ranges, thresholds, metrics), `golden_examples.json`, `coefficients.json`, `demo_sample.csv` (the same 5,000 test rows for demo data, with that model's columns), and `model-<version>.sha256` |
 | `src/` | One module per pipeline stage; each points to the notebook that implements it |
 | `artifacts/` | Generated model output (ignored by Git) |
 | `compare_models.py` | v1.3.0 comparison of model v1 with a baseline and tree models; changes nothing in model v1 |
@@ -28,10 +28,13 @@ The dataset itself is never committed (`data/` is ignored by Git).
 | `assisted_threshold.py` | v1.3.0 choice of the assisted-mode threshold (5% FPR on month 5, device features withheld) |
 | `ablation_features.py` | v1.4.0 ablation: model v1's setup retrained without `name_email_similarity`, `keep_alive_session`, or both; changes nothing in model v1 |
 | `results/v1.3.0/` | Comparison results, charts, and the machine-written run record |
-| `results/v1.4.0/` | Ablation results (`ablation.json`, `ablation.md`) with the dataset SHA-256 and package versions |
+| `train_v2.py` | v1.4.0 training and export of model v2 (11 features, same method as model v1) |
+| `assisted_v2.py` | v1.4.0 assisted-mode check of model v2 against v1, with random audits at 10%, 15%, and 20% |
+| `results/v1.4.0/` | Ablation results (`ablation.json`, `ablation.md`), the model v2 training record (`model_v2_training.json`), and the assisted check (`assisted_v2.json`), each with the dataset SHA-256 and package versions |
 | `RUN_RECORD.md` | How the SageMaker run and the comparison were done, the results, and why model v1 was kept |
 
-The exported model files are published as the GitHub Release `model-v1` and
+The exported model files are published as the GitHub Releases `model-v1` and
+`model-v2` and
 downloaded with `.\scripts\dev.ps1 fetch-model`. See the
 [model card](../docs/model-card.md) for the data, metrics, fairness, and
 limitations, and [ML model service](../docs/ml-scoring.md) for how the backend

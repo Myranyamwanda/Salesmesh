@@ -55,8 +55,8 @@ Decisions:
 | `deploy/web.Dockerfile` | Builds the React app, then a Caddy image with the files |
 | `deploy/Caddyfile` | HTTPS, security headers, `/api` proxy, SPA fallback |
 | `.env.production.example` | Every production setting; copy to `.env` on the server |
-| `scripts/fetch-model.sh` | Model v1 download with SHA-256 checks (as `fetch-model.ps1`) |
-| `scripts/deploy.sh` | Backup, pull, build, start, health check |
+| `scripts/fetch-model.sh` | Model download with SHA-256 checks (as `fetch-model.ps1`): v2 by default, `v1` for a rollback |
+| `scripts/deploy.sh` | Backup, pull, check that the model the code expects is present, build, start, health check |
 | `scripts/backup.sh` | `pg_dump -Fc` to `/opt/salesmesh/backups`, keeps 14 days |
 
 ## What goes on the server
@@ -64,7 +64,7 @@ Decisions:
 | Item | Where | How |
 | --- | --- | --- |
 | Code | `/opt/salesmesh/app` | `git clone` (the repository is public) |
-| Model files | `/opt/salesmesh/app/backend/models/v1` | `scripts/fetch-model.sh` |
+| Model files | `/opt/salesmesh/app/backend/models/v2` (and `v1` for a rollback) | `scripts/fetch-model.sh` (`scripts/fetch-model.sh v1`) |
 | Firebase service-account key | `/opt/salesmesh/secrets/firebase-admin.json` | `scp` from Windows |
 | `.env` | `/opt/salesmesh/app/.env` | from `.env.production.example`; secrets generated on the server |
 | Backups | `/opt/salesmesh/backups` | `scripts/backup.sh` (cron) |
@@ -145,8 +145,9 @@ sudo chown ubuntu:ubuntu /opt/salesmesh /opt/salesmesh/backups
 sudo chmod 700 /opt/salesmesh/secrets /opt/salesmesh/backups
 git clone https://github.com/Myranyamwanda/Salesmesh.git /opt/salesmesh/app
 cd /opt/salesmesh/app
-git checkout --detach v1.3.0-rc1
-scripts/fetch-model.sh
+git checkout --detach v1.4.0-rc1
+scripts/fetch-model.sh        # model v2, from the GitHub Release model-v2
+scripts/fetch-model.sh v1     # optional: model v1, ready for a rollback
 ```
 
 ### 6. Firebase key file (from Windows)
@@ -290,12 +291,32 @@ break the release. After the smoke test shows no reports, change
 
 ```bash
 cd /opt/salesmesh/app
-scripts/deploy.sh v1.3.0        # the tag to deploy
+scripts/deploy.sh v1.4.0        # the tag to deploy
 ```
 
 `deploy.sh` takes a backup, checks out the tag, builds, starts (the backend
 applies new migrations), and checks `/api/health`. Without an argument it runs
 `git pull` on the current branch.
+
+### Updating to v1.4.0 (model v2)
+
+v1.4.0 scores with model v2, so its files must be on the server before the
+deploy; `deploy.sh` stops with a message if they are missing. Migration 0011
+sets the assisted threshold to 0.014058 (only if it is still model v1's
+0.008039). Existing assessments keep the model v1 version, threshold, and
+reasons they were scored with.
+
+```bash
+cd /opt/salesmesh/app
+git fetch --tags origin
+git checkout --detach v1.4.0-rc1   # gives fetch-model.sh the v2 checksums
+scripts/fetch-model.sh             # model v2, SHA-256 checked
+scripts/deploy.sh v1.4.0-rc1
+```
+
+`docker-compose.prod.yml` sets `MODEL_DIR=/app/models/v2`, so `.env` needs no
+change. `/api/health` must show `"model":"ok"`; the admin Model page then shows
+version `v2`.
 
 ## Rolling back to the previous tag
 
@@ -309,6 +330,18 @@ scripts/deploy.sh v1.3.0-rc1
 If it did apply a migration, the older code cannot start on the newer schema.
 Restore the backup that `deploy.sh` took just before the update (its name
 contains the old migration), then deploy the previous tag.
+
+**From v1.4.0 to v1.3.0-rc1 (model v1)** no restore is needed: migration 0011
+changes only the assisted threshold, and its downgrade puts 0.008039 back.
+Registrations made with model v2 are kept; model v1's code shows their feature
+effects as unavailable.
+
+```bash
+cd /opt/salesmesh/app
+scripts/fetch-model.sh v1          # model v1 from the GitHub Release model-v1
+docker compose -f docker-compose.prod.yml exec backend alembic downgrade 0010
+scripts/deploy.sh v1.3.0-rc1
+```
 
 ## Restore a backup
 

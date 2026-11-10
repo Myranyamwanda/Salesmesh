@@ -16,7 +16,7 @@ flowchart LR
     db[("PostgreSQL 16<br/>users, refresh tokens, MFA recovery<br/>codes, audit_logs, agent_profiles,<br/>client_profiles, customers,<br/>risk_assessments, reviews,<br/>scoring_config, model_versions")]
     firebase[["Firebase Authentication<br/>sign-in, verification and<br/>password emails"]]
     model["Model service<br/>model.joblib in memory"]
-    files[["backend/models/v1/<br/>from GitHub Release model-v1<br/>(SHA-256 checked) or S3"]]
+    files[["backend/models/v2/<br/>from GitHub Release model-v2<br/>(SHA-256 checked) or S3"]]
     notebooks["ml/notebooks/<br/>EDA → preprocessing → training →<br/>evaluation → export → simulation"]
 
     customer -->|"registration form"| api
@@ -59,7 +59,7 @@ function. Services hold the rules (scoring, review decisions, reputation,
 token rotation, admin MFA), so they can be tested without HTTP. All calls to
 Firebase go through `services/firebase.py`, which tests replace with a fake. `ml/` contains
 everything that knows about the model: loading and checking it, building the
-13 features from a registration, and explaining a score. Keeping all settings
+11 features from a registration, and explaining a score. Keeping all settings
 in one `Settings` class means every configurable value is read from `.env` and
 documented in `.env.example`.
 

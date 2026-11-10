@@ -16,7 +16,7 @@ flowchart LR
 
     subgraph api ["FastAPI backend"]
         join["api/join.py<br/>registration"]
-        features["ml/features.py<br/>13 features"]
+        features["ml/features.py<br/>11 features (model v2)"]
         scoring["services/scoring.py<br/>model + rules"]
         model["ml/model_service.py<br/>loaded once, checked"]
         explain["ml/explain.py<br/>reasons"]
@@ -59,7 +59,7 @@ sequenceDiagram
     S->>S: Clip to training range, neutralise date-of-birth count
     S->>M: predict_probability
     M-->>S: Probability
-    S->>S: Flag if probability >= 0.035 or a rule fires
+    S->>S: Flag if probability >= threshold (0.03539) or a rule fires
     S->>D: Save risk assessment (probability, reasons, raw snapshot)
     S->>D: Status verified (not flagged) or pending_review (flagged)
     J-->>W: "Registration received" + reference (never the score)
@@ -95,10 +95,10 @@ sequenceDiagram
 (5 fraudulent) on `@demo.example.com`, all verified, approved, and active,
 in SalesMesh and in Firebase, with `DEMO_PASSWORD` from `.env`. The demo admin
 also gets an authenticator; its setup key is printed once. About 3,400 rows of
-`ml/model_contract/demo_sample.csv` become customers spread over the last 12
+`ml/model_contract/v2/demo_sample.csv` become customers spread over the last 12
 months.
 
-- **Demo-only bypass:** the 13 feature values come straight from the CSV
+- **Demo-only bypass:** the 11 feature values come straight from the CSV
   instead of the feature builder, because the BAF rows already are feature
   values. Names, emails, phone numbers, and dates of birth are invented by
   Faker for display.
