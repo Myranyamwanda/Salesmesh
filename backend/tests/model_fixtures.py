@@ -23,7 +23,7 @@ from app.core.config import ROOT_DIR
 from app.ml.model_service import ModelState
 
 CONTRACT = json.loads(
-    (ROOT_DIR / "ml" / "model_contract" / "metadata.json").read_text("utf-8")
+    (ROOT_DIR / "ml" / "model_contract" / "v2" / "metadata.json").read_text("utf-8")
 )
 WITH_MISSING = (
     "prev_address_months_count",

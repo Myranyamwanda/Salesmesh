@@ -63,7 +63,7 @@ class RiskAssessment(Base):
     probability: Mapped[float] = mapped_column(Float)
     threshold: Mapped[float] = mapped_column(Float)
     # Which threshold was applied: the model's (standard) or the one for
-    # assisted registrations, whose four device features are withheld.
+    # assisted registrations, whose device features are withheld.
     threshold_kind: Mapped[str] = mapped_column(String(10), server_default="standard")
     flagged: Mapped[bool] = mapped_column(Boolean, index=True)
     # Picked at random for review (assisted registrations only). Not a flag: it
@@ -134,8 +134,9 @@ class ScoringConfig(Base):
     # Rule: flag when one device registered at least this many distinct emails
     # in 8 weeks, a level the model never saw in training.
     device_email_rule_min: Mapped[int] = mapped_column(Integer, server_default="3")
-    # 5% FPR on month 5 with the four features withheld (ml/assisted_threshold.py).
-    assisted_threshold: Mapped[float] = mapped_column(Float, server_default="0.008039")
+    # Model v2: 5% FPR on month 5 with the three device features withheld
+    # (ml/train_v2.py; migration 0011). Model v1 used 0.008039.
+    assisted_threshold: Mapped[float] = mapped_column(Float, server_default="0.014058")
     # Share of unflagged assisted registrations sent for a random audit.
     audit_share: Mapped[float] = mapped_column(Float, server_default="0.1")
     # Mark an agent whose assisted share is more than this times the network's.

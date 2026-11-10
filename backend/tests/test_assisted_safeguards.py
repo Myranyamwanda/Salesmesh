@@ -21,7 +21,6 @@ from app.services.agents import create_agent_profile
 from app.services.scoring import AUDIT_REASON, score_customer
 
 FEATURES = {
-    "name_email_similarity": 0.5,
     "prev_address_months_count": None,
     "current_address_months_count": 24.0,
     "date_of_birth_distinct_emails_4w": 0,
@@ -32,7 +31,6 @@ FEATURES = {
     "source": "INTERNET",
     "session_length_in_minutes": None,
     "device_os": None,
-    "keep_alive_session": None,
     "device_distinct_emails_8w": None,
 }
 NEVER = 1.0  # Standard threshold that flags no one.

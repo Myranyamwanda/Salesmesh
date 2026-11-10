@@ -94,4 +94,4 @@ def test_startup_loads_real_model_and_health_reports_it(monkeypatch):
             "model": "ok",
             "model_error": None,
         }
-    assert saved[0].metadata["model_version"] == "v1"
+    assert saved[0].metadata["model_version"] == "v2"

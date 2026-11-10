@@ -32,7 +32,7 @@ from app.demo import (
     reset_demo,
     seed_demo,
 )
-from app.ml.features import ASSISTED_UNKNOWN
+from app.ml.features import ASSISTED_UNKNOWN, FEATURE_NAMES
 from app.ml.model_service import ModelService, ModelUnavailableError
 from app.models import (
     AgentProfile,
@@ -104,7 +104,7 @@ def test_sample_has_features_and_labels_but_no_age(sample):
     assert len(sample) == 5000
     assert sum(row.fraud_bool for row in sample) == 300
     assert "customer_age" not in sample[0].features
-    assert len(sample[0].features) == 13
+    assert tuple(sample[0].features) == FEATURE_NAMES
 
 
 def test_fraudulent_agents_get_forty_percent_fraud_rows(sample):

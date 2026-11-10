@@ -1,4 +1,4 @@
-"""Say how each of the 13 stored features moved one customer's model score.
+"""Say how each stored feature moved one customer's model score.
 
 For administrators only, in the review dialog. A feature can have several model
 inputs (a value and a "was missing" indicator, or one input per category), so
@@ -7,7 +7,7 @@ compare the value with the training average. The categories of source and
 device_os are not centred, so for those the sign only follows the coefficient
 of the category.
 
-In an assisted registration the four device features are withheld. The model
+In an assisted registration the three device features are withheld. The model
 still scores them, as imputed values and "was missing" indicators, so they get
 a real direction marked as withheld (see docs/model-card.md).
 

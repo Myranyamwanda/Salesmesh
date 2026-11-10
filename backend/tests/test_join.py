@@ -61,7 +61,6 @@ def form(**overrides):
         "country": "ke",
         "current_address_months": 24,
         "previous_address_months": None,
-        "keep_signed_in": True,
         "consent": True,
         "session_length_minutes": 4.5,
         "device_id": str(uuid4()),
@@ -172,7 +171,9 @@ def test_registration_saves_customer_and_assessment(join):
     assert set(assessment.features) == set(FEATURE_NAMES)
     assert assessment.features["device_os"] == "windows"
     assert assessment.features["date_of_birth_distinct_emails_4w"] == 0
-    assert assessment.features["name_email_similarity"] == 1.0
+    # Model v2: no name-email similarity is computed or stored.
+    assert "name_email_similarity" not in assessment.features
+    assert "keep_alive_session" not in assessment.features
 
 
 def test_flagged_registration_waits_for_review(join):
@@ -337,7 +338,7 @@ def test_third_email_on_one_device_is_flagged_by_rule(join):
 
 @pytest.mark.skipif(
     not (REAL_MODEL_DIR / "model.joblib").is_file(),
-    reason="Model files are not in Git; download them to backend/models/v1",
+    reason="Model files are not in Git; download them to backend/models/v2",
 )
 def test_registration_with_the_real_model(join):
     client, session, _, _, code = join
@@ -347,10 +348,10 @@ def test_registration_with_the_real_model(join):
 
     assert response.status_code == 201
     assessment = session.scalar(select(RiskAssessment))
-    assert assessment.model_version == "v1"
-    assert assessment.threshold == 0.035
+    assert assessment.model_version == "v2"
+    assert assessment.threshold == 0.03539
     assert 0 < assessment.probability < 1
-    assert assessment.flagged == (assessment.probability >= 0.035)
+    assert assessment.flagged == (assessment.probability >= 0.03539)
     assert len(assessment.reasons) <= 3
     assert all(reason["text"] for reason in assessment.reasons)
 

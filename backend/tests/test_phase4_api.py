@@ -23,7 +23,7 @@ CONFIG = {
     "high_risk_below": 90,
     "watch_below": 92,
     "device_email_rule_min": 3,
-    "assisted_threshold": 0.008039,
+    "assisted_threshold": 0.014058,
     "audit_share": 0.1,
     "assisted_alert_multiple": 2.0,
 }

@@ -65,7 +65,6 @@ class JoinRegistrationInput(BaseModel):
     ]
     current_address_months: Months
     previous_address_months: Months | None = None
-    keep_signed_in: bool = False
     # Kenya Data Protection Act 2019: registration needs explicit consent.
     consent: Literal[True]
     session_length_minutes: Annotated[float, Field(ge=0, le=1440)] | None = None

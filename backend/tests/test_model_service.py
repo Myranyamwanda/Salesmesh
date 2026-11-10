@@ -22,7 +22,7 @@ from app.ml.model_service import (
 )
 from app.ml.model_source import MODEL_FILES
 
-REAL_MODEL_DIR = BACKEND_DIR / "models" / "v1"
+REAL_MODEL_DIR = BACKEND_DIR / "models" / "v2"
 FEATURES = {"size": 2.0, "colour": "red"}
 
 
@@ -69,7 +69,7 @@ def write_model_folder(
 
 @pytest.mark.skipif(
     not (REAL_MODEL_DIR / "model.joblib").is_file(),
-    reason="Model files are not in Git; download them to backend/models/v1",
+    reason="Model files are not in Git; download them to backend/models/v2",
 )
 def test_real_model_passes_golden_examples():
     state = load_folder(REAL_MODEL_DIR, "local")
@@ -149,7 +149,7 @@ def test_missing_files_are_reported_without_paths(tmp_path):
 
 
 def test_relative_model_dir_is_resolved_from_backend():
-    assert make_settings(model_dir="models/v1").model_dir == REAL_MODEL_DIR
+    assert make_settings(model_dir="models/v2").model_dir == REAL_MODEL_DIR
 
 
 class FakeS3Client:
@@ -177,6 +177,7 @@ def use_fake_s3(monkeypatch, client):
 
 
 def test_s3_source_downloads_and_loads_model(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.ml.features.FEATURE_NAMES", ("size", "colour"))
     folder = write_model_folder(tmp_path)
     directory = record_checksums(folder, tmp_path / "sums")
     monkeypatch.setattr("app.ml.model_service.CHECKSUM_DIR", directory)
@@ -274,10 +275,34 @@ def test_a_checksum_failure_becomes_a_failed_state(tmp_path, monkeypatch):
     assert state.error == "golden_examples.json does not match its recorded checksum"
 
 
-def test_backend_checksums_match_the_model_contract():
-    contract = ROOT_DIR / "ml" / "model_contract" / "model-v1.sha256"
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_backend_checksums_match_the_model_contract(version):
+    # v1 stays recorded so a rollback to model v1 can still be verified.
+    name = f"model-{version}.sha256"
+    contract = ROOT_DIR / "ml" / "model_contract" / version / name
 
-    assert (CHECKSUM_DIR / "model-v1.sha256").read_text() == contract.read_text()
+    assert (CHECKSUM_DIR / name).read_text() == contract.read_text()
+
+
+def test_a_model_for_other_features_is_refused(tmp_path, monkeypatch):
+    folder = write_model_folder(tmp_path)
+    directory = record_checksums(folder, tmp_path / "sums")
+    monkeypatch.setattr("app.ml.model_service.CHECKSUM_DIR", directory)
+
+    state = load_model_state(make_settings(model_dir=folder))
+
+    assert state.status == "failed"
+    assert state.model is None
+    assert "does not build; check MODEL_DIR" in state.error
+
+
+def test_a_model_for_the_built_features_is_accepted(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.ml.features.FEATURE_NAMES", ("size", "colour"))
+    folder = write_model_folder(tmp_path)
+    directory = record_checksums(folder, tmp_path / "sums")
+    monkeypatch.setattr("app.ml.model_service.CHECKSUM_DIR", directory)
+
+    assert load_model_state(make_settings(model_dir=folder)).status == "ok"
 
 
 @pytest.mark.skipif(

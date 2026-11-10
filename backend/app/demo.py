@@ -1,7 +1,7 @@
 """Demo data for presentations: 1 admin, 3 clients, 41 agents, and their customers.
 
-DEMO ONLY. Each customer's 13 feature values are read straight from
-ml/model_contract/demo_sample.csv (real BAF test rows) instead of being built
+DEMO ONLY. Each customer's 11 feature values are read straight from
+ml/model_contract/v2/demo_sample.csv (real BAF test rows) instead of being built
 from a registration by app/ml/features.py. Names, emails, phone numbers, and
 dates of birth are invented by Faker for display only. Every customer is then
 scored by the same score_customer() as the live API (real model, clipping,
@@ -55,7 +55,7 @@ from app.services.scoring import score_customer
 # example.com is reserved for examples (RFC 2606) and can never receive mail.
 # (.test is reserved too, but email validation rejects it, so logins fail.)
 DEMO_DOMAIN = "demo.example.com"
-DEMO_SAMPLE = ROOT_DIR / "ml" / "model_contract" / "demo_sample.csv"
+DEMO_SAMPLE = ROOT_DIR / "ml" / "model_contract" / "v2" / "demo_sample.csv"
 REVIEW_NOTE = "Demo review based on dataset label"
 DEMO_LOCK = 71024
 CATEGORICAL = ("source", "device_os")
@@ -162,7 +162,7 @@ def parse_value(name: str, value: str) -> Any:
 
 
 def read_sample(path: Path = DEMO_SAMPLE) -> list[DemoRow]:
-    """Read the 13 features and the label; customer_age is ignored."""
+    """Read the model's features and the label; customer_age is ignored."""
     with path.open(encoding="utf-8", newline="") as file:
         return [
             DemoRow(

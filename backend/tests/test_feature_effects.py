@@ -10,7 +10,6 @@ from app.ml.features import model_input
 from app.ml.model_service import NOT_LOADED, load_folder
 
 FEATURES = {
-    "name_email_similarity": 0.05,
     "prev_address_months_count": None,
     "current_address_months_count": 300.0,
     "date_of_birth_distinct_emails_4w": 4,
@@ -21,13 +20,11 @@ FEATURES = {
     "source": "INTERNET",
     "session_length_in_minutes": 4.0,
     "device_os": "windows",
-    "keep_alive_session": 0,
     "device_distinct_emails_8w": 1,
 }
 ASSISTED_FEATURES = FEATURES | {
     "session_length_in_minutes": None,
     "device_os": None,
-    "keep_alive_session": None,
     "device_distinct_emails_8w": None,
 }
 USED = set(FEATURES) - {"date_of_birth_distinct_emails_4w"}
@@ -71,23 +68,18 @@ def test_date_of_birth_count_is_labelled_not_used():
     assert effects["date_of_birth_distinct_emails_4w"] == "not_used_bank_scale"
 
 
-def test_assisted_registrations_mark_the_four_features_withheld():
+def test_assisted_registrations_mark_the_device_features_withheld():
     assisted = feature_effects(STATE, VERSION, ASSISTED_FEATURES, assisted=True)
     not_assisted = feature_effects(STATE, VERSION, ASSISTED_FEATURES, assisted=False)
-    four = (
-        "session_length_in_minutes",
-        "device_os",
-        "keep_alive_session",
-        "device_distinct_emails_8w",
-    )
+    withheld = ("session_length_in_minutes", "device_os", "device_distinct_emails_8w")
 
     totals = score_totals(STATE, VERSION, ASSISTED_FEATURES)
 
     # Withheld features are still scored, so they keep a real direction.
-    for name in four:
+    for name in withheld:
         assert assisted[name] == f"withheld_{direction(totals[name])}"
         assert not_assisted[name] == direction(totals[name])
-    assert {assisted[name] for name in USED - set(four)} <= {
+    assert {assisted[name] for name in USED - set(withheld)} <= {
         "raised",
         "lowered",
         "no_effect",
