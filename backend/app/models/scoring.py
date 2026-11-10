@@ -137,8 +137,9 @@ class ScoringConfig(Base):
     # Model v2: 5% FPR on month 5 with the three device features withheld
     # (ml/train_v2.py; migration 0011). Model v1 used 0.008039.
     assisted_threshold: Mapped[float] = mapped_column(Float, server_default="0.014058")
-    # Share of unflagged assisted registrations sent for a random audit.
-    audit_share: Mapped[float] = mapped_column(Float, server_default="0.1")
+    # Share of unflagged assisted registrations sent for a random audit; 20%
+    # since model v2 (migration 0011), 10% before.
+    audit_share: Mapped[float] = mapped_column(Float, server_default="0.2")
     # Mark an agent whose assisted share is more than this times the network's.
     assisted_alert_multiple: Mapped[float] = mapped_column(Float, server_default="2")
     updated_at: Mapped[datetime] = mapped_column(

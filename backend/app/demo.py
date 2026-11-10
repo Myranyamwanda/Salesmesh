@@ -45,6 +45,7 @@ from app.ml.model_service import ModelService
 from app.models import AgentProfile, ClientProfile, Customer, ScoringConfig, User
 from app.models.customer import CONSENT_VERSION
 from app.services.agents import create_agent_profile
+from app.services.auth import usable_admins
 from app.services.firebase import FirebaseAuth
 from app.services.mfa import encrypt_secret, provisioning_uri
 from app.services.registration import unique_reference
@@ -440,19 +441,14 @@ def delete_demo_firebase_users(
     return deleted
 
 
-def reset_demo(
-    session: Session, firebase: FirebaseAuth, plan: DemoPlan | None = None
-) -> dict[str, int]:
-    """Delete only demo data: demo users, their Firebase accounts, and the
-    customers of demo agents.
+def delete_demo_rows(session: Session) -> dict[str, int]:
+    """Delete demo users and the customers of demo agents. The caller commits.
 
-    Firebase accounts go first: if that fails, nothing in the database has
-    changed and a rerun starts again. Assessments and reviews go with their
-    customers (ON DELETE CASCADE), and agent profiles with their users. Audit
-    entries stay, with their links to demo users cleared (ON DELETE SET NULL).
+    Assessments and reviews go with their customers (ON DELETE CASCADE), and
+    agent and client profiles with their users. Audit entries stay, with their
+    links to demo users cleared (ON DELETE SET NULL); a real agent who worked
+    for a demo client is unassigned.
     """
-    session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": DEMO_LOCK})
-    firebase_deleted = delete_demo_firebase_users(session, firebase, plan or DemoPlan())
     demo_users = select(User.id).where(User.email.like(f"%@{DEMO_DOMAIN}"))
     customers = session.scalar(
         select(func.count())
@@ -465,5 +461,40 @@ def reset_demo(
     session.execute(delete(Customer).where(Customer.agent_id.in_(demo_users)))
     session.execute(delete(AgentProfile).where(AgentProfile.user_id.in_(demo_users)))
     session.execute(delete(User).where(User.id.in_(demo_users)))
+    return {"customers": customers, "users": users}
+
+
+def reset_demo(
+    session: Session, firebase: FirebaseAuth, plan: DemoPlan | None = None
+) -> dict[str, int]:
+    """Delete only demo data: demo users, their Firebase accounts, and the
+    customers of demo agents.
+
+    Firebase accounts go first: if that fails, nothing in the database has
+    changed and a rerun starts again.
+    """
+    session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": DEMO_LOCK})
+    firebase_deleted = delete_demo_firebase_users(session, firebase, plan or DemoPlan())
+    removed = delete_demo_rows(session)
     session.commit()
-    return {"customers": customers, "users": users, "firebase": firebase_deleted}
+    return removed | {"firebase": firebase_deleted}
+
+
+def clear_demo_data(session: Session) -> dict[str, int]:
+    """Delete the demo data in this database only; Firebase is not touched.
+
+    For a Firebase project shared by several environments (development and
+    production): reset-demo would delete the demo accounts the other
+    environment signs in with. The next seed-demo reuses the kept accounts.
+    Refuses when no usable administrator outside the demo would remain.
+    """
+    session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": DEMO_LOCK})
+    if usable_admins(session, User.email.not_like(f"%@{DEMO_DOMAIN}")) == 0:
+        session.rollback()
+        raise ValueError(
+            "Refusing to clear the demo data: no usable administrator outside "
+            "the demo would remain. Create one with create-admin first."
+        )
+    removed = delete_demo_rows(session)
+    session.commit()
+    return removed

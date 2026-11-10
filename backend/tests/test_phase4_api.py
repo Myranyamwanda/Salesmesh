@@ -24,7 +24,7 @@ CONFIG = {
     "watch_below": 92,
     "device_email_rule_min": 3,
     "assisted_threshold": 0.014058,
-    "audit_share": 0.1,
+    "audit_share": 0.2,
     "assisted_alert_multiple": 2.0,
 }
 SECRET_WORDS = (

@@ -13,6 +13,7 @@ from app.demo import (
     ADMIN_EMAIL,
     DemoPlan,
     agent_email,
+    clear_demo_data,
     client_email,
     reset_demo,
     seed_demo,
@@ -229,6 +230,11 @@ def main() -> None:
         "seed-demo", help="Create demo users and scored customers (safe to rerun)"
     )
     commands.add_parser("reset-demo", help="Delete only the demo data")
+    commands.add_parser(
+        "clear-demo-data",
+        help="Delete only the demo data in this database; keep the Firebase "
+        "accounts (for a Firebase project shared with another environment)",
+    )
     args = parser.parse_args()
     try:
         if args.command == "init-secret":
@@ -250,6 +256,15 @@ def main() -> None:
                 f"Removed {removed['users']} demo users, "
                 f"{removed['firebase']} demo Firebase accounts, and "
                 f"{removed['customers']} demo customers."
+            )
+            return
+        if args.command == "clear-demo-data":
+            with Session(get_engine()) as session:
+                removed = clear_demo_data(session)
+            print(
+                f"Removed {removed['users']} demo users and "
+                f"{removed['customers']} demo customers from this database. "
+                "Firebase accounts were kept; seed-demo reuses them."
             )
             return
         settings = get_settings()
