@@ -149,7 +149,8 @@ Only one clone can run at a time, because both use the same ports.
 >
 > - **Never run `reset-demo`.** It deletes the demo users' Firebase accounts,
 >   which the main install's demo users use too. Run `seed-demo` only: it
->   reuses the existing demo accounts.
+>   reuses the existing demo accounts. To start the demo data again, use
+>   `clear-demo-data`, which keeps the Firebase accounts.
 > - Use the **same `DEMO_PASSWORD`** as the main install, because `seed-demo`
 >   sets the demo accounts' Firebase password.
 > - Run `create-admin` with an address that has **no** Firebase account yet
@@ -337,6 +338,7 @@ large files and private keys.
 | `.\scripts\dev.ps1 fetch-model` | Download the model v2 files from the GitHub Release `model-v2` and verify their SHA-256 (no `.env` needed) |
 | `.\scripts\dev.ps1 seed-demo` | Create demo users (in SalesMesh and Firebase) and about 3,400 scored demo customers (needs `DEMO_PASSWORD` and the Firebase settings; safe to rerun) |
 | `.\scripts\dev.ps1 reset-demo` | Delete only the demo data and the demo Firebase accounts |
+| `.\scripts\dev.ps1 clear-demo-data` | Delete only the demo data in this database and keep the demo Firebase accounts (for a Firebase project shared with another install) |
 | `.\scripts\dev.ps1 test` | Run backend tests against the separate test database |
 | `.\scripts\dev.ps1 lint` | Run Ruff and ESLint |
 | `npm test` / `npm run build` (in `frontend/`) | Run frontend tests / production build |

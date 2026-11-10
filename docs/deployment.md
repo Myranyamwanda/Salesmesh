@@ -234,7 +234,8 @@ because each environment has its own database.
 - **Never run `reset-demo` on the server** (or locally) while the other
   environment still uses the demo data: it deletes the shared demo Firebase
   users, and the other environment's demo sign-ins stop working until its
-  own `seed-demo` is rerun after a `reset-demo` there.
+  own `seed-demo` is rerun after a `reset-demo` there. To start the demo data
+  again, use `clear-demo-data` (below), which keeps the Firebase users.
 - **`deactivate-user` disables the Firebase user**, so it locks that email
   out of every environment. Deactivate only production-only accounts on the
   server.
@@ -317,6 +318,49 @@ scripts/deploy.sh v1.4.0-rc1
 `docker-compose.prod.yml` sets `MODEL_DIR=/app/models/v2`, so `.env` needs no
 change. `/api/health` must show `"model":"ok"`; the admin Model page then shows
 version `v2`.
+
+### Re-seeding the production demo with model v2
+
+Demo data seeded before v1.4.0 was scored with model v1. To re-score it with
+model v2 without touching the shared Firebase demo users, clear the demo rows
+in the production database and seed again. Do this after v1.4.0-rc1 is
+deployed and healthy (seed-demo refuses to run without a working model).
+
+What it changes: every `@demo.example.com` user, their customers,
+assessments, and reviews are deleted and created again. Real accounts, their
+customers, and the audit log stay (audit entries keep their text; the links to
+deleted demo users become empty). Also note:
+
+- Customers registered through a demo agent's `/join` link are demo data and
+  are deleted too. The demo agents get new referral codes, so old demo links
+  stop working.
+- A real agent assigned to a demo client is unassigned.
+- The demo admin gets a new authenticator key (printed once): replace the old
+  production demo-admin entry in your authenticator app.
+- `seed-demo` sets each demo Firebase user's password to `DEMO_PASSWORD`; keep
+  the value development uses, or the local demo password changes too.
+
+```bash
+cd /opt/salesmesh/app
+C="docker compose -f docker-compose.prod.yml"
+scripts/backup.sh                                          # keep this backup
+$C exec backend python manage.py clear-demo-data           # database only
+$C exec backend python manage.py seed-demo                 # scores with model v2
+$C exec -T postgres sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' <<'SQL'
+SELECT a.model_version, count(*)
+FROM risk_assessments a
+JOIN customers c ON c.id = a.customer_id
+JOIN users u ON u.id = c.agent_id
+WHERE u.email LIKE '%@demo.example.com'
+GROUP BY 1;
+SQL
+```
+
+The last command must show only `v2` (about 3,388 rows). `clear-demo-data`
+refuses to run if no usable administrator outside the demo would remain, so
+create your own production admin first. If anything goes wrong, restore the
+backup (see [Restore a backup](#restore-a-backup)); the demo Firebase users are
+unchanged either way.
 
 ## Rolling back to the previous tag
 

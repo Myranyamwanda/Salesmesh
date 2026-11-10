@@ -109,6 +109,15 @@ months.
   of those are fraud rows. It is added after the first 40 agents, from unused
   rows and with its own seeded generators, so their data is unchanged. Random
   audits use a seeded generator too, so the demo is the same on every run.
+- **What to show (model v2).** The four original fraudulent agents have the
+  lowest reputations (High risk or Watch). Agent 41 is detected by the
+  "High assisted share" alert and by the random audits (one of its audited
+  registrations is confirmed fake), not by a low reputation: model v2's
+  assisted flags find little of its fraud, so it stays Low risk (97.8).
+  Agent 39 is the false-alarm example: an honest agent whose assisted share
+  (21%) is just over twice the network's, so it gets the same alert with no
+  fraud behind it. Details in the
+  [model card](model-card.md#assisted-registrations-with-model-v2).
 - Flags and random audits older than 60 days are reviewed automatically by the demo admin from
   the dataset label (`fraud_bool` 1 is confirmed fake, 0 confirmed real, note
   "Demo review based on dataset label") through the same review service as
@@ -116,7 +125,11 @@ months.
   `fraud_bool` is never stored.
 - The command runs in one transaction, adds nothing if demo data exists, and
   prints the demo logins. `.\scripts\dev.ps1 reset-demo` deletes only demo
-  users, their Firebase accounts, and their customers. Firebase calls never
+  users, their Firebase accounts, and their customers.
+  `.\scripts\dev.ps1 clear-demo-data` deletes the same rows but keeps the
+  Firebase accounts, for an install that shares the Firebase project with
+  another (the next `seed-demo` reuses them). It refuses to run if no usable
+  administrator outside the demo would remain. Firebase calls never
   use the seeded random generator, so the customers, scores, and reviews are
   the same as before v1.1.0.
 - The device rule never fires on demo rows, because no BAF row has more than

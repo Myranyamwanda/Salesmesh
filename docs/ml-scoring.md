@@ -158,7 +158,7 @@ Three safeguards (v1.3.0) close that gap:
    records which threshold was applied (`threshold_kind`), and the review dialog
    shows it.
 2. **Random audit.** A share of the unflagged assisted registrations
-   (`scoring_config.audit_share`, default 10%), chosen with Python's `secrets`
+   (`scoring_config.audit_share`, default 20% since v1.4.0, 10% before), chosen with Python's `secrets`
    module, goes to the review queue with the reason "Random audit (assisted
    registration)" and an **Audit** label. An audit is not a flag: it changes no
    status, reputation, flag rate, or eligibility unless a reviewer confirms the

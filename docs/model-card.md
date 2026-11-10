@@ -338,7 +338,7 @@ features, or the 0.035 threshold for other registrations:
    records which threshold was applied (`threshold_kind`), and the review dialog
    shows it.
 2. **Random audit.** A share of the unflagged assisted registrations
-   (`scoring_config.audit_share`, default 10%), chosen with Python's `secrets`
+   (`scoring_config.audit_share`, default 20% since v1.4.0, 10% before), chosen with Python's `secrets`
    module, goes to the review queue with the reason "Random audit (assisted
    registration)" and an **Audit** label. An audit is not a flag: it changes no
    status, reputation, flag rate, or eligibility unless a reviewer confirms the
@@ -394,13 +394,14 @@ customer's status does not change, so the cost of an audit is reviewer time.
 | v2, 0.014058 | 15% | 25.9% | 2.0% | 18.6% | 187 |
 | v2, 0.014058 | 20% | 30.3% | 1.8% | 23.3% | 234 |
 
-**Proposed audit share: 20%.** It brings the share of assisted fraud that
-reaches a reviewer (30.3%) back close to model v1 with 10% audits (31.9%), for
-about 71 more reviews per 1,000 assisted registrations than v1 needed. Assisted
-registrations are about 10% of all registrations, so that is about 7 more
-reviews per 1,000 registrations overall. The default stays 10% until the
-developer decides; it is a Settings value (`audit_share`), so no release is
-needed to change it.
+**Audit share: 20% since v1.4.0 (decided with the developer).** It brings
+the share of assisted fraud that reaches a reviewer (30.3%) back close to model
+v1 with 10% audits (31.9%), for about 71 more reviews per 1,000 assisted
+registrations than v1 needed. Assisted registrations are about 10% of all
+registrations, so that is about 7 more reviews per 1,000 registrations overall.
+Migration 0011 sets it only where an administrator has not changed the v1.3.0
+value; it stays editable in Settings (`audit_share`). The assisted threshold
+stays 0.014058, keeping the 5% false-positive target.
 
 **Demo check (seeded with model v2).** The demo was seeded into a throwaway
 database with model v2 and the same fixed clock as the v1.3.0 check:
@@ -408,16 +409,24 @@ database with model v2 and the same fixed clock as the v1.3.0 check:
 | Setting | Flagged | Four original fraudulent agents | Agent 41 (assisted abuser) | Lowest honest agent | Five fraudulent agents are the five lowest | Agent 41 alert |
 | --- | --- | --- | --- | --- | --- | --- |
 | v1 (v1.3.0) | 214 | 86.8-89.5 | 94.9, 3 flags | 95.2 | yes | yes |
-| v2, threshold 0.014058, audits 10% | 219 | 87.7-90.4 | 99.2, 0 flags | 95.3 | **no** | yes |
-| v2, threshold 0.014058, audits 20% | 219 | 87.7-90.4 | 97.8, 1 confirmed fake | 95.3 | **no** | yes |
-| v2, threshold 0.012417, audits 10% | 250 | 87.7-89.5 | 92.1, 5 flags | 95.3 | yes | yes |
+| **v2 as released: threshold 0.014058, audits 20% (defaults)** | **219** | **87.7-90.4** | **97.8, 1 confirmed fake (audit)** | **95.3** | **no** | **yes** |
+| v2, threshold 0.014058, audits 10% | 219 | 87.7-90.4 | 99.2, 0 flags | 95.3 | no | yes |
+| v2, threshold 0.012417, audits 10% (not chosen) | 250 | 87.7-89.5 | 92.1, 5 flags | 95.3 | yes | yes |
 
-With model v2 the four original fraudulent agents remain the four lowest
-(High risk or Watch), and agent 41 is still picked out by the assisted-share
-alert, which was designed for that pattern. Agent 41 is no longer among the
-lowest reputations, because v2's assisted flags find little of its fraud. The
-v1.3.0-method threshold 0.012417 restores the ranking, at the cost of flagging
-about 12.5% of genuine assisted customers instead of 4.2%.
+With the released defaults, 61 assisted registrations are audited and 219
+registrations flagged. The four original fraudulent agents remain the four
+lowest (three High risk, one Watch). **Agent 41 is now detected by the
+assisted-share alert and by the random audits, not by a low reputation**: v2's
+assisted flags find little of its fraud, so its reputation stays Low risk
+(97.8), and one of its audited registrations is confirmed fake. **Agent 39
+stays the false-alarm example**: an honest agent with 8 of 38 registrations
+assisted (21%, just over twice the network's 10%), so it gets the same alert
+with no fraud behind it. The alert asks an administrator to look; it is not
+evidence on its own.
+
+The v1.3.0-method threshold 0.012417 would restore agent 41's low reputation,
+but at the cost of flagging about 12.5% of genuine assisted customers instead
+of 4.2%; the developer kept 0.014058.
 
 ## Reproducibility
 

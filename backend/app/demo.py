@@ -15,8 +15,10 @@ feature, and neither is customer_age.
 Agent 41 abuses assisted mode: most of its customers are registered on its own
 device, and many of those are fraud rows, so the assisted safeguards (threshold,
 random audit, and the assisted-share alert) show on a genuinely fraudulent
-agent. It is built after the first 40 agents, from rows they did not use, with
-its own seeded generators, so the first 40 agents' data does not change.
+agent. With model v2 it is caught by the alert and the audits, not by a low
+reputation; honest agent 39 gets the same alert and is the false-alarm example.
+It is built after the first 40 agents, from rows they did not use, with its own
+seeded generators, so the first 40 agents' data does not change.
 Random audits use another seeded generator for the same reason.
 
 Every demo user also gets a Firebase account (verified, DEMO_PASSWORD), and the
