@@ -1410,3 +1410,560 @@ a:hover {
 .workspace-main:focus {
   outline: none;
 }
+
+/* Lists: one card holding toolbar, table (cards when narrow), and pager. */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.page-notice {
+  margin-bottom: 16px;
+}
+
+.list-card {
+  border-color: var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--card-shadow) !important;
+}
+
+.table-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.table-toolbar-controls {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.table-search {
+  width: min(100%, 320px) !important;
+}
+
+.table-filter {
+  min-width: 168px;
+}
+
+.table-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.list-table .MuiTableCell-head {
+  position: sticky;
+  z-index: 2;
+  top: 68px;
+  height: 44px;
+  padding: 0 16px;
+  color: var(--muted);
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.list-table .MuiTableCell-body {
+  height: 60px;
+  padding: 8px 16px;
+  border-bottom-color: var(--line-soft);
+  font-size: 14px;
+}
+
+.list-table .MuiTableCell-root:first-of-type {
+  padding-left: 20px;
+}
+
+.list-table .MuiTableCell-root:last-of-type {
+  padding-right: 20px;
+}
+
+.list-table .numeric,
+.detail-list .numeric {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.list-row {
+  cursor: pointer;
+}
+
+.list-row.MuiTableRow-hover:hover {
+  background: var(--tint) !important;
+}
+
+.list-row.Mui-selected,
+.list-row.Mui-selected:hover {
+  background: var(--primary-tint) !important;
+}
+
+/* The first cell's button: the keyboard way to open a row's details. */
+.row-open {
+  display: block;
+  width: calc(100% + 16px);
+  margin: -6px -8px;
+  padding: 6px 8px;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.row-open .cell-stack strong {
+  color: var(--primary-dark);
+}
+
+.row-open:hover strong {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.cell-stack {
+  display: grid;
+  gap: 2px;
+}
+
+.cell-stack strong {
+  color: var(--ink);
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.cell-stack span {
+  overflow: hidden;
+  color: var(--subtle);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.status-badge {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px 0 7px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.status-badge-icon {
+  font-size: 15px !important;
+}
+
+.tone-success {
+  color: var(--success);
+  background: var(--success-tint);
+}
+
+/* The darker amber: --warning is too light for 12px text on the tint. */
+.tone-warning {
+  color: var(--accent-text);
+  background: var(--warning-tint);
+}
+
+.tone-error {
+  color: var(--error);
+  background: var(--error-tint);
+}
+
+.tone-neutral {
+  color: var(--muted);
+  background: var(--tint);
+}
+
+.tone-info {
+  color: var(--primary-dark);
+  background: var(--primary-tint);
+}
+
+.badge-stack {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.muted-dash {
+  color: var(--subtle);
+}
+
+.code-text {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.list-pager {
+  border-top: 1px solid var(--line);
+}
+
+.list-pager .MuiTablePagination-toolbar {
+  flex-wrap: wrap;
+  min-height: 56px;
+  padding: 4px 12px 4px 20px;
+}
+
+.list-pager .MuiTablePagination-displayedRows,
+.list-pager .MuiTablePagination-selectLabel {
+  color: var(--muted);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.list-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.list-empty-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 6px;
+  place-items: center;
+  color: var(--primary);
+  background: var(--primary-tint);
+  border-radius: 50%;
+}
+
+.list-empty-title {
+  font-family: var(--font-heading) !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+.list-empty-text {
+  max-width: 440px;
+  margin-bottom: 8px !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+.list-loading {
+  display: grid;
+  padding: 8px 0;
+}
+
+.list-skeleton-row {
+  display: grid;
+  align-items: center;
+  gap: 24px;
+  height: 60px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.list-skeleton-card {
+  margin: 8px 16px;
+}
+
+.list-cards {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list-cards li + li {
+  border-top: 1px solid var(--line-soft);
+}
+
+.list-card-row {
+  display: grid;
+  width: 100%;
+  gap: 10px;
+  padding: 14px 16px;
+  color: var(--ink);
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.list-card-row:hover {
+  background: var(--tint);
+}
+
+.list-card-row:focus-visible {
+  outline-offset: -3px;
+}
+
+.list-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.list-card-title {
+  min-width: 0;
+}
+
+.list-card-title strong {
+  color: var(--primary-dark);
+}
+
+.list-card-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+}
+
+.list-card-stat {
+  display: grid;
+  gap: 1px;
+}
+
+.list-card-stat-label {
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.list-card-stat-value {
+  font-size: 14px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* No signals: leave the line out of the card instead of showing a dash. */
+.list-card-extra:has(.muted-dash) {
+  display: none;
+}
+
+/* Details drawer: above the workspace top bar (z-index 1201). */
+.detail-drawer {
+  z-index: 1300 !important;
+}
+
+.detail-drawer .MuiDrawer-paper {
+  display: flex;
+  width: min(440px, 100vw);
+  flex-direction: column;
+}
+
+.detail-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 20px 16px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.detail-title {
+  font-family: var(--font-heading) !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+}
+
+.detail-subtitle {
+  margin-top: 2px !important;
+  font-size: 13px !important;
+  overflow-wrap: anywhere;
+}
+
+.detail-badge {
+  margin-top: 10px;
+}
+
+.detail-drawer-body {
+  display: grid;
+  flex: 1;
+  align-content: start;
+  gap: 24px;
+  padding: 20px 24px;
+}
+
+.detail-section-title {
+  margin-bottom: 4px !important;
+  color: var(--muted);
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detail-list {
+  display: grid;
+  margin: 0;
+}
+
+.detail-list > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.detail-list dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.detail-list dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.detail-drawer-actions {
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--line);
+}
+
+/* A table too wide for the window scrolls inside its card, not the page. */
+@media (max-width: 1279px) {
+  .list-table-scroll {
+    overflow-x: auto;
+  }
+
+  .hide-below-1280 {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1099px) {
+  .hide-below-1100 {
+    display: none !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .table-toolbar,
+  .table-toolbar-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .table-toolbar {
+    padding: 14px 16px;
+  }
+
+  .table-search,
+  .table-filter {
+    width: 100% !important;
+  }
+
+  .list-pager .MuiTablePagination-toolbar {
+    justify-content: center;
+    padding: 4px 8px;
+  }
+
+  .list-pager .MuiTablePagination-spacer {
+    display: none;
+  }
+}
+
+/* Stacked forms (proposal: Sign in first): labels above the fields, a field
+   group and an action group, 48 px controls. */
+.stacked-form {
+  gap: 24px;
+}
+
+.stacked-form > :empty {
+  display: none;
+}
+
+.form-fields,
+.form-actions {
+  display: grid;
+  gap: 20px;
+}
+
+.form-actions {
+  gap: 16px;
+}
+
+.stacked-label {
+  margin-bottom: 6px;
+  color: var(--ink) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+.stacked-field .MuiOutlinedInput-input {
+  height: 22px;
+  padding: 13px 14px;
+  font-size: 15px;
+}
+
+.stacked-field .MuiOutlinedInput-input::placeholder {
+  color: var(--subtle);
+  opacity: 1;
+}
+
+.stacked-field .MuiOutlinedInput-notchedOutline {
+  border-color: var(--field-border);
+}
+
+.stacked-helper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.stacked-helper .MuiFormHelperText-root {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.helper-icon {
+  flex: none;
+  margin-top: 1px;
+  font-size: 16px !important;
+}
+
+.helper-link {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.stacked-form .MuiButton-sizeLarge {
+  min-height: 48px;
+  font-size: 15px;
+}
+
+.stacked-form + .form-footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-soft);
+}
