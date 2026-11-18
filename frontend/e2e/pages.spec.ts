@@ -61,3 +61,18 @@ test("admin review dialog", async ({ page }) => {
   await expectNoSidewaysScroll(page);
   expect(unexpected).toEqual([]);
 });
+
+test("admin agent details drawer", async ({ page }) => {
+  const unexpected = await mockApi(page, "admin");
+  await page.goto("/admin/agents");
+  await waitForPage(page);
+  await page
+    .getByRole("button", { name: /Chebet Kiprono/ })
+    .first()
+    .click();
+  const drawer = page.getByRole("dialog", { name: "Chebet Kiprono" });
+  await expect(drawer.getByText("Risk score")).toBeVisible();
+  await expectNoAxeViolations(page, '[role="dialog"]');
+  await expectNoSidewaysScroll(page);
+  expect(unexpected, "API calls without a mock").toEqual([]);
+});
