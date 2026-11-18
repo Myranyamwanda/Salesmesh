@@ -134,10 +134,16 @@ beforeEach(() => {
 });
 
 function rowNames() {
-  return screen
-    .getAllByRole("row")
-    .slice(1)
-    .map((row) => within(row).getAllByRole("cell")[0].textContent);
+  return (
+    screen
+      .getAllByRole("row")
+      .slice(1)
+      // The first cell may hold a name and an email; the name is in <strong>.
+      .map((row) => {
+        const cell = within(row).getAllByRole("cell")[0];
+        return (cell.querySelector("strong") ?? cell).textContent;
+      })
+  );
 }
 
 describe("review queue", () => {
@@ -257,6 +263,28 @@ describe("agents ranking", () => {
     expect(rowNames()[0]).toBe("Daudi");
   });
 
+  it("right-aligns the number columns and shows only six", async () => {
+    vi.spyOn(scoringApi, "listAgents").mockResolvedValue(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    await screen.findByText("Amina");
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent);
+    expect(headers).toEqual([
+      "Agent",
+      "Customers",
+      "Flags",
+      "Reputation",
+      "Band",
+      "Signals",
+    ]);
+    const amina = screen.getByText("Amina").closest("tr")!;
+    expect(within(amina).getByText("88.1").closest("td")).toHaveClass(
+      "numeric",
+    );
+  });
+
   it("marks agents with a high assisted share in text", async () => {
     vi.spyOn(scoringApi, "listAgents").mockResolvedValue([
       agent({ id: "a", display_name: "Amina", assisted_alert: true }),
@@ -268,6 +296,7 @@ describe("agents ranking", () => {
     const brian = screen.getByText("Brian").closest("tr")!;
     expect(amina).toHaveTextContent("High assisted share");
     expect(brian).not.toHaveTextContent("High assisted share");
+    expect(brian).toHaveTextContent("None");
   });
 
   it("shows every band as a text badge and filters by band", async () => {
@@ -286,15 +315,91 @@ describe("agents ranking", () => {
         within(screen.getByRole("table")).getByText(band),
       ).toBeInTheDocument();
     }
-    // Assisted share is shown for each of the four agents.
-    expect(screen.getAllByText("25%")).toHaveLength(4);
+    expect(screen.getByRole("status")).toHaveTextContent("4 agents");
 
     await input.click(screen.getByRole("combobox", { name: "Band" }));
     await input.click(screen.getByRole("option", { name: "Watch" }));
     expect(rowNames()).toEqual(["Brian"]);
+    expect(screen.getByRole("status")).toHaveTextContent("1 of 4 agents");
+  });
+
+  it("opens the details drawer from the keyboard and closes it", async () => {
+    const input = userEvent.setup();
+    vi.spyOn(scoringApi, "listAgents").mockResolvedValue(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    const open = await screen.findByRole("button", { name: /^Amina/ });
+    open.focus();
+    await input.keyboard("{Enter}");
+    const drawer = await screen.findByRole("dialog", { name: "Amina" });
+    expect(drawer).toHaveTextContent("Assisted share25%");
+    expect(drawer).toHaveTextContent("Risk score5.5");
+    expect(drawer).toHaveTextContent("ClientAcme Bank (client@example.com)");
+    expect(
+      within(drawer).getByRole("link", { name: /Open agent detail/ }),
+    ).toHaveAttribute("href", "/admin/agents/a");
+
+    await input.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("opens the drawer when a row is clicked", async () => {
+    const input = userEvent.setup();
+    vi.spyOn(scoringApi, "listAgents").mockResolvedValue(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    const brian = (await screen.findByText("Brian")).closest("tr")!;
+    await input.click(within(brian).getByText("91.0"));
+    expect(
+      await screen.findByRole("dialog", { name: "Brian" }),
+    ).toBeInTheDocument();
+  });
+
+  it("pages through agents and keeps the page and size in the URL", async () => {
+    const input = userEvent.setup();
+    const many = Array.from({ length: 12 }, (_, index) =>
+      agent({
+        id: `agent-${index}`,
+        display_name: `Agent ${String(index + 1).padStart(2, "0")}`,
+        reputation: 80 + index,
+      }),
+    );
+    vi.spyOn(scoringApi, "listAgents").mockResolvedValue(many);
+    renderPage(<AgentsPage />, {
+      user: admin,
+      path: "/admin/agents",
+      route: "/admin/agents?size=10&page=2",
+    });
+
+    await screen.findByText("Agent 11");
+    expect(rowNames()).toEqual(["Agent 11", "Agent 12"]);
+    expect(screen.getByText("11–12 of 12")).toBeInTheDocument();
+    await input.click(screen.getByRole("button", { name: /first page/i }));
+    expect(rowNames()).toHaveLength(10);
+    expect(screen.getByText("1–10 of 12")).toBeInTheDocument();
+  });
+
+  it("explains an empty search and clears it", async () => {
+    const input = userEvent.setup();
+    vi.spyOn(scoringApi, "listAgents").mockResolvedValue(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    await screen.findByText("Amina");
+    await input.type(screen.getByLabelText("Search agents"), "zzz");
+    expect(
+      await screen.findByText("No results match your search or filters"),
+    ).toBeInTheDocument();
+    await input.click(
+      screen.getByRole("button", { name: "Clear search and filters" }),
+    );
+    expect(await screen.findByText("Amina")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search agents")).toHaveValue("");
   });
 
   it("lists agents without a client and marks inactive links", async () => {
+    const input = userEvent.setup();
     vi.spyOn(scoringApi, "listAgents").mockResolvedValue([
       ...agents,
       agent({
@@ -314,10 +419,11 @@ describe("agents ranking", () => {
     expect(within(warning).queryByText("Amina")).not.toBeInTheDocument();
     const table = screen.getByRole("table");
     expect(within(table).getAllByText("Link inactive")).toHaveLength(1);
-    expect(within(table).getByText("No client")).toBeInTheDocument();
-    expect(
-      within(table).getAllByText("Acme Bank (client@example.com)"),
-    ).toHaveLength(4);
+
+    await input.click(within(table).getByRole("button", { name: /^Esther/ }));
+    const drawer = await screen.findByRole("dialog", { name: "Esther" });
+    expect(drawer).toHaveTextContent("ClientNo client");
+    expect(drawer).toHaveTextContent("Inactive: no client assigned");
   });
 });
 
