@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Divider } from "@mui/material";
+import { Alert, Button, CircularProgress, Divider } from "@mui/material";
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import Google from "@mui/icons-material/Google";
 import TaskAlt from "@mui/icons-material/TaskAlt";
@@ -23,6 +23,10 @@ import {
   type FirebaseUser,
 } from "../auth/firebase";
 import { AuthFeedback } from "../components/AuthFeedback";
+import {
+  StackedField,
+  StackedPasswordField,
+} from "../components/form/StackedField";
 import { FormTextField } from "../components/FormTextField";
 import { PasswordField } from "../components/PasswordField";
 import {
@@ -253,45 +257,61 @@ export function LoginPage() {
         title="Sign in"
         description="Enter your account details to continue."
       />
+      {/* Proposal layout (Phase 0): labels above the fields, the server
+          error first, one field group and one action group. */}
       <form
-        className="auth-form"
+        className="auth-form stacked-form"
         onSubmit={handleSubmit((values) =>
           attempt(() => signInWithPassword(values.email, values.password)),
         )}
         noValidate
       >
-        <FormTextField
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          registration={register("email")}
-          error={errors.email?.message}
-          autoFocus
-        />
-        <PasswordField
-          label="Password"
-          autoComplete="current-password"
-          registration={register("password")}
-          error={errors.password?.message}
-        />
-        <div className="form-inline-link">
-          <Link to="/forgot-password">Forgot password?</Link>
-        </div>
         <AuthFeedback error={serverError} />
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={busy}
-          endIcon={<ArrowForward />}
-          fullWidth
-        >
-          {busy ? "Signing in…" : "Sign in"}
-        </Button>
-        <GoogleButton
-          label="Sign in with Google"
-          disabled={busy}
-          onClick={() => void attempt(signInWithGoogle)}
-        />
+        <div className="form-fields">
+          <StackedField
+            label="Email address"
+            type="email"
+            autoComplete="email"
+            placeholder="name@example.com"
+            registration={register("email")}
+            error={errors.email?.message}
+            autoFocus
+          />
+          <StackedPasswordField
+            label="Password"
+            autoComplete="current-password"
+            registration={register("password")}
+            error={errors.password?.message}
+            aside={
+              <Link to="/forgot-password" className="helper-link">
+                Forgot password?
+              </Link>
+            }
+          />
+        </div>
+        <div className="form-actions">
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            disabled={busy}
+            endIcon={
+              busy ? (
+                <CircularProgress size={16} color="inherit" aria-hidden />
+              ) : (
+                <ArrowForward />
+              )
+            }
+            fullWidth
+          >
+            {busy ? "Signing in…" : "Sign in"}
+          </Button>
+          <GoogleButton
+            label="Sign in with Google"
+            disabled={busy}
+            onClick={() => void attempt(signInWithGoogle)}
+          />
+        </div>
       </form>
       <FormFooter>
         New to SalesMesh? <Link to="/register">Create an agent account</Link>
