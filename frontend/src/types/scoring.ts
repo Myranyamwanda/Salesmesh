@@ -144,11 +144,13 @@ export type MonthEligibility = EligibilityCounts & { month: string };
 export type EligibilityReport = {
   totals: EligibilityCounts;
   months: MonthEligibility[];
+  /** One page of agents (offset/limit); agents_total counts every match. */
   agents: {
     agent: AgentSummary;
     totals: EligibilityCounts;
     months: MonthEligibility[];
   }[];
+  agents_total: number;
 };
 
 /** Client view: pending only as a total, never per agent or per month. */
