@@ -315,6 +315,7 @@ const counts = { eligible: 3104, pending: 33, not_eligible: 251 };
 export const eligibility: EligibilityReport = {
   totals: counts,
   months: months.map((month) => ({ month, ...counts })),
+  agents_total: 3,
   agents: agents.slice(0, 3).map((row) => ({
     agent: { id: row.id, display_name: row.display_name },
     totals: { eligible: 70, pending: 2, not_eligible: 12 },

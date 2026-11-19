@@ -91,7 +91,7 @@ test.describe("keyboard", () => {
     await mockApi(page, "admin");
     await page.goto("/admin/agents");
     await waitForPage(page);
-    const open = page.getByRole("button", { name: /Amina Otieno/ });
+    const open = page.getByRole("link", { name: /Amina Otieno/ });
     await open.focus();
     await page.keyboard.press("Enter");
     const drawer = page.getByRole("dialog", { name: "Amina Otieno" });

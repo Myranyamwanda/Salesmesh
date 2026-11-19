@@ -51,10 +51,8 @@ test("admin review dialog", async ({ page }) => {
   const unexpected = await mockApi(page, "admin");
   await page.goto("/admin/review-queue");
   await waitForPage(page);
-  await page
-    .getByRole("button", { name: /review/i })
-    .first()
-    .click();
+  // The customer's name opens the review, like any row's details.
+  await page.getByRole("button", { name: "Wanjiru Kamau" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Threshold at scoring")).toBeVisible();
   await expectNoAxeViolations(page, '[role="dialog"]');
@@ -67,7 +65,7 @@ test("admin agent details drawer", async ({ page }) => {
   await page.goto("/admin/agents");
   await waitForPage(page);
   await page
-    .getByRole("button", { name: /Chebet Kiprono/ })
+    .getByRole("link", { name: /Chebet Kiprono/ })
     .first()
     .click();
   const drawer = page.getByRole("dialog", { name: "Chebet Kiprono" });
