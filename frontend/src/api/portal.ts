@@ -1,5 +1,5 @@
 // Public registration, agent, and client endpoints.
-import { api } from "./client";
+import { api, listParams, type ListParams } from "./client";
 import type {
   Activity,
   ClientEligibility,
@@ -34,9 +34,15 @@ export async function getMyReferral() {
   return data;
 }
 
-export async function getMyCustomers(offset: number, limit: number) {
+export async function getMyCustomers(
+  params: ListParams & { assisted?: boolean },
+) {
   const { data } = await api.get<Page<MyCustomer>>("/me/customers", {
-    params: { offset, limit },
+    // false is a real filter value here, so only undefined is left out.
+    params: {
+      ...listParams({ ...params, assisted: undefined }),
+      ...(params.assisted === undefined ? {} : { assisted: params.assisted }),
+    },
   });
   return data;
 }

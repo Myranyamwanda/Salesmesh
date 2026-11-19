@@ -9,11 +9,6 @@ import {
   DialogContentText,
   DialogTitle,
   Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
   Typography,
 } from "@mui/material";
 import Refresh from "@mui/icons-material/Refresh";
@@ -25,8 +20,23 @@ import {
   PageHeader,
 } from "../../components/DataComponents";
 import { MonitoringCard } from "../../components/MonitoringCard";
+import { ListTable, type ListColumn } from "../../components/table/ListTable";
 import { apiErrorMessage } from "../../utils/errors";
 import { formatDateTime, formatPercent } from "../../utils/format";
+
+type Metric = { name: string; value: number };
+
+const metricColumns: ListColumn<Metric>[] = [
+  { key: "name", label: "Metric", card: "title", render: (row) => row.name },
+  {
+    key: "value",
+    label: "Value",
+    numeric: true,
+    card: "stat",
+    render: (row) =>
+      Number.isInteger(row.value) ? row.value : row.value.toFixed(4),
+  },
+];
 
 export function ModelPage() {
   const queryClient = useQueryClient();
@@ -147,24 +157,16 @@ export function ModelPage() {
             <Typography component="h2" variant="h6" gutterBottom>
               Test metrics
             </Typography>
-            <Table size="small" aria-label="Test metrics">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Metric</TableCell>
-                  <TableCell>Value</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {Object.entries(model.metrics).map(([name, value]) => (
-                  <TableRow key={name}>
-                    <TableCell>{name}</TableCell>
-                    <TableCell>
-                      {Number.isInteger(value) ? value : value.toFixed(4)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ListTable
+              label="Test metrics"
+              columns={metricColumns}
+              rows={Object.entries(model.metrics).map(([name, value]) => ({
+                name,
+                value,
+              }))}
+              rowKey={(row) => row.name}
+              emptyTitle="No test metrics in the model metadata"
+            />
           </Paper>
         </>
       )}

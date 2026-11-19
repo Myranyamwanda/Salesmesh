@@ -9,6 +9,8 @@ export const colors = {
   subtle: "#626c80",
   line: "#e1e6ef",
   lineSoft: "#edf0f6",
+  // Form field borders: 3:1 on white (WCAG 1.4.11 non-text contrast).
+  fieldBorder: "#8a94a8",
   canvas: "#f4f6fa",
   paper: "#ffffff",
   tint: "#f0f3f9",
@@ -26,7 +28,10 @@ export const colors = {
   success: "#17795a",
   successTint: "#e4f3ed",
   warning: "#a35c00",
+  // Status badge fills; each badge's text colour is at least 4.5:1 on it.
+  warningTint: "#fdf1e1",
   error: "#bf2f36",
+  errorTint: "#fbeaeb",
 };
 
 export const chart = {

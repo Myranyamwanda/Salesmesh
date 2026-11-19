@@ -1,10 +1,17 @@
-import { cleanup, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as adminApi from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
 import { httpError, makeUser, renderPage } from "../../test/render";
 import type {
+  AgentCustomer,
   AgentDetail,
   AgentRanking,
   AssessmentDetail,
@@ -134,27 +141,32 @@ beforeEach(() => {
 });
 
 function rowNames() {
-  return screen
-    .getAllByRole("row")
-    .slice(1)
-    .map((row) => within(row).getAllByRole("cell")[0].textContent);
+  return (
+    screen
+      .getAllByRole("row")
+      .slice(1)
+      // The first cell may hold a name and an email; the name is in <strong>.
+      .map((row) => {
+        const cell = within(row).getAllByRole("cell")[0];
+        return (cell.querySelector("strong") ?? cell).textContent;
+      })
+  );
 }
 
 describe("review queue", () => {
-  it("shows reasons with a Model or Rule label", async () => {
+  it("shows the sources and the top reason of each registration", async () => {
     vi.spyOn(scoringApi, "getReviewQueue").mockResolvedValue({
       items: [queueItem],
       total: 1,
     });
     renderPage(<ReviewQueuePage />, { user: admin });
 
-    expect(await screen.findByText("Wanjiru Kamau")).toBeInTheDocument();
-    expect(screen.getByText("6.1%")).toBeInTheDocument();
-    const reasons = screen.getAllByRole("listitem");
-    expect(reasons[0]).toHaveTextContent("Rule");
-    expect(reasons[0]).toHaveTextContent(ruleReason.text);
-    expect(reasons[1]).toHaveTextContent("Model");
-    expect(reasons[1]).toHaveTextContent(modelReason.text);
+    const row = (await screen.findByText("Wanjiru Kamau")).closest("tr")!;
+    expect(within(row).getByText("6.1%")).toBeInTheDocument();
+    expect(within(row).getByText("Rule")).toBeInTheDocument();
+    expect(within(row).getByText("Model")).toBeInTheDocument();
+    expect(row).toHaveTextContent(ruleReason.text);
+    expect(screen.getByRole("status")).toHaveTextContent("1 waiting");
   });
 
   it("labels a random audit as Audit, not as a flag", async () => {
@@ -176,9 +188,36 @@ describe("review queue", () => {
     });
     renderPage(<ReviewQueuePage />, { user: admin });
 
-    const reason = await screen.findByRole("listitem");
-    expect(reason).toHaveTextContent("Audit");
-    expect(reason).toHaveTextContent("Random audit (assisted registration)");
+    const row = (await screen.findByText("Wanjiru Kamau")).closest("tr")!;
+    expect(within(row).getByText("Audit")).toBeInTheDocument();
+    expect(within(row).queryByText("Model")).not.toBeInTheDocument();
+    expect(row).toHaveTextContent("Random audit (assisted registration)");
+  });
+
+  it("searches and filters on the server", async () => {
+    const input = userEvent.setup();
+    const queue = vi
+      .spyOn(scoringApi, "getReviewQueue")
+      .mockResolvedValue({ items: [queueItem], total: 1 });
+    renderPage(<ReviewQueuePage />, { user: admin });
+
+    await screen.findByText("Wanjiru Kamau");
+    await input.click(screen.getByRole("combobox", { name: "Show" }));
+    await input.click(
+      screen.getByRole("option", { name: "Random audits only" }),
+    );
+    await input.type(
+      screen.getByLabelText("Search customer or agent"),
+      "kamau",
+    );
+    await waitFor(() =>
+      expect(queue).toHaveBeenLastCalledWith({
+        offset: 0,
+        limit: 25,
+        q: "kamau",
+        kind: "audit",
+      }),
+    );
   });
 
   it("records a decision with notes", async () => {
@@ -197,7 +236,10 @@ describe("review queue", () => {
     });
     renderPage(<ReviewQueuePage />, { user: admin });
 
-    await input.click(await screen.findByRole("button", { name: "Review" }));
+    // The customer's name opens the review, like any row's details.
+    await input.click(
+      await screen.findByRole("button", { name: "Wanjiru Kamau" }),
+    );
     const dialog = await screen.findByRole("dialog");
     expect(await within(dialog).findByText("wanjiru@gmail.com")).toBeVisible();
     expect(within(dialog).getByText("Missing")).toBeInTheDocument();
@@ -230,7 +272,9 @@ describe("review queue", () => {
     );
     renderPage(<ReviewQueuePage />, { user: admin });
 
-    await input.click(await screen.findByRole("button", { name: "Review" }));
+    await input.click(
+      await screen.findByRole("button", { name: "Wanjiru Kamau" }),
+    );
     const dialog = await screen.findByRole("dialog");
     await input.click(
       await within(dialog).findByRole("button", { name: "Confirm real" }),
@@ -243,22 +287,107 @@ describe("review queue", () => {
   });
 });
 
+/**
+ * A stand-in for GET /admin/agents: filters, sorts, and pages like the API,
+ * so the page is tested with the parameters it really sends.
+ */
+function fakeAgentsApi(all: AgentRanking[]) {
+  return vi
+    .spyOn(scoringApi, "listAgents")
+    .mockImplementation(async (params) => {
+      const term = params.q?.toLowerCase() ?? "";
+      const key = params.sort ?? "reputation";
+      const sign = params.dir === "desc" ? -1 : 1;
+      const rows = all
+        .filter(
+          (agent) =>
+            (!term ||
+              agent.display_name.toLowerCase().includes(term) ||
+              agent.email.toLowerCase().includes(term)) &&
+            (!params.band?.length || params.band.includes(agent.band)) &&
+            (!params.has_pending || agent.pending_review > 0) &&
+            (!params.no_client || agent.client === null),
+        )
+        .sort((a, b) => {
+          const left = a[key];
+          const right = b[key];
+          return (
+            sign *
+            (typeof left === "string"
+              ? left.localeCompare(right as string)
+              : (left as number) - (right as number))
+          );
+        });
+      return {
+        items: rows.slice(params.offset, params.offset + params.limit),
+        total: rows.length,
+      };
+    });
+}
+
 describe("agents ranking", () => {
   it("lists agents worst first and sorts by reputation", async () => {
     const input = userEvent.setup();
-    vi.spyOn(scoringApi, "listAgents").mockResolvedValue(agents);
+    fakeAgentsApi(agents);
     renderPage(<AgentsPage />, { user: admin });
 
     await screen.findByText("Amina");
     expect(rowNames()).toEqual(["Amina", "Brian", "Daudi", "Chebet"]);
     await input.click(screen.getByRole("button", { name: "Reputation" }));
-    expect(rowNames()).toEqual(["Chebet", "Daudi", "Brian", "Amina"]);
+    await waitFor(() =>
+      expect(rowNames()).toEqual(["Chebet", "Daudi", "Brian", "Amina"]),
+    );
     await input.click(screen.getByRole("button", { name: "Customers" }));
-    expect(rowNames()[0]).toBe("Daudi");
+    await waitFor(() => expect(rowNames()[0]).toBe("Daudi"));
+  });
+
+  it("right-aligns the number columns and shows only six", async () => {
+    fakeAgentsApi(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    await screen.findByText("Amina");
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent);
+    expect(headers).toEqual([
+      "Agent",
+      "Customers",
+      "Flags",
+      "Reputation",
+      "Band",
+      "Signals",
+    ]);
+    const amina = screen.getByText("Amina").closest("tr")!;
+    expect(within(amina).getByText("88.1").closest("td")).toHaveClass(
+      "numeric",
+    );
+  });
+
+  it("shows pending reviews next to the flags and filters by them", async () => {
+    const input = userEvent.setup();
+    const api = fakeAgentsApi([
+      agent({ id: "a", display_name: "Amina", flags: 12, pending_review: 3 }),
+      agent({ id: "b", display_name: "Brian", flags: 4, pending_review: 0 }),
+    ]);
+    renderPage(<AgentsPage />, { user: admin });
+
+    const amina = (await screen.findByText("Amina")).closest("tr")!;
+    expect(amina).toHaveTextContent("12 · 3 pending");
+    const brian = screen.getByText("Brian").closest("tr")!;
+    expect(brian).not.toHaveTextContent("pending");
+
+    await input.click(screen.getByRole("combobox", { name: "Reviews" }));
+    await input.click(
+      screen.getByRole("option", { name: "Has pending reviews" }),
+    );
+    await waitFor(() => expect(rowNames()).toEqual(["Amina"]));
+    expect(api).toHaveBeenLastCalledWith(
+      expect.objectContaining({ has_pending: true, offset: 0, limit: 25 }),
+    );
   });
 
   it("marks agents with a high assisted share in text", async () => {
-    vi.spyOn(scoringApi, "listAgents").mockResolvedValue([
+    fakeAgentsApi([
       agent({ id: "a", display_name: "Amina", assisted_alert: true }),
       agent({ id: "b", display_name: "Brian" }),
     ]);
@@ -268,11 +397,12 @@ describe("agents ranking", () => {
     const brian = screen.getByText("Brian").closest("tr")!;
     expect(amina).toHaveTextContent("High assisted share");
     expect(brian).not.toHaveTextContent("High assisted share");
+    expect(brian).toHaveTextContent("None");
   });
 
   it("shows every band as a text badge and filters by band", async () => {
     const input = userEvent.setup();
-    vi.spyOn(scoringApi, "listAgents").mockResolvedValue(agents);
+    const api = fakeAgentsApi(agents);
     renderPage(<AgentsPage />, { user: admin });
 
     await screen.findByText("Amina");
@@ -286,16 +416,117 @@ describe("agents ranking", () => {
         within(screen.getByRole("table")).getByText(band),
       ).toBeInTheDocument();
     }
-    // Assisted share is shown for each of the four agents.
-    expect(screen.getAllByText("25%")).toHaveLength(4);
+    expect(screen.getByRole("status")).toHaveTextContent("4 agents");
 
     await input.click(screen.getByRole("combobox", { name: "Band" }));
     await input.click(screen.getByRole("option", { name: "Watch" }));
-    expect(rowNames()).toEqual(["Brian"]);
+    await waitFor(() => expect(rowNames()).toEqual(["Brian"]));
+    expect(screen.getByRole("status")).toHaveTextContent("1 agent match");
+    expect(api).toHaveBeenLastCalledWith(
+      expect.objectContaining({ band: ["Watch"] }),
+    );
+  });
+
+  it("opens the details drawer from the keyboard and closes it", async () => {
+    const input = userEvent.setup();
+    fakeAgentsApi(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    const open = await screen.findByRole("link", { name: /^Amina/ });
+    open.focus();
+    await input.keyboard("{Enter}");
+    const drawer = await screen.findByRole("dialog", { name: "Amina" });
+    expect(drawer).toHaveTextContent("Assisted share25%");
+    expect(drawer).toHaveTextContent("Risk score5.5");
+    expect(drawer).toHaveTextContent("ClientAcme Bank (client@example.com)");
+    expect(
+      within(drawer).getByRole("link", { name: /Open agent detail/ }),
+    ).toHaveAttribute("href", "/admin/agents/a");
+
+    await input.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("leaves Ctrl-click and middle click on a name to the browser", async () => {
+    fakeAgentsApi(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    const link = await screen.findByRole("link", { name: /^Amina/ });
+    // The name is a real link to the detail page, so it opens in a new tab.
+    expect(link).toHaveAttribute("href", "/admin/agents/a");
+    // fireEvent returns false only when the page cancelled the default.
+    expect(fireEvent.click(link, { ctrlKey: true })).toBe(true);
+    expect(fireEvent.click(link, { metaKey: true })).toBe(true);
+    expect(fireEvent.click(link, { button: 1 })).toBe(true);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    // A plain click opens the drawer instead of leaving the page.
+    expect(fireEvent.click(link)).toBe(false);
+    expect(
+      await screen.findByRole("dialog", { name: "Amina" }),
+    ).toBeInTheDocument();
+  });
+
+  it("opens the drawer when a row is clicked", async () => {
+    const input = userEvent.setup();
+    fakeAgentsApi(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    const brian = (await screen.findByText("Brian")).closest("tr")!;
+    await input.click(within(brian).getByText("91.0"));
+    expect(
+      await screen.findByRole("dialog", { name: "Brian" }),
+    ).toBeInTheDocument();
+  });
+
+  it("pages through agents and keeps the page and size in the URL", async () => {
+    const input = userEvent.setup();
+    const many = Array.from({ length: 12 }, (_, index) =>
+      agent({
+        id: `agent-${index}`,
+        display_name: `Agent ${String(index + 1).padStart(2, "0")}`,
+        reputation: 80 + index,
+      }),
+    );
+    const api = fakeAgentsApi(many);
+    renderPage(<AgentsPage />, {
+      user: admin,
+      path: "/admin/agents",
+      route: "/admin/agents?size=10&page=2",
+    });
+
+    await screen.findByText("Agent 11");
+    expect(rowNames()).toEqual(["Agent 11", "Agent 12"]);
+    expect(screen.getByText("11–12 of 12")).toBeInTheDocument();
+    expect(api).toHaveBeenCalledWith(
+      expect.objectContaining({ offset: 10, limit: 10 }),
+    );
+    await input.click(screen.getByRole("button", { name: /first page/i }));
+    await waitFor(() => expect(rowNames()).toHaveLength(10));
+    expect(screen.getByText("1–10 of 12")).toBeInTheDocument();
+  });
+
+  it("explains an empty search and clears it", async () => {
+    const input = userEvent.setup();
+    fakeAgentsApi(agents);
+    renderPage(<AgentsPage />, { user: admin });
+
+    await screen.findByText("Amina");
+    await input.type(screen.getByLabelText("Search agents"), "zzz");
+    expect(
+      await screen.findByText("No results match your search or filters"),
+    ).toBeInTheDocument();
+    await input.click(
+      screen.getByRole("button", { name: "Clear search and filters" }),
+    );
+    expect(await screen.findByText("Amina")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search agents")).toHaveValue("");
   });
 
   it("lists agents without a client and marks inactive links", async () => {
-    vi.spyOn(scoringApi, "listAgents").mockResolvedValue([
+    const input = userEvent.setup();
+    fakeAgentsApi([
       ...agents,
       agent({
         id: "e",
@@ -312,12 +543,25 @@ describe("agents ranking", () => {
       within(warning).getByRole("link", { name: "Esther" }),
     ).toHaveAttribute("href", "/admin/agents/e");
     expect(within(warning).queryByText("Amina")).not.toBeInTheDocument();
-    const table = screen.getByRole("table");
+    const table = await screen.findByRole("table");
+    await within(table).findByText("Esther");
     expect(within(table).getAllByText("Link inactive")).toHaveLength(1);
-    expect(within(table).getByText("No client")).toBeInTheDocument();
-    expect(
-      within(table).getAllByText("Acme Bank (client@example.com)"),
-    ).toHaveLength(4);
+
+    await input.click(within(table).getByRole("link", { name: /^Esther/ }));
+    const drawer = await screen.findByRole("dialog", { name: "Esther" });
+    expect(drawer).toHaveTextContent("ClientNo client");
+    expect(drawer).toHaveTextContent("Inactive: no client assigned");
+    await input.keyboard("{Escape}");
+    // The page is aria-hidden until the drawer has closed.
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+
+    // "Show them" filters the list to the agents without a client.
+    await input.click(
+      within(warning).getByRole("button", { name: "Show them" }),
+    );
+    await waitFor(() => expect(rowNames()).toEqual(["Esther"]));
   });
 });
 
@@ -378,6 +622,61 @@ describe("agent detail", () => {
         client_id: null,
       }),
     );
+  });
+  it("searches customers on the server and opens one in the drawer", async () => {
+    const input = userEvent.setup();
+    const customer: AgentCustomer = {
+      id: "customer-1",
+      reference: "REG-4F7K2M",
+      full_name: "Wanjiru Kamau",
+      created_at: "2026-10-10T08:00:00Z",
+      status: "pending_review",
+      registration_status: "under_review",
+      eligibility: "pending",
+      assisted: true,
+      assessment_id: "assessment-1",
+      probability: 0.0612,
+      flagged: true,
+    };
+    const getAgent = vi.spyOn(scoringApi, "getAgent").mockResolvedValue({
+      ...detail,
+      customers: [customer],
+      customers_total: 1,
+    });
+    vi.spyOn(adminApi, "listClients").mockResolvedValue([]);
+    vi.spyOn(scoringApi, "getAgentKpis").mockResolvedValue({
+      agent: { id: "agent-1", display_name: "Amina Otieno" },
+      months: [],
+    });
+    vi.spyOn(scoringApi, "getAssessment").mockResolvedValue(assessment);
+    renderPage(<AgentDetailPage />, {
+      path: "/admin/agents/:agentId",
+      route: "/admin/agents/agent-1",
+      user: admin,
+    });
+
+    const table = await screen.findByRole("table", { name: "Customers" });
+    const row = within(table).getByText("Wanjiru Kamau").closest("tr")!;
+    expect(row).toHaveTextContent("REG-4F7K2M");
+    expect(row).toHaveTextContent("Under review");
+    expect(row).toHaveTextContent("6.1%");
+
+    await input.type(
+      screen.getByLabelText("Search name or reference"),
+      "reg-4f",
+    );
+    await waitFor(() =>
+      expect(getAgent).toHaveBeenLastCalledWith("agent-1", 0, 25, "reg-4f"),
+    );
+
+    await input.click(within(row).getByRole("button", { name: /Wanjiru/ }));
+    const drawer = await screen.findByRole("dialog", { name: "Wanjiru Kamau" });
+    expect(drawer).toHaveTextContent("Registered on the agent's deviceYes");
+    expect(drawer).toHaveTextContent("FlaggedYes");
+    await input.click(
+      within(drawer).getByRole("button", { name: "Open assessment" }),
+    );
+    expect(await screen.findByText("wanjiru@gmail.com")).toBeInTheDocument();
   });
 });
 

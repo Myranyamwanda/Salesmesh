@@ -249,7 +249,7 @@ def test_agents_ranking_is_sorted_worst_first(api):
         add_scored_customer(session, users["agent"])
     add_scored_customer(session, users["other_agent"], flagged=False, assisted=True)
 
-    body = client.get("/admin/agents", headers=headers["admin"]).json()
+    body = client.get("/admin/agents", headers=headers["admin"]).json()["items"]
 
     assert [row["display_name"] for row in body] == ["Amina Otieno", "Brian Mwangi"]
     worst = body[0]

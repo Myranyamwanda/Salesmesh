@@ -1,12 +1,13 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.exc import IntegrityError
 
+from app.api.listing import Limit, Offset, Search, contains
 from app.auth import Database, require_roles
 from app.core.errors import CodedHTTPException
 from app.models import AgentProfile, AuditLog, ClientProfile, User
@@ -87,18 +88,57 @@ def protect_admin(session, actor, target):
             )
 
 
+type AccountStatus = Literal[
+    "active", "pending", "not_signed_in", "inactive", "rejected"
+]
+
+# The status an admin sees (frontend userStatus): a deactivated account is
+# "inactive" whatever its approval; "not signed in" is approved but has no
+# verified email yet, because that is set at the first Firebase sign-in.
+ACCOUNT_STATUS = {
+    "inactive": [User.is_active.is_(False)],
+    "pending": [User.is_active, User.status == "pending"],
+    "rejected": [User.is_active, User.status == "rejected"],
+    "not_signed_in": [
+        User.is_active,
+        User.status == "approved",
+        User.email_verified_at.is_(None),
+    ],
+    "active": [
+        User.is_active,
+        User.status == "approved",
+        User.email_verified_at.is_not(None),
+    ],
+}
+
+
 @router.get("/users", response_model=UserPage)
 def list_users(
     request: Request,
     session: Database,
     actor: Admin,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    offset: Offset = 0,
+    limit: Limit = 25,
+    q: Search = "",
+    role: Literal["admin", "agent", "client"] | None = None,
+    status: AccountStatus | None = None,
 ):
+    """Accounts, oldest first; q matches the email address."""
+    conditions = []
+    if term := q.strip():
+        conditions.append(contains(User.email, term))
+    if role:
+        conditions.append(User.role == role)
+    if status:
+        conditions.extend(ACCOUNT_STATUS[status])
     users = session.scalars(
-        select(User).order_by(User.created_at, User.id).offset(offset).limit(limit)
+        select(User)
+        .where(*conditions)
+        .order_by(User.created_at, User.id)
+        .offset(offset)
+        .limit(limit)
     ).all()
-    total = session.scalar(select(func.count()).select_from(User))
+    total = session.scalar(select(func.count()).select_from(User).where(*conditions))
     items = [UserRead.model_validate(user) for user in users]
     audit(session, request, "users_listed", actor=actor)
     session.commit()
@@ -351,14 +391,40 @@ def set_client_organisation(
 def list_audit_logs(
     session: Database,
     actor: Admin,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    offset: Offset = 0,
+    limit: Limit = 25,
+    q: Search = "",
+    outcome: Literal["success", "failure"] | None = None,
 ):
+    """Audit entries, newest first. q matches the action, subject, or request
+    ID, or is an exact actor or target user ID."""
+    conditions = []
+    if term := q.strip():
+        matches = [
+            contains(AuditLog.action, term.replace(" ", "_")),
+            contains(AuditLog.subject, term),
+            contains(AuditLog.request_id, term),
+        ]
+        try:
+            user_id = UUID(term)
+        except ValueError:
+            pass
+        else:
+            matches += [
+                AuditLog.actor_user_id == user_id,
+                AuditLog.target_user_id == user_id,
+            ]
+        conditions.append(or_(*matches))
+    if outcome:
+        conditions.append(AuditLog.outcome == outcome)
     rows = session.scalars(
         select(AuditLog)
+        .where(*conditions)
         .order_by(AuditLog.created_at.desc(), AuditLog.id)
         .offset(offset)
         .limit(limit)
     ).all()
-    total = session.scalar(select(func.count()).select_from(AuditLog))
+    total = session.scalar(
+        select(func.count()).select_from(AuditLog).where(*conditions)
+    )
     return AuditPage(items=[AuditRead.model_validate(row) for row in rows], total=total)

@@ -245,7 +245,7 @@ def test_alert_marks_agents_far_above_the_network_share(api):  # noqa: F811
 
     agents = {
         row["display_name"]: row
-        for row in client.get("/admin/agents", headers=headers["admin"]).json()
+        for row in client.get("/admin/agents", headers=headers["admin"]).json()["items"]
     }
     benchmark = {
         row["agent"]["display_name"]: row

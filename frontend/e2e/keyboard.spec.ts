@@ -85,6 +85,36 @@ test.describe("keyboard", () => {
     expectAllVisible(stops);
   });
 
+  test("agents list: open a row's details with Enter, close with Escape", async ({
+    page,
+  }) => {
+    await mockApi(page, "admin");
+    await page.goto("/admin/agents");
+    await waitForPage(page);
+    const open = page.getByRole("link", { name: /Amina Otieno/ });
+    await open.focus();
+    await page.keyboard.press("Enter");
+    const drawer = page.getByRole("dialog", { name: "Amina Otieno" });
+    await expect(drawer).toBeVisible();
+    // Focus moves into the drawer and Tab stays inside it.
+    await expect
+      .poll(() =>
+        drawer.evaluate((element) => element.contains(document.activeElement)),
+      )
+      .toBe(true);
+    const stops = await tabThrough(page, 4);
+    expectAllVisible(stops);
+    expect(
+      await drawer.evaluate((element) =>
+        element.contains(document.activeElement),
+      ),
+    ).toBe(true);
+    await page.keyboard.press("Escape");
+    await expect(drawer).toBeHidden();
+    // Focus returns to the row that opened it.
+    await expect(open).toBeFocused();
+  });
+
   for (const [role, path] of [
     ["admin", "/admin"],
     ["agent", "/agent"],

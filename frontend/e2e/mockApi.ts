@@ -22,6 +22,30 @@ const ok =
   (body: unknown): Handler =>
   () => ({ body });
 
+/**
+ * One page of rows, like the list endpoints: q (matched against the given
+ * text), offset, and limit from the URL, and the total of the matches.
+ */
+export function pageOf<Row>(
+  rows: Row[],
+  url: URL,
+  text: (row: Row) => string = (row) => JSON.stringify(row),
+) {
+  const term = (url.searchParams.get("q") ?? "").toLowerCase();
+  const offset = Number(url.searchParams.get("offset") ?? 0);
+  const limit = Number(url.searchParams.get("limit") ?? 25);
+  const matches = rows.filter(
+    (row) => !term || text(row).toLowerCase().includes(term),
+  );
+  return {
+    items: matches.slice(offset, offset + limit),
+    total: matches.length,
+  };
+}
+
+const agentText = (row: { display_name: string; email: string }) =>
+  `${row.display_name} ${row.email}`;
+
 function routes(role: UserRole | null): Record<string, Handler> {
   return {
     "POST /auth/refresh": () =>
@@ -41,7 +65,15 @@ function routes(role: UserRole | null): Record<string, Handler> {
           },
     "GET /auth/me": ok(role ? data.user(role) : null),
     "POST /auth/logout": () => ({ status: 204 }),
-    "GET /admin/agents": ok(data.agents),
+    "GET /admin/agents": (url) => ({
+      body: pageOf(
+        url.searchParams.get("no_client")
+          ? data.agents.filter((agent) => agent.client === null)
+          : data.agents,
+        url,
+        agentText,
+      ),
+    }),
     "GET /admin/agents/:id": ok(data.agentDetail),
     "GET /admin/agents/:id/kpis": ok(data.agentKpis),
     "GET /admin/kpis": ok(data.networkKpis),

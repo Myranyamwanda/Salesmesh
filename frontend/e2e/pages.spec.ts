@@ -51,13 +51,26 @@ test("admin review dialog", async ({ page }) => {
   const unexpected = await mockApi(page, "admin");
   await page.goto("/admin/review-queue");
   await waitForPage(page);
-  await page
-    .getByRole("button", { name: /review/i })
-    .first()
-    .click();
+  // The customer's name opens the review, like any row's details.
+  await page.getByRole("button", { name: "Wanjiru Kamau" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Threshold at scoring")).toBeVisible();
   await expectNoAxeViolations(page, '[role="dialog"]');
   await expectNoSidewaysScroll(page);
   expect(unexpected).toEqual([]);
+});
+
+test("admin agent details drawer", async ({ page }) => {
+  const unexpected = await mockApi(page, "admin");
+  await page.goto("/admin/agents");
+  await waitForPage(page);
+  await page
+    .getByRole("link", { name: /Chebet Kiprono/ })
+    .first()
+    .click();
+  const drawer = page.getByRole("dialog", { name: "Chebet Kiprono" });
+  await expect(drawer.getByText("Risk score")).toBeVisible();
+  await expectNoAxeViolations(page, '[role="dialog"]');
+  await expectNoSidewaysScroll(page);
+  expect(unexpected, "API calls without a mock").toEqual([]);
 });

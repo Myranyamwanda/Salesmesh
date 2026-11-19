@@ -14,28 +14,35 @@ import {
 import * as scoringApi from "../api/scoring";
 import type { MonitoringMonth } from "../types/scoring";
 import { chart } from "../tokens";
-import { formatPercent } from "../utils/format";
-import {
-  ChartCard,
-  DataTable,
-  PageError,
-  type DataColumn,
-} from "./DataComponents";
+import { formatCount, formatPercent } from "../utils/format";
+import { ChartCard, PageError } from "./DataComponents";
+import { ListTable, type ListColumn } from "./table/ListTable";
 
 const percentOrDash = (value: number | null) =>
   value === null ? "—" : formatPercent(value, 2);
 
-const columns: DataColumn<MonitoringMonth>[] = [
-  { key: "month", label: "Month", render: (row) => row.month },
-  { key: "count", label: "Assessments", render: (row) => row.assessments },
+// Twelve fixed months: a report, so no search, pager, or details.
+const columns: ListColumn<MonitoringMonth>[] = [
+  { key: "month", label: "Month", card: "title", render: (row) => row.month },
+  {
+    key: "count",
+    label: "Assessments",
+    numeric: true,
+    card: "stat",
+    render: (row) => formatCount(row.assessments),
+  },
   {
     key: "rate",
     label: "Model flag rate",
+    numeric: true,
+    card: "stat",
     render: (row) => percentOrDash(row.flag_rate),
   },
   {
     key: "mean",
     label: "Mean probability",
+    numeric: true,
+    card: "stat",
     render: (row) => percentOrDash(row.mean_probability),
   },
 ];
@@ -104,13 +111,13 @@ export function MonitoringCard() {
           </ResponsiveContainer>
         </>
       )}
-      <DataTable
+      <ListTable
         label="Monthly model monitoring"
         columns={columns}
         rows={monitoring?.months ?? []}
         rowKey={(row) => row.month}
         loading={monitoringQuery.isPending}
-        emptyLabel="No assessments yet."
+        emptyTitle="No assessments yet"
       />
     </ChartCard>
   );

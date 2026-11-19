@@ -31,3 +31,10 @@ export function formatDate(value: string): string {
 export function formatDateTime(value: string): string {
   return new Date(value).toLocaleString();
 }
+
+const counts = new Intl.NumberFormat("en-GB");
+
+/** A whole number with thousands separators: 3388 -> "3,388". */
+export function formatCount(value: number): string {
+  return counts.format(value);
+}

@@ -112,6 +112,13 @@ class AgentRanking(BaseModel):
     band: str
 
 
+class AgentPage(BaseModel):
+    """One page of the agent ranking; total counts every matching agent."""
+
+    items: list[AgentRanking]
+    total: int
+
+
 class AgentCustomer(BaseModel):
     id: UUID
     reference: str
@@ -147,11 +154,14 @@ class EligibilityReport(BaseModel):
 
     totals: EligibilityCounts
     months: list[MonthEligibility]
+    # One page of agents (offset/limit); agents_total counts every match.
     agents: list[AgentEligibility]
+    agents_total: int
 
 
 class AgentDetail(AgentRanking):
     customers: list[AgentCustomer]
+    # Customers matching the search (all of the agent's customers without one).
     customers_total: int
 
 

@@ -1,4 +1,4 @@
-import { api } from "./client";
+import { api, listParams, type ListParams } from "./client";
 import type { AuthUser, UserRole } from "../types/auth";
 
 export type Page<T> = { items: T[]; total: number };
@@ -14,9 +14,18 @@ export type AuditRecord = {
   created_at: string;
 };
 
-export async function listUsers(offset: number, limit: number) {
+/** The status an admin sees, as the API filters it. */
+export type AccountStatus =
+  "active" | "pending" | "not_signed_in" | "inactive" | "rejected";
+
+export type UserListParams = ListParams & {
+  role?: UserRole;
+  status?: AccountStatus;
+};
+
+export async function listUsers(params: UserListParams) {
   const { data } = await api.get<Page<AuthUser>>("/admin/users", {
-    params: { offset, limit },
+    params: listParams(params),
   });
   return data;
 }
@@ -103,9 +112,11 @@ export async function setUserRole(userId: string, role: UserRole) {
   return data;
 }
 
-export async function listAuditLogs(offset: number, limit: number) {
+export async function listAuditLogs(
+  params: ListParams & { outcome?: "success" | "failure" },
+) {
   const { data } = await api.get<Page<AuditRecord>>("/admin/audit-logs", {
-    params: { offset, limit },
+    params: listParams(params),
   });
   return data;
 }
