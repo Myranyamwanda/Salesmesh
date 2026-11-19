@@ -15,27 +15,59 @@ import {
 import * as portalApi from "../../api/portal";
 import {
   ChartCard,
-  DataTable,
   KpiCard,
   PageError,
   PageHeader,
-  type DataColumn,
 } from "../../components/DataComponents";
+import { ListTable, type ListColumn } from "../../components/table/ListTable";
+import { TableToolbar } from "../../components/table/TableToolbar";
+import { pageRows, useListParams } from "../../components/table/useListParams";
+import { formatCount } from "../../utils/format";
 import { chart } from "../../tokens";
 import type { ClientEligibility, MonthQuality } from "../../types/scoring";
 import { apiErrorMessage } from "../../utils/errors";
 
 type AgentEligibility = ClientEligibility["agents"][number];
 
-const eligibilityColumns: DataColumn<AgentEligibility>[] = [
-  { key: "agent", label: "Agent", render: (row) => row.display_name },
-  { key: "eligible", label: "Eligible", render: (row) => row.eligible },
+// Clients see names and two counts only, so rows open no details.
+const eligibilityColumns: ListColumn<AgentEligibility>[] = [
+  {
+    key: "agent",
+    label: "Agent",
+    card: "title",
+    sortable: true,
+    render: (row) => (
+      <span className="cell-stack">
+        <strong>{row.display_name}</strong>
+      </span>
+    ),
+  },
+  {
+    key: "eligible",
+    label: "Eligible",
+    numeric: true,
+    sortable: true,
+    card: "stat",
+    render: (row) => formatCount(row.eligible),
+  },
   {
     key: "not_eligible",
     label: "Not eligible",
-    render: (row) => row.not_eligible,
+    numeric: true,
+    sortable: true,
+    card: "stat",
+    render: (row) => formatCount(row.not_eligible),
   },
 ];
+
+const agentListDefaults = { sort: "agent", dir: "asc" } as const;
+
+const agentSortValue = (row: AgentEligibility, key: string) =>
+  key === "eligible"
+    ? row.eligible
+    : key === "not_eligible"
+      ? row.not_eligible
+      : row.display_name.toLowerCase();
 
 function ExportSection() {
   const exportMutation = useMutation({
@@ -83,6 +115,13 @@ function EligibilitySection() {
     queryFn: portalApi.getClientEligibility,
   });
   const eligibility = eligibilityQuery.data;
+  const { params, update, filtered, clearFilters } =
+    useListParams(agentListDefaults);
+  // The API sends this client's few agents in full; page them here.
+  const page = pageRows(eligibility?.agents ?? [], params, {
+    matches: (row, term) => row.display_name.toLowerCase().includes(term),
+    sortValue: agentSortValue,
+  });
   return (
     <section aria-label="Commission eligibility">
       <Typography component="h2" variant="h6" sx={{ mt: 3, mb: 1 }}>
@@ -112,34 +151,71 @@ function EligibilitySection() {
           value={eligibility?.not_eligible ?? null}
         />
       </div>
-      <DataTable
+      <ListTable
         label="Eligibility by agent"
         columns={eligibilityColumns}
-        rows={eligibility?.agents ?? []}
-        // Display names are not unique; the list order is stable (by name).
-        rowKey={(row, index) => `${index}-${row.display_name}`}
+        rows={page.rows}
+        // Display names are not unique; add the counts to tell rows apart.
+        rowKey={(row) =>
+          `${row.display_name}-${row.eligible}-${row.not_eligible}-${page.rows.indexOf(row)}`
+        }
         loading={eligibilityQuery.isPending}
-        emptyLabel="No agents work for you yet."
+        total={page.total}
+        page={page.page}
+        size={params.size}
+        sort={params.sort}
+        dir={params.dir}
+        onSort={(key) =>
+          update(
+            key === params.sort
+              ? { dir: params.dir === "asc" ? "desc" : "asc" }
+              : { sort: key, dir: key === "agent" ? "asc" : "desc" },
+          )
+        }
+        onPage={(next) => update({ page: next })}
+        onSize={(size) => update({ size })}
+        filtered={filtered}
+        onClearFilters={clearFilters}
+        emptyTitle="No agents work for you yet"
+        toolbar={
+          <TableToolbar
+            search={params.q}
+            searchLabel="Search agents"
+            onSearch={(q) => update({ q })}
+            count={
+              eligibility
+                ? `${formatCount(page.total)} ${page.total === 1 ? "agent" : "agents"}${filtered ? " match" : ""}`
+                : undefined
+            }
+          />
+        }
       />
     </section>
   );
 }
 
-const columns: DataColumn<MonthQuality>[] = [
-  { key: "month", label: "Month", render: (row) => row.month },
+// Twelve fixed months: a report, so no search, pager, or details.
+const columns: ListColumn<MonthQuality>[] = [
+  { key: "month", label: "Month", card: "title", render: (row) => row.month },
   {
     key: "registrations",
     label: "Registrations",
-    render: (row) => row.registrations,
+    numeric: true,
+    card: "stat",
+    render: (row) => formatCount(row.registrations),
   },
   {
     key: "fake",
     label: "Confirmed fake",
-    render: (row) => row.confirmed_fake,
+    numeric: true,
+    card: "stat",
+    render: (row) => formatCount(row.confirmed_fake),
   },
   {
     key: "fake_percent",
     label: "Confirmed fake %",
+    numeric: true,
+    card: "stat",
     // A dash for a month without registrations, never a misleading 0%.
     render: (row) =>
       row.confirmed_fake_percent === null
@@ -215,13 +291,14 @@ export function QualityDashboardPage() {
       >
         {quality && <QualityChart trend={quality.trend} />}
       </ChartCard>
-      <DataTable
+      <ListTable
         label="Monthly trend"
         columns={columns}
-        rows={quality?.trend ?? []}
+        // Newest month first for reading; the chart runs oldest to newest.
+        rows={[...(quality?.trend ?? [])].reverse()}
         rowKey={(row) => row.month}
         loading={qualityQuery.isPending}
-        emptyLabel="No registrations yet."
+        emptyTitle="No registrations yet"
       />
       <EligibilitySection />
       <ExportSection />

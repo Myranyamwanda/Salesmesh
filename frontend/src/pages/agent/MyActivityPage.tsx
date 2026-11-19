@@ -1,14 +1,10 @@
 import { Paper, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import * as portalApi from "../../api/portal";
-import {
-  DataTable,
-  PageError,
-  PageHeader,
-  type DataColumn,
-} from "../../components/DataComponents";
+import { PageError, PageHeader } from "../../components/DataComponents";
+import { ListTable, type ListColumn } from "../../components/table/ListTable";
 import type { MonthActivity, Standing } from "../../types/scoring";
-import { formatLongDate } from "../../utils/format";
+import { formatCount, formatLongDate } from "../../utils/format";
 
 // Agents see one label and monthly totals only; scores, bands, and customer
 // statuses are admin-only (docs/reputation-and-review.md, "Agent Standing").
@@ -23,22 +19,36 @@ const explanations: Record<Standing["standing"], string> = {
 
 const HIDDEN = "Shown from 10 registrations";
 
-const columns: DataColumn<MonthActivity>[] = [
-  { key: "month", label: "Month", render: (row) => row.month },
+const hiddenOr = (value: number | null) =>
+  value === null ? (
+    <span className="muted-dash">{HIDDEN}</span>
+  ) : (
+    formatCount(value)
+  );
+
+// Twelve fixed months: a report, so no search, pager, or details.
+const columns: ListColumn<MonthActivity>[] = [
+  { key: "month", label: "Month", card: "title", render: (row) => row.month },
   {
     key: "registrations",
     label: "Registrations",
-    render: (row) => row.registrations,
+    numeric: true,
+    card: "stat",
+    render: (row) => formatCount(row.registrations),
   },
   {
     key: "eligible",
     label: "Eligible",
-    render: (row) => row.eligible ?? HIDDEN,
+    numeric: true,
+    card: "stat",
+    render: (row) => hiddenOr(row.eligible),
   },
   {
     key: "awaiting",
     label: "Awaiting verification",
-    render: (row) => row.awaiting_verification ?? HIDDEN,
+    numeric: true,
+    card: "stat",
+    render: (row) => hiddenOr(row.awaiting_verification),
   },
 ];
 
@@ -96,13 +106,14 @@ export function MyActivityPage() {
         verification means a check is not finished yet. For a month with fewer
         than 10 registrations only the total is shown.
       </Typography>
-      <DataTable
+      <ListTable
         label="Monthly totals"
         columns={columns}
         rows={months}
         rowKey={(row) => row.month}
         loading={activityQuery.isPending}
-        emptyLabel="No completed months yet."
+        emptyTitle="No completed months yet"
+        emptyDescription="Your totals appear at the start of the month after your first registration."
       />
     </>
   );
