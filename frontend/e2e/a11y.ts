@@ -39,4 +39,14 @@ export async function expectNoSidewaysScroll(page: Page) {
 export async function waitForPage(page: Page) {
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   await expect(page.getByRole("progressbar")).toHaveCount(0);
+  const authFrame = page.locator(".auth-frame");
+  if (await authFrame.count()) {
+    await authFrame.evaluate(async (frame) => {
+      await Promise.all(
+        frame
+          .getAnimations({ subtree: true })
+          .map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
+  }
 }
