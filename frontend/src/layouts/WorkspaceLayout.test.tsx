@@ -1,4 +1,4 @@
-import { cleanup, render, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { AuthContext, type AuthContextValue } from "../auth/context";
@@ -75,5 +75,12 @@ describe("workspace navigation", () => {
     const links = workspaceLinks();
     expect(links).toContain("Registration quality");
     expect(links.join(" ")).not.toMatch(/reports|agents|review/i);
+  });
+
+  it("includes the visible avatar initials in the account menu name", () => {
+    renderLayout("admin");
+    expect(
+      screen.getByRole("button", { name: "Open account menu AD" }),
+    ).toBeInTheDocument();
   });
 });

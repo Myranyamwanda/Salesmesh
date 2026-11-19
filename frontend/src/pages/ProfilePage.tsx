@@ -2,6 +2,7 @@ import { Button, Link as MuiLink, Stack, Typography } from "@mui/material";
 import ArrowForward from "@mui/icons-material/ArrowForward";
 import { Link } from "react-router-dom";
 import { PageHeader } from "../components/DataComponents";
+import { InitialsAvatar } from "../components/VisualIdentity";
 import { useAuth } from "../hooks/useAuth";
 
 export function ProfilePage() {
@@ -14,9 +15,16 @@ export function ProfilePage() {
         description="Authentication profile details."
       />
       <section className="profile-summary" aria-label="Profile details">
-        <div>
-          <Typography className="profile-label">Email</Typography>
-          <Typography>{user?.email}</Typography>
+        <div className="profile-identity">
+          <InitialsAvatar
+            name={user?.email ?? "Account"}
+            seed={user?.id ?? user?.email ?? "account"}
+            size="large"
+          />
+          <div>
+            <Typography className="profile-label">Email</Typography>
+            <Typography>{user?.email}</Typography>
+          </div>
         </div>
         <div>
           <Typography className="profile-label">Role</Typography>

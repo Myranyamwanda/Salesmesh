@@ -5,7 +5,7 @@ import { PageLoading } from "../components/PageLoading";
 /** A single, mobile-first column for pages customers open without signing in. */
 export function PublicLayout() {
   return (
-    <div className="public-frame">
+    <div className="public-frame identity-public">
       <header className="public-header">
         <span className="brand-mark" aria-hidden="true">
           S

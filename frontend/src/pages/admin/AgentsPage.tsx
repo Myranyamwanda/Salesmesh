@@ -5,6 +5,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { clientLabel } from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
+import { AgentReputationVisual } from "../../components/AgentReputationVisual";
 import { PageError, PageHeader } from "../../components/DataComponents";
 import {
   DetailDrawer,
@@ -18,6 +19,7 @@ import {
   useClampPage,
   useListParams,
 } from "../../components/table/useListParams";
+import { InitialsAvatar } from "../../components/VisualIdentity";
 import type { AgentRanking, Band } from "../../types/scoring";
 import { formatCount, formatPercent } from "../../utils/format";
 
@@ -81,6 +83,19 @@ function Flags({ agent }: { agent: AgentRanking }) {
   );
 }
 
+function bandRowClass(band: Band) {
+  switch (band) {
+    case "High risk":
+      return "identity-band-high-risk";
+    case "Watch":
+      return "identity-band-watch";
+    case "Low risk":
+      return "identity-band-low-risk";
+    case "Insufficient data":
+      return "identity-band-insufficient";
+  }
+}
+
 // The five values an admin compares across agents. Everything else about an
 // agent is in the details drawer.
 const columns: ListColumn<AgentRanking>[] = [
@@ -90,9 +105,12 @@ const columns: ListColumn<AgentRanking>[] = [
     sortable: true,
     card: "title",
     render: (agent) => (
-      <span className="cell-stack">
-        <strong>{agent.display_name}</strong>
-        <span>{agent.email}</span>
+      <span className="identity-agent-cell">
+        <InitialsAvatar name={agent.display_name} seed={agent.id} />
+        <span className="cell-stack">
+          <strong>{agent.display_name}</strong>
+          <span>{agent.email}</span>
+        </span>
       </span>
     ),
   },
@@ -118,7 +136,7 @@ const columns: ListColumn<AgentRanking>[] = [
     numeric: true,
     sortable: true,
     card: "stat",
-    render: (agent) => agent.reputation.toFixed(1),
+    render: (agent) => <AgentReputationVisual agent={agent} />,
   },
   {
     key: "band",
@@ -155,6 +173,16 @@ function AgentDrawer({
       title={agent?.display_name ?? ""}
       subtitle={agent?.email}
       badge={agent && <BandStatus band={agent.band} />}
+      leading={
+        agent && (
+          <InitialsAvatar
+            name={agent.display_name}
+            seed={agent.id}
+            size="large"
+          />
+        )
+      }
+      className="identity-agent-drawer"
       actions={
         agent && (
           <Button
@@ -171,6 +199,18 @@ function AgentDrawer({
     >
       {agent && (
         <>
+          <section
+            className="identity-drawer-score"
+            aria-label="Agent reputation"
+          >
+            <div>
+              <span className="identity-section-label">Reputation</span>
+              <AgentReputationVisual agent={agent} large />
+            </div>
+            <span className="identity-drawer-score-note">
+              Trend shows the last six monthly points.
+            </span>
+          </section>
           <DetailSection
             title="Score"
             items={[
@@ -329,7 +369,7 @@ export function AgentsPage() {
       : `${formatCount(total)} ${total === 1 ? "agent" : "agents"}${filtered ? " match" : ""}`;
 
   return (
-    <>
+    <div className="identity-agents">
       <PageHeader
         eyebrow="ADMINISTRATION"
         title="Agents"
@@ -354,6 +394,7 @@ export function AgentsPage() {
         columns={columns}
         rows={agentsQuery.data?.items ?? []}
         rowKey={(agent) => agent.id}
+        rowClassName={(agent) => bandRowClass(agent.band)}
         onOpen={setOpenAgent}
         href={(agent) => `/admin/agents/${agent.id}`}
         openKey={openAgent?.id}
@@ -401,6 +442,6 @@ export function AgentsPage() {
         }
       />
       <AgentDrawer agent={openAgent} onClose={() => setOpenAgent(null)} />
-    </>
+    </div>
   );
 }
