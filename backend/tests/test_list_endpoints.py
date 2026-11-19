@@ -253,3 +253,60 @@ def test_audit_log_unfiltered_total_counts_everything(api):  # noqa: F811
     everything = get(client, headers, "/admin/audit-logs", limit=100)
     assert everything["total"] == session.query(AuditLog).count()
     assert len(everything["items"]) == min(100, everything["total"])
+
+
+# --- GET /admin/review-queue: search and kind --------------------------------
+
+
+def test_review_queue_search_and_kind(api):  # noqa: F811
+    client, session, users, headers = api
+    add_scored_customer(session, users["agent"], full_name="Kamau Njoroge")
+    add_scored_customer(session, users["other_agent"], full_name="Achieng Odhiambo")
+    audited, assessment = add_scored_customer(
+        session, users["other_agent"], flagged=False, full_name="Njeri Muthoni"
+    )
+    assessment.audit_selected = True
+    session.commit()
+
+    def queue(**params):
+        body = get(client, headers, "/admin/review-queue", **params)
+        return sorted(item["customer_name"] for item in body["items"]), body["total"]
+
+    assert queue() == (["Achieng Odhiambo", "Kamau Njoroge", "Njeri Muthoni"], 3)
+    assert queue(q="kamau") == (["Kamau Njoroge"], 1)
+    # The agent's display name matches too.
+    assert queue(q="brian")[1] == 2
+    assert queue(kind="audit") == (["Njeri Muthoni"], 1)
+    assert queue(kind="flag", q="brian") == (["Achieng Odhiambo"], 1)
+    response = client.get(
+        "/admin/review-queue", headers=headers["admin"], params={"kind": "x"}
+    )
+    assert response.status_code == 422
+
+
+# --- GET /me/customers: search and assisted ---------------------------------
+
+
+def test_my_customers_search_and_assisted_filter(api):  # noqa: F811
+    client, session, users, headers = api
+    add_scored_customer(session, users["agent"], full_name="Kamau Njoroge")
+    add_scored_customer(
+        session, users["agent"], flagged=False, full_name="Achieng", assisted=True
+    )
+    add_scored_customer(session, users["other_agent"], full_name="Kamau Other")
+
+    def mine(**params):
+        response = client.get("/me/customers", headers=headers["agent"], params=params)
+        assert response.status_code == 200
+        body = response.json()
+        return [item["full_name"] for item in body["items"]], body["total"]
+
+    assert mine(q="KAMAU") == (["Kamau Njoroge"], 1)
+    assert mine(assisted="true") == (["Achieng"], 1)
+    assert mine(assisted="false") == (["Kamau Njoroge"], 1)
+    # Still only name, date, and assisted: no status or score to filter by.
+    body = client.get("/me/customers", headers=headers["agent"]).json()
+    assert all(
+        set(item) == {"full_name", "registered_at", "assisted"}
+        for item in body["items"]
+    )
