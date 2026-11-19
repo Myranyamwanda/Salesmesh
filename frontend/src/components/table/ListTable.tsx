@@ -1,4 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
+import { Link } from "react-router-dom";
 import {
   Button,
   Paper,
@@ -47,18 +48,26 @@ type Props<Row> = {
   columns: ListColumn<Row>[];
   rows: Row[];
   rowKey: (row: Row) => string;
-  onOpen: (row: Row) => void;
+  /** Opens the row's details. Without it, rows are plain (no drawer). */
+  onOpen?: (row: Row) => void;
+  /**
+   * A page for the row (e.g. agent detail). The title becomes a link: a
+   * plain click or Enter opens the details, and Ctrl/Cmd/Shift-click or a
+   * middle click opens this page in a new tab, as for any link.
+   */
+  href?: (row: Row) => string;
   /** The row whose details are open, highlighted in the list. */
   openKey?: string | null;
   loading?: boolean;
-  total: number;
-  page: number;
-  size: number;
+  /** Without total, page, size, onPage, and onSize there is no pager. */
+  total?: number;
+  page?: number;
+  size?: number;
   sort?: string;
   dir?: SortDirection;
   onSort?: (key: string) => void;
-  onPage: (page: number) => void;
-  onSize: (size: number) => void;
+  onPage?: (page: number) => void;
+  onSize?: (size: number) => void;
   toolbar?: ReactNode;
   /** Filters or search are hiding rows, so offer to clear them. */
   filtered?: boolean;
@@ -80,7 +89,59 @@ function cellClass<Row>(column: ListColumn<Row>) {
 
 function isControl(event: MouseEvent) {
   return Boolean(
-    (event.target as HTMLElement).closest("button, a, input, [role=button]"),
+    (event.target as HTMLElement).closest(
+      "button, a, input, select, label, [role=button], [role=combobox], [role=switch]",
+    ),
+  );
+}
+
+/** A click the browser should handle itself (new tab or window). */
+function opensElsewhere(event: MouseEvent) {
+  return (
+    event.button !== 0 ||
+    event.ctrlKey ||
+    event.metaKey ||
+    event.shiftKey ||
+    event.altKey
+  );
+}
+
+function TitleCell<Row>({
+  row,
+  content,
+  onOpen,
+  href,
+}: {
+  row: Row;
+  content: ReactNode;
+  onOpen: (row: Row) => void;
+  href?: (row: Row) => string;
+}) {
+  if (href) {
+    return (
+      <Link
+        to={href(row)}
+        className="row-open"
+        aria-haspopup="dialog"
+        onClick={(event) => {
+          if (opensElsewhere(event)) return;
+          event.preventDefault();
+          onOpen(row);
+        }}
+      >
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="row-open"
+      aria-haspopup="dialog"
+      onClick={() => onOpen(row)}
+    >
+      {content}
+    </button>
   );
 }
 
@@ -95,13 +156,18 @@ export function ListTable<Row>(props: Props<Row>) {
     rows,
     rowKey,
     onOpen,
+    href,
     openKey,
     loading = false,
     total,
-    page,
-    size,
+    page = 1,
+    size = 25,
     toolbar,
   } = props;
+  const paged =
+    total !== undefined &&
+    props.onPage !== undefined &&
+    props.onSize !== undefined;
   const phone = useMediaQuery(CARDS_QUERY);
   const columns = props.columns;
 
@@ -115,7 +181,12 @@ export function ListTable<Row>(props: Props<Row>) {
       <ul className="list-cards" aria-label={label}>
         {rows.map((row) => (
           <li key={rowKey(row)}>
-            <ListCard row={row} columns={props.columns} onOpen={onOpen} />
+            <ListCard
+              row={row}
+              columns={props.columns}
+              onOpen={onOpen}
+              href={href}
+            />
           </li>
         ))}
       </ul>
@@ -138,11 +209,11 @@ export function ListTable<Row>(props: Props<Row>) {
               return (
                 <TableRow
                   key={key}
-                  hover
+                  hover={Boolean(onOpen)}
                   selected={openKey === key}
-                  className="list-row"
+                  className={onOpen ? "list-row" : undefined}
                   onClick={(event) => {
-                    if (!isControl(event)) onOpen(row);
+                    if (onOpen && !isControl(event)) onOpen(row);
                   }}
                 >
                   {columns.map((column) => (
@@ -151,15 +222,13 @@ export function ListTable<Row>(props: Props<Row>) {
                       align={column.numeric ? "right" : "left"}
                       className={cellClass(column)}
                     >
-                      {column.card === "title" ? (
-                        <button
-                          type="button"
-                          className="row-open"
-                          aria-haspopup="dialog"
-                          onClick={() => onOpen(row)}
-                        >
-                          {column.render(row)}
-                        </button>
+                      {column.card === "title" && onOpen ? (
+                        <TitleCell
+                          row={row}
+                          content={column.render(row)}
+                          onOpen={onOpen}
+                          href={href}
+                        />
                       ) : (
                         column.render(row)
                       )}
@@ -178,7 +247,7 @@ export function ListTable<Row>(props: Props<Row>) {
     <Paper variant="outlined" className="list-card" aria-busy={loading}>
       {toolbar}
       {body}
-      {!loading && total > 0 && (
+      {paged && !loading && total > 0 && (
         <TablePagination
           component="div"
           className="list-pager"
@@ -192,9 +261,9 @@ export function ListTable<Row>(props: Props<Row>) {
           }
           showFirstButton
           showLastButton
-          onPageChange={(_, next) => props.onPage(next + 1)}
+          onPageChange={(_, next) => props.onPage?.(next + 1)}
           onRowsPerPageChange={(event) =>
-            props.onSize(Number(event.target.value))
+            props.onSize?.(Number(event.target.value))
           }
         />
       )}
@@ -234,25 +303,39 @@ function ListCard<Row>({
   row,
   columns,
   onOpen,
+  href,
 }: {
   row: Row;
   columns: ListColumn<Row>[];
-  onOpen: (row: Row) => void;
+  onOpen?: (row: Row) => void;
+  href?: (row: Row) => string;
 }) {
   const of = (place: ListColumn<Row>["card"]) =>
     columns.filter((column) => column.card === place);
+  // Like a table row: the title is the keyboard way in, a click anywhere
+  // else on the card opens it too, and links inside stay separate controls.
   return (
-    <button
-      type="button"
-      className="list-card-row"
-      aria-haspopup="dialog"
-      onClick={() => onOpen(row)}
+    <div
+      className={onOpen ? "list-card-row" : "list-card-row list-card-static"}
+      onClick={(event) => {
+        if (onOpen && !isControl(event)) onOpen(row);
+      }}
     >
       <span className="list-card-head">
         <span className="list-card-title">
-          {of("title").map((column) => (
-            <span key={column.key}>{column.render(row)}</span>
-          ))}
+          {of("title").map((column) =>
+            onOpen ? (
+              <TitleCell
+                key={column.key}
+                row={row}
+                content={column.render(row)}
+                onOpen={onOpen}
+                href={href}
+              />
+            ) : (
+              <span key={column.key}>{column.render(row)}</span>
+            ),
+          )}
         </span>
         {of("badge").map((column) => (
           <span key={column.key}>{column.render(row)}</span>
@@ -271,7 +354,7 @@ function ListCard<Row>({
           {column.render(row)}
         </span>
       ))}
-    </button>
+    </div>
   );
 }
 
@@ -330,7 +413,7 @@ function EmptyRows<Row>({
       </Typography>
       <Typography color="text.secondary" className="list-empty-text">
         {filtered
-          ? "Try a different name or email, or clear the filters to see every row."
+          ? "Try a different search, or clear the filters to see every row."
           : emptyDescription}
       </Typography>
       {filtered && onClearFilters && (

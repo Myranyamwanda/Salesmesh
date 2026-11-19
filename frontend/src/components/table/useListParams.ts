@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 export const PAGE_SIZES = [10, 25, 50] as const;
@@ -21,6 +21,8 @@ type Defaults = {
   dir: SortDirection;
   /** Filter names with their "show everything" value, e.g. { band: "all" }. */
   filters?: Record<string, string>;
+  /** Prefix for the URL keys when a page has two lists, e.g. "bench_". */
+  prefix?: string;
 };
 
 const NO_FILTERS: Record<string, string> = {};
@@ -35,27 +37,29 @@ const NO_FILTERS: Record<string, string> = {};
 export function useListParams(defaults: Defaults) {
   const [searchParams, setSearchParams] = useSearchParams();
   const filterDefaults = defaults.filters ?? NO_FILTERS;
+  const prefix = defaults.prefix ?? "";
 
   const params: ListParams = useMemo(() => {
-    const size = Number(searchParams.get("size"));
-    const page = Number(searchParams.get("page"));
-    const dir = searchParams.get("dir");
+    const read = (name: string) => searchParams.get(prefix + name);
+    const size = Number(read("size"));
+    const page = Number(read("page"));
+    const dir = read("dir");
     return {
       page: Number.isInteger(page) && page > 0 ? page : 1,
       size: (PAGE_SIZES as readonly number[]).includes(size)
         ? size
         : DEFAULT_SIZE,
-      q: searchParams.get("q") ?? "",
-      sort: searchParams.get("sort") ?? defaults.sort,
+      q: read("q") ?? "",
+      sort: read("sort") ?? defaults.sort,
       dir: dir === "asc" || dir === "desc" ? dir : defaults.dir,
       filters: Object.fromEntries(
         Object.entries(filterDefaults).map(([name, fallback]) => [
           name,
-          searchParams.get(name) ?? fallback,
+          read(name) ?? fallback,
         ]),
       ),
     };
-  }, [searchParams, defaults.sort, defaults.dir, filterDefaults]);
+  }, [searchParams, prefix, defaults.sort, defaults.dir, filterDefaults]);
 
   /** Change some values. Anything but a page change goes back to page 1. */
   const update = useCallback(
@@ -85,8 +89,9 @@ export function useListParams(defaults: Defaults) {
           };
           for (const [name, value] of Object.entries(values)) {
             if (value === undefined) continue;
-            if (String(value) === String(fallbacks[name])) next.delete(name);
-            else next.set(name, String(value));
+            const key = prefix + name;
+            if (String(value) === String(fallbacks[name])) next.delete(key);
+            else next.set(key, String(value));
           }
           return next;
         },
@@ -94,7 +99,7 @@ export function useListParams(defaults: Defaults) {
         { replace: true },
       );
     },
-    [setSearchParams, defaults.sort, defaults.dir, filterDefaults],
+    [setSearchParams, prefix, defaults.sort, defaults.dir, filterDefaults],
   );
 
   const filtered =
@@ -109,4 +114,69 @@ export function useListParams(defaults: Defaults) {
   );
 
   return { params, update, filtered, clearFilters };
+}
+
+/** The API offset of the current page. */
+export function pageOffset(params: Pick<ListParams, "page" | "size">) {
+  return (params.page - 1) * params.size;
+}
+
+/**
+ * If the total shrinks below the current page (a row was removed, or an old
+ * link), go to the last page instead of showing an empty one.
+ */
+export function useClampPage(
+  total: number | undefined,
+  params: Pick<ListParams, "page" | "size">,
+  update: (changes: { page: number }) => void,
+) {
+  useEffect(() => {
+    if (total === undefined) return;
+    const last = Math.max(1, Math.ceil(total / params.size));
+    if (params.page > last) update({ page: last });
+  }, [total, params.page, params.size, update]);
+}
+
+/**
+ * Search, sort, and page rows the API sends in full (a short list, such as
+ * one row per agent in a report). Server-side lists use offset/limit.
+ */
+export function pageRows<Row>(
+  rows: Row[],
+  params: ListParams,
+  options: {
+    matches?: (row: Row, term: string) => boolean;
+    sortValue?: (row: Row, key: string) => string | number | null;
+  } = {},
+) {
+  const term = params.q.trim().toLowerCase();
+  let matching =
+    term && options.matches
+      ? rows.filter((row) => options.matches!(row, term))
+      : rows;
+  const { sortValue } = options;
+  if (sortValue) {
+    const sign = params.dir === "asc" ? 1 : -1;
+    matching = [...matching].sort((a, b) => {
+      const left = sortValue(a, params.sort);
+      const right = sortValue(b, params.sort);
+      // Missing values ("—") go last in both directions.
+      if (left === null || right === null) {
+        return left === right ? 0 : left === null ? 1 : -1;
+      }
+      return (
+        sign *
+        (typeof left === "string"
+          ? left.localeCompare(String(right))
+          : left - Number(right))
+      );
+    });
+  }
+  const last = Math.max(1, Math.ceil(matching.length / params.size));
+  const page = Math.min(params.page, last);
+  return {
+    rows: matching.slice((page - 1) * params.size, page * params.size),
+    total: matching.length,
+    page,
+  };
 }

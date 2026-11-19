@@ -839,96 +839,7 @@ a:hover {
   background: var(--accent);
 }
 
-.page-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-
-.page-filters {
-  display: flex;
-  flex: 1;
-  align-items: center;
-  gap: 10px;
-}
-
-.page-filters .MuiTextField-root {
-  max-width: 300px;
-}
-
-.page-filter-select,
-.status-filter {
-  min-width: 150px;
-}
-
-.data-table-wrap {
-  border-color: var(--line) !important;
-  border-radius: var(--radius-lg) !important;
-  box-shadow: var(--card-shadow) !important;
-}
-
 /* A table inside a card keeps its border but not a second shadow. */
-.chart-card .data-table-wrap {
-  box-shadow: none !important;
-}
-
-.table-empty {
-  padding: 20px 6px;
-  color: var(--subtle);
-  font-size: 13px;
-  text-align: center;
-}
-
-.table-skeleton {
-  border-radius: var(--radius-md);
-}
-
-.table-pagination {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 13px;
-}
-
-.table-pagination p {
-  font-size: 12px;
-}
-
-.account-cell {
-  display: grid;
-  min-width: 155px;
-  gap: 4px;
-}
-
-.account-cell strong {
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.account-cell span,
-.data-table-wrap code {
-  color: var(--subtle);
-  font-size: 12px;
-}
-
-.role-text {
-  font-size: 13px !important;
-  text-transform: capitalize;
-}
-
-.user-actions-cell {
-  display: flex;
-  min-width: 340px;
-  align-items: center;
-  gap: 7px;
-}
-
-.role-select {
-  min-width: 100px;
-}
 
 .switch-hint {
   max-width: 112px;
@@ -1112,32 +1023,6 @@ a:hover {
 
   .kpi-card {
     min-height: 99px;
-  }
-
-  .page-toolbar,
-  .page-filters {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .page-filters .MuiTextField-root,
-  .page-filter-select,
-  .status-filter {
-    width: 100%;
-    max-width: none;
-  }
-
-  .data-table-wrap {
-    overflow-x: auto;
-  }
-
-  .data-table-wrap .MuiTable-root {
-    min-width: 720px;
-  }
-
-  .table-pagination {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .profile-summary {
@@ -1369,14 +1254,6 @@ a:hover {
   display: grid;
   max-width: 720px;
   gap: 18px;
-}
-
-.toolbar-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1695,6 +1572,7 @@ a:hover {
 }
 
 .list-card-row {
+  position: relative;
   display: grid;
   width: 100%;
   gap: 10px;
@@ -1711,8 +1589,17 @@ a:hover {
   background: var(--tint);
 }
 
-.list-card-row:focus-visible {
-  outline-offset: -3px;
+.list-card-row .row-open {
+  width: auto;
+  margin: -4px -6px;
+  padding: 4px 6px;
+}
+
+/* Links on a card are separate controls: at least 24 px tall (WCAG 2.5.8). */
+.list-card-row a {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
 }
 
 .list-card-head {
@@ -1966,4 +1853,58 @@ a:hover {
   margin-top: 32px;
   padding-top: 20px;
   border-top: 1px solid var(--line-soft);
+}
+
+/* Small helpers for list cells and drawers */
+.cell-note {
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.cell-clamp {
+  display: -webkit-box;
+  max-width: 320px;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.sentence-case {
+  display: inline-block;
+}
+
+.sentence-case::first-letter {
+  text-transform: uppercase;
+}
+
+.badge-gap {
+  margin-left: 8px;
+}
+
+.list-card-static {
+  cursor: default;
+}
+
+.list-card-static:hover {
+  background: none;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.switch-row .switch-hint {
+  max-width: none;
+}
+
+/* The pager's page-size select has no border of its own, so it gets the
+   focus ring the theme removes from text inputs (WCAG 2.4.7). */
+.list-pager .MuiTablePagination-select:focus-visible {
+  border-radius: var(--radius-sm);
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
