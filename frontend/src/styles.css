@@ -1367,6 +1367,149 @@ a:hover {
   box-shadow: 0 8px 24px rgb(20 33 61 / 6%) !important;
 }
 
+.identity-workspace .list-card {
+  position: relative;
+  overflow: hidden;
+  border-top: 3px solid var(--identity-blue) !important;
+}
+
+.identity-workspace .list-card::before {
+  position: absolute;
+  z-index: 0;
+  top: -84px;
+  right: -82px;
+  width: 180px;
+  height: 180px;
+  border: 1px solid rgb(42 85 212 / 7%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 28px rgb(42 85 212 / 2%),
+    0 0 0 56px rgb(19 123 104 / 1%);
+  content: "";
+  pointer-events: none;
+}
+
+.identity-workspace .table-toolbar,
+.identity-workspace .list-pager {
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(
+    120deg,
+    rgb(241 245 255 / 82%),
+    rgb(255 255 255 / 94%) 62%,
+    rgb(246 251 249 / 90%)
+  );
+}
+
+.identity-workspace .table-toolbar {
+  min-height: 76px;
+  padding: 14px 18px;
+  border-bottom-color: var(--identity-line);
+}
+
+.identity-workspace .table-search,
+.identity-workspace .table-filter {
+  background: rgb(255 255 255 / 94%);
+  border-radius: 12px;
+}
+
+.identity-workspace .table-search .MuiOutlinedInput-root,
+.identity-workspace .table-filter .MuiOutlinedInput-root {
+  min-height: 44px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 94%);
+}
+
+.identity-workspace .table-count {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 0 11px;
+  color: var(--identity-blue-deep);
+  background: #edf3ff;
+  border: 1px solid #dbe5fb;
+  border-radius: 999px;
+  box-shadow: 0 3px 10px rgb(42 85 212 / 5%);
+}
+
+.identity-workspace .list-table-scroll {
+  position: relative;
+  z-index: 1;
+}
+
+.identity-workspace .list-table .MuiTableCell-head {
+  height: 48px;
+  color: #53627a;
+  background: linear-gradient(180deg, #fbfcff, #f6f9fd);
+  border-bottom-color: #dbe5ef;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+}
+
+.identity-workspace .list-table .MuiTableCell-body {
+  height: 68px;
+  border-bottom-color: #edf1f5;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.identity-workspace .list-table .list-row:hover .MuiTableCell-body {
+  background: #f7f9ff;
+}
+
+.identity-workspace .list-table .list-row.Mui-selected .MuiTableCell-body {
+  background: #edf4ff;
+}
+
+.identity-workspace .list-table tbody tr:nth-of-type(even) .MuiTableCell-body {
+  background: rgb(248 250 253 / 58%);
+}
+
+.identity-workspace .list-pager {
+  min-height: 64px;
+  border-top-color: var(--identity-line);
+}
+
+.identity-workspace .list-cards {
+  position: relative;
+  z-index: 1;
+  gap: 10px;
+  padding: 10px;
+  background: #f8fafc;
+}
+
+.identity-workspace .list-cards li + li {
+  border-top: 0;
+}
+
+.identity-workspace .list-card-row {
+  min-height: 94px;
+  gap: 8px;
+  padding: 15px 16px;
+  background: #fff;
+  border: 1px solid #dfe6ef;
+  border-radius: 14px;
+  box-shadow: 0 5px 16px rgb(20 33 61 / 5%);
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease;
+}
+
+.identity-workspace .list-card-row:hover {
+  background: #fbfcff;
+  box-shadow: 0 8px 20px rgb(20 33 61 / 8%);
+  transform: translateY(-1px);
+}
+
+.identity-workspace .list-card-row .row-open {
+  min-height: 48px;
+  border-radius: 9px;
+}
+
 .identity-workspace .kpi-card {
   position: relative;
   overflow: hidden;
@@ -1400,6 +1543,30 @@ a:hover {
 .identity-workspace .chart-card-heading h2 {
   color: var(--identity-ink);
   letter-spacing: -0.015em;
+}
+
+.identity-workspace .detail-drawer .MuiDrawer-paper {
+  border-radius: 22px 0 0 22px;
+  box-shadow: -12px 0 36px rgb(20 33 61 / 14%);
+}
+
+.identity-workspace .detail-drawer-head {
+  background:
+    radial-gradient(circle at 92% 0%, rgb(19 123 104 / 10%), transparent 38%),
+    linear-gradient(135deg, #f2f6ff, #fff 72%, #f4fbf8);
+  border-bottom: 1px solid var(--identity-line);
+}
+
+.identity-workspace .detail-section {
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid var(--identity-line);
+  border-radius: 16px;
+}
+
+.identity-workspace .detail-section-title {
+  color: var(--identity-blue-deep);
+  letter-spacing: 0.02em;
 }
 
 .identity-public .public-header {

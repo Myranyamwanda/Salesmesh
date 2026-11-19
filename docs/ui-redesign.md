@@ -151,6 +151,12 @@ No scoring features, response fields, or client/agent disclosures were added.
 - The shared `ListTable` empty state uses the original mesh SVG. Search,
   sorting, row actions, pagination, drawers, and empty-state wording remain
   unchanged.
+- Shared table cards use a three-pixel brand-accent top edge, a light
+  blue-to-mint toolbar, a compact result-count pill, calm uppercase headers,
+  subtle alternating row fills, visible hover/selection states, and mobile
+  cards with restrained shadows. Risk-band row edges and text badges remain
+  unchanged. Shared drawers use a mesh-gradient header and grouped section
+  cards; no table or drawer exposes new fields.
 - Public registration, registration-pending, sign-up, Forgot Password, Profile,
   change-password, and 403/404 status pages share the visual identity. Password
   reset email links continue to be handled by Firebase; there is no separate
