@@ -31,6 +31,7 @@ import { z } from "zod";
 import * as adminApi from "../api/admin";
 import { sendPasswordReset } from "../auth/firebase";
 import { PageError, PageHeader } from "../components/DataComponents";
+import { InitialsAvatar } from "../components/VisualIdentity";
 import { DetailDrawer, DetailSection } from "../components/table/DetailDrawer";
 import { ListTable, type ListColumn } from "../components/table/ListTable";
 import { StatusBadge, type Tone } from "../components/table/StatusBadge";
@@ -266,11 +267,14 @@ export function AdminUserManagementPage() {
       label: "Account",
       card: "title",
       render: (row) => (
-        <span className="cell-stack">
-          <strong>{row.email}</strong>
-          {row.role === "client" && (
-            <span>{organisations.get(row.id) ?? "No organisation name"}</span>
-          )}
+        <span className="identity-account-cell">
+          <InitialsAvatar name={row.email.split("@")[0]} seed={row.id} />
+          <span className="cell-stack">
+            <strong>{row.email}</strong>
+            {row.role === "client" && (
+              <span>{organisations.get(row.id) ?? "No organisation name"}</span>
+            )}
+          </span>
         </span>
       ),
     },
@@ -375,6 +379,15 @@ export function AdminUserManagementPage() {
         title={current?.email ?? ""}
         subtitle={
           current ? `Created ${formatDateTime(current.created_at)}` : undefined
+        }
+        leading={
+          current && (
+            <InitialsAvatar
+              name={current.email.split("@")[0]}
+              seed={current.id}
+              size="large"
+            />
+          )
         }
         badge={current && <UserStatus user={current} />}
       >

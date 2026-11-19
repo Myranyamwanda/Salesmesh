@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from "react";
 import { Link } from "react-router-dom";
+import { MeshMark } from "../components/VisualIdentity";
 
 export function AuthLayout({ children }: PropsWithChildren) {
   return (
@@ -12,23 +13,13 @@ export function AuthLayout({ children }: PropsWithChildren) {
           <span>SalesMesh</span>
         </Link>
         <div className="brand-copy">
-          <p className="eyebrow">DISTRIBUTED ONBOARDING</p>
-          <h2>Every connection starts here.</h2>
+          <p className="eyebrow">TRUSTED BY DESIGN</p>
+          <h2>Good work moves through good connections.</h2>
           <p className="brand-subtitle">
-            A secure workspace for teams, agents, and clients.
+            One clear path for teams, agents, and the people they serve.
           </p>
         </div>
-        <div className="brand-art" aria-hidden="true">
-          <div className="art-ring art-ring-one" />
-          <div className="art-ring art-ring-two" />
-          <div className="art-node art-node-one" />
-          <div className="art-node art-node-two" />
-          <div className="art-node art-node-three" />
-          <div className="art-line art-line-one" />
-          <div className="art-line art-line-two" />
-          <div className="art-line art-line-three" />
-          <div className="art-caption">A considered start</div>
-        </div>
+        <MeshMark className="brand-art" />
         <p className="brand-foot">SALESMESH · SECURE ACCESS</p>
       </aside>
       <section className="auth-main">

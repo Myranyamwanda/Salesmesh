@@ -13,16 +13,20 @@ export function DetailDrawer({
   title,
   subtitle,
   badge,
+  leading,
   children,
   actions,
+  className,
 }: {
   open: boolean;
   onClose: () => void;
   title: string;
   subtitle?: string;
   badge?: ReactNode;
+  leading?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
+  className?: string;
 }) {
   const titleId = useId();
   return (
@@ -30,7 +34,7 @@ export function DetailDrawer({
       anchor="right"
       open={open}
       onClose={onClose}
-      className="detail-drawer"
+      className={["detail-drawer", className].filter(Boolean).join(" ")}
       slotProps={{
         paper: {
           role: "dialog",
@@ -40,6 +44,7 @@ export function DetailDrawer({
       }}
     >
       <header className="detail-drawer-head">
+        {leading && <span className="detail-drawer-leading">{leading}</span>}
         <div>
           <Typography component="h2" id={titleId} className="detail-title">
             {title}

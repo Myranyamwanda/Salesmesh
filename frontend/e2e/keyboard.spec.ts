@@ -63,26 +63,67 @@ test.describe("keyboard", () => {
     expectAllVisible(stops);
   });
 
-  test("registration link: the whole form can be completed by keyboard", async ({
+  test("registration steps: every field and action is keyboard accessible", async ({
     page,
   }) => {
     await mockApi(page, null);
     await page.goto("/join/AGT-7K3Q2MNP");
     await waitForPage(page);
-    const stops = await tabThrough(page, 25);
-    const names = stops.map((stop) => stop.name);
-    expect(names).toEqual(
+    await expect(page.getByLabel("Full name")).toBeFocused();
+    await page.getByLabel("Full name").fill("Wanjiru Kamau");
+    await page.getByLabel("Email address").fill("wanjiru.k@example.com");
+    await page.getByLabel("Mobile number").fill("0712345678");
+    await page.getByLabel("Date of birth").fill("1994-03-12");
+    await page.getByLabel("Full name").focus();
+    const aboutYouStops = await tabThrough(page, 12);
+    const aboutYouNames = aboutYouStops.map((stop) => stop.name);
+    expect(aboutYouNames).toEqual(
       expect.arrayContaining([
-        "Full name",
         "Email address",
         "Mobile number",
-        "Date of birth",
-        "Country",
-        "How we use your data",
-        "Register",
+        "Secondary phone number (optional)",
+        "Continue",
       ]),
     );
-    expectAllVisible(stops);
+    expect(aboutYouNames.some((name) => name.startsWith("Date of birth"))).toBe(
+      true,
+    );
+    expectAllVisible(aboutYouStops);
+
+    await page.getByRole("button", { name: "Continue" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(
+      page.getByRole("heading", { name: "Where you live" }),
+    ).toBeFocused();
+    const locationStops = await tabThrough(page, 12);
+    const locationNames = locationStops.map((stop) => stop.name);
+    expect(locationNames).toEqual(
+      expect.arrayContaining([
+        "Country",
+        "Years",
+        "Months",
+        "Back",
+        "Continue",
+      ]),
+    );
+    expectAllVisible(locationStops);
+
+    await page.getByLabel("Years").first().selectOption("1");
+    await page.getByLabel("Months").first().selectOption("2");
+    await page.getByRole("button", { name: "Continue" }).focus();
+    await page.keyboard.press("Enter");
+    const reviewHeading = page.getByRole("heading", {
+      name: "Review and consent",
+    });
+    await expect(reviewHeading).toBeVisible();
+    await reviewHeading.focus();
+    const reviewStops = await tabThrough(page, 8);
+    const reviewNames = reviewStops.map((stop) => stop.name);
+    expect(
+      reviewNames.some((name) => name.includes("I agree that SalesMesh")),
+    ).toBe(true);
+    expect(reviewNames).toEqual(expect.arrayContaining(["Back", "Register"]));
+    expectAllVisible(reviewStops);
   });
 
   test("agents list: open a row's details with Enter, close with Escape", async ({

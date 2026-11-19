@@ -134,6 +134,10 @@ afterEach(cleanup);
 
 // The Model page also loads the monitoring card; give it an empty history.
 beforeEach(() => {
+  vi.spyOn(scoringApi, "getAgentKpis").mockResolvedValue({
+    agent: { id: "agent-1", display_name: "Amina Otieno" },
+    months: [],
+  });
   vi.spyOn(scoringApi, "getMonitoring").mockResolvedValue({
     p0: 0.0539,
     months: [],
@@ -163,6 +167,9 @@ describe("review queue", () => {
 
     const row = (await screen.findByText("Wanjiru Kamau")).closest("tr")!;
     expect(within(row).getByText("6.1%")).toBeInTheDocument();
+    expect(
+      within(row).getByRole("meter", { name: "Model probability" }),
+    ).toHaveAttribute("aria-valuetext", "6.1%");
     expect(within(row).getByText("Rule")).toBeInTheDocument();
     expect(within(row).getByText("Model")).toBeInTheDocument();
     expect(row).toHaveTextContent(ruleReason.text);
@@ -516,6 +523,11 @@ describe("agents ranking", () => {
     await input.type(screen.getByLabelText("Search agents"), "zzz");
     expect(
       await screen.findByText("No results match your search or filters"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("img", {
+        name: "Connected nodes represent the SalesMesh network",
+      }),
     ).toBeInTheDocument();
     await input.click(
       screen.getByRole("button", { name: "Clear search and filters" }),

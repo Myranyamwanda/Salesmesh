@@ -10,12 +10,25 @@ import { mockApi } from "./mockApi";
 
 const JOIN = "/join/AGT-7K3Q2MNP";
 
-async function fillValidForm(page: Page) {
+async function fillAboutYou(page: Page, email = "wanjiru.k@example.com") {
   await page.getByLabel("Full name").fill("Wanjiru Kamau");
-  await page.getByLabel("Email address").fill("wanjiru.k@example.com");
+  await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Mobile number").fill("0712345678");
   await page.getByLabel("Date of birth").fill("1994-03-12");
-  await page.getByLabel(/current address/).fill("14");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Where you live" }),
+  ).toBeVisible();
+}
+
+async function fillValidForm(page: Page, email = "wanjiru.k@example.com") {
+  await fillAboutYou(page, email);
+  await page.getByLabel("Years").first().selectOption("1");
+  await page.getByLabel("Months").first().selectOption("2");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Review and consent" }),
+  ).toBeVisible();
   await page.getByRole("checkbox", { name: /I agree/ }).check();
 }
 
@@ -29,15 +42,25 @@ test("fields use the right keyboard and autofill on a phone", async ({
   await expect(field("Email address")).toHaveAttribute("type", "email");
   await expect(field("Email address")).toHaveAttribute("autocomplete", "email");
   await expect(field("Mobile number")).toHaveAttribute("type", "tel");
-  await expect(field("Mobile number")).toHaveAttribute("autocomplete", "tel");
+  await expect(field("Mobile number")).toHaveAttribute(
+    "autocomplete",
+    "tel-national",
+  );
   await expect(field(/Secondary phone/)).toHaveAttribute("type", "tel");
   await expect(field("Full name")).toHaveAttribute("autocomplete", "name");
   await expect(field("Date of birth")).toHaveAttribute("type", "date");
+  await expect(field("Date of birth")).toHaveAttribute("autocomplete", "bday");
+
+  await page.getByLabel("Full name").fill("Wanjiru Kamau");
+  await page.getByLabel("Email address").fill("wanjiru.k@example.com");
+  await page.getByLabel("Mobile number").fill("0712345678");
+  await page.getByLabel("Date of birth").fill("1994-03-12");
+  await page.getByRole("button", { name: "Continue" }).click();
+
   await expect(field("Country")).toHaveAttribute("autocomplete", "country");
-  await expect(field(/current address/)).toHaveAttribute(
-    "inputmode",
-    "numeric",
-  );
+  await expect(page.getByLabel("Years").first()).toBeVisible();
+  await expect(page.getByLabel("Months").first()).toBeVisible();
+  await expect(page.getByLabel(/current address/i)).toHaveCount(0);
 });
 
 test("errors appear next to their fields and focus moves to the first", async ({
@@ -46,22 +69,38 @@ test("errors appear next to their fields and focus moves to the first", async ({
   const unexpected = await mockApi(page, null);
   await page.goto(JOIN);
   await waitForPage(page);
-  await page.getByRole("button", { name: "Register" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
 
   const name = page.getByLabel("Full name");
   await expect(name).toBeFocused();
   await expect(name).toHaveAttribute("aria-invalid", "true");
   // The error is read out with the field, not only shown in red.
   await expect(name).toHaveAccessibleDescription(/\S/);
-  const consent = page.getByRole("checkbox", { name: /I agree/ });
-  await expect(consent).toHaveAttribute("aria-invalid", "true");
-  await expect(consent).toHaveAccessibleDescription(
-    "Please agree before registering",
-  );
 
   await expectNoAxeViolations(page);
   await expectNoSidewaysScroll(page);
   expect(unexpected).toEqual([]);
+});
+
+test("consent is required and announced on the review step", async ({
+  page,
+}) => {
+  await mockApi(page, null);
+  await page.goto(JOIN);
+  await waitForPage(page);
+  await fillAboutYou(page);
+  await page.getByLabel("Years").first().selectOption("1");
+  await page.getByLabel("Months").first().selectOption("2");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("button", { name: "Register" }).click();
+
+  const consent = page.getByRole("checkbox", { name: /I agree/ });
+  await expect(consent).toBeFocused();
+  await expect(consent).toHaveAttribute("aria-invalid", "true");
+  await expect(consent).toHaveAccessibleDescription(
+    "Please agree before registering",
+  );
+  await expectNoAxeViolations(page);
 });
 
 test("a refused email is shown under the email field", async ({ page }) => {
@@ -109,6 +148,9 @@ test("a failed submission keeps the details and says so in an alert", async ({
   await expect(page.getByRole("alert")).toContainText(
     "Your details are still here.",
   );
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page.getByLabel("Full name")).toHaveCount(0);
+  await page.getByRole("button", { name: "Back" }).click();
   await expect(page.getByLabel("Full name")).toHaveValue("Wanjiru Kamau");
   await expectNoAxeViolations(page);
 });
@@ -125,10 +167,32 @@ test("success is announced with the reference number", async ({ page }) => {
   await fillValidForm(page);
   await page.getByRole("button", { name: "Register" }).click();
 
-  const status = page.getByRole("status");
+  const status = page.getByRole("status").filter({
+    hasText: "Registration received",
+  });
   await expect(status).toContainText("Registration received");
   await expect(status.getByLabel("Reference number REG-4F7K2M")).toBeVisible();
   await expectNoAxeViolations(page);
   await expectNoSidewaysScroll(page);
   expect(unexpected).toEqual([]);
+});
+
+test("all registration steps pass axe and fit a 360px viewport", async ({
+  page,
+}) => {
+  await mockApi(page, null);
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto(JOIN);
+  await waitForPage(page);
+
+  await expectNoAxeViolations(page);
+  await expectNoSidewaysScroll(page);
+  await fillAboutYou(page);
+  await expectNoAxeViolations(page);
+  await expectNoSidewaysScroll(page);
+  await page.getByLabel("Years").first().selectOption("1");
+  await page.getByLabel("Months").first().selectOption("2");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expectNoAxeViolations(page);
+  await expectNoSidewaysScroll(page);
 });

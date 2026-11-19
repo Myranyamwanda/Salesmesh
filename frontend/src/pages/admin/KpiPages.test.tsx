@@ -81,6 +81,10 @@ afterEach(cleanup);
 
 beforeEach(() => {
   vi.spyOn(scoringApi, "getAgent").mockResolvedValue(detail);
+  vi.spyOn(scoringApi, "getAgentKpis").mockResolvedValue({
+    agent: { id: "agent-1", display_name: "Amina Otieno" },
+    months: [],
+  });
   vi.spyOn(adminApi, "listClients").mockResolvedValue([]);
   vi.spyOn(scoringApi, "getReviewQueue").mockResolvedValue({
     items: [],
