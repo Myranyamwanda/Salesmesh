@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Alert, AlertTitle, Button } from "@mui/material";
 import ArrowForward from "@mui/icons-material/ArrowForward";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { clientLabel } from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
@@ -13,8 +13,12 @@ import {
 import { ListTable, type ListColumn } from "../../components/table/ListTable";
 import { BandStatus, StatusBadge } from "../../components/table/StatusBadge";
 import { TableToolbar } from "../../components/table/TableToolbar";
-import { useListParams } from "../../components/table/useListParams";
-import type { AgentRanking } from "../../types/scoring";
+import {
+  pageOffset,
+  useClampPage,
+  useListParams,
+} from "../../components/table/useListParams";
+import type { AgentRanking, Band } from "../../types/scoring";
 import { formatCount, formatPercent } from "../../utils/format";
 
 const sortKeys = ["display_name", "n_users", "flags", "reputation"] as const;
@@ -28,22 +32,15 @@ const bandOptions = [
   { value: "Insufficient data", label: "Insufficient data" },
 ];
 
-function sortAgents(
-  agents: AgentRanking[],
-  key: SortKey,
-  direction: "asc" | "desc",
-) {
-  const sign = direction === "asc" ? 1 : -1;
-  return [...agents].sort((a, b) => {
-    const left = a[key];
-    const right = b[key];
-    const order =
-      typeof left === "string"
-        ? left.localeCompare(right as string)
-        : (left as number) - (right as number);
-    return sign * order;
-  });
-}
+const reviewOptions = [
+  { value: "all", label: "All agents" },
+  { value: "pending", label: "Has pending reviews" },
+];
+
+const clientOptions = [
+  { value: "all", label: "Any client" },
+  { value: "none", label: "No client" },
+];
 
 function NoSignals() {
   return (
@@ -66,6 +63,21 @@ function Signals({ agent }: { agent: AgentRanking }) {
         <StatusBadge tone="neutral" label="Link inactive" />
       )}
     </span>
+  );
+}
+
+/** "12 · 3 pending": flags, and how many of them wait for a review. */
+function Flags({ agent }: { agent: AgentRanking }) {
+  return (
+    <>
+      {formatCount(agent.flags)}
+      {agent.pending_review > 0 && (
+        <span className="cell-note">
+          {" "}
+          · {formatCount(agent.pending_review)} pending
+        </span>
+      )}
+    </>
   );
 }
 
@@ -98,7 +110,7 @@ const columns: ListColumn<AgentRanking>[] = [
     numeric: true,
     sortable: true,
     card: "stat",
-    render: (agent) => formatCount(agent.flags),
+    render: (agent) => <Flags agent={agent} />,
   },
   {
     key: "reputation",
@@ -233,44 +245,75 @@ function AgentDrawer({
 const listDefaults = {
   sort: "reputation",
   dir: "asc",
-  filters: { band: "all" },
+  filters: { band: "all", reviews: "all", client: "all" },
 } as const;
+
+/** Up to this many names in the "without a client" notice. */
+const NOTICE_NAMES = 5;
+
+function WithoutClientNotice({ onShow }: { onShow: () => void }) {
+  const query = useQuery({
+    queryKey: ["admin", "agents", "without-client"],
+    queryFn: () =>
+      scoringApi.listAgents({
+        offset: 0,
+        limit: NOTICE_NAMES,
+        no_client: true,
+        sort: "display_name",
+      }),
+  });
+  const page = query.data;
+  if (!page?.total) return null;
+  const more = page.total - page.items.length;
+  return (
+    <Alert
+      severity="warning"
+      className="page-notice"
+      action={
+        <Button color="inherit" size="small" onClick={onShow}>
+          Show them
+        </Button>
+      }
+    >
+      <AlertTitle>Agents without a client</AlertTitle>
+      Their registration links are not active until you assign a client:{" "}
+      {page.items.map((agent, index) => (
+        <span key={agent.id}>
+          {index > 0 && ", "}
+          <Link to={`/admin/agents/${agent.id}`}>{agent.display_name}</Link>
+        </span>
+      ))}
+      {more > 0 && ` and ${formatCount(more)} more`}.
+    </Alert>
+  );
+}
 
 export function AgentsPage() {
   const { params, update, filtered, clearFilters } =
     useListParams(listDefaults);
-  const [openId, setOpenId] = useState<string | null>(null);
-  const agentsQuery = useQuery({
-    queryKey: ["admin", "agents"],
-    queryFn: scoringApi.listAgents,
-  });
-  const agents = useMemo(() => agentsQuery.data ?? [], [agentsQuery.data]);
+  const [openAgent, setOpenAgent] = useState<AgentRanking | null>(null);
   const sortKey: SortKey = (sortKeys as readonly string[]).includes(params.sort)
     ? (params.sort as SortKey)
     : "reputation";
-  const band = params.filters.band;
-
-  // Phase 0 filters, sorts, and pages in the browser; Phase 1 moves this to
-  // the API (offset/limit/total), and the table component stays the same.
-  const matching = useMemo(() => {
-    const term = params.q.trim().toLowerCase();
-    return sortAgents(
-      agents.filter(
-        (agent) =>
-          (band === "all" || agent.band === band) &&
-          (!term ||
-            agent.display_name.toLowerCase().includes(term) ||
-            agent.email.toLowerCase().includes(term)),
-      ),
-      sortKey,
-      params.dir,
-    );
-  }, [agents, band, params.q, params.dir, sortKey]);
-  const lastPage = Math.max(1, Math.ceil(matching.length / params.size));
-  const page = Math.min(params.page, lastPage);
-  const rows = matching.slice((page - 1) * params.size, page * params.size);
-  const withoutClient = agents.filter((agent) => agent.client === null);
-  const openAgent = agents.find((agent) => agent.id === openId) ?? null;
+  const { band, reviews, client } = params.filters;
+  const agentsQuery = useQuery({
+    queryKey: ["admin", "agents", "list", params],
+    queryFn: () =>
+      scoringApi.listAgents({
+        offset: pageOffset(params),
+        limit: params.size,
+        q: params.q.trim(),
+        sort: sortKey,
+        dir: params.dir,
+        band: band === "all" ? [] : [band as Band],
+        has_pending: reviews === "pending",
+        no_client: client === "none",
+      }),
+    // Keep the current rows on screen while the next page loads.
+    placeholderData: keepPreviousData,
+  });
+  const total = agentsQuery.data?.total;
+  useClampPage(total, params, update);
 
   function changeSort(key: string) {
     if (key === sortKey) {
@@ -280,9 +323,10 @@ export function AgentsPage() {
     }
   }
 
-  const count = filtered
-    ? `${formatCount(matching.length)} of ${formatCount(agents.length)} agents`
-    : `${formatCount(agents.length)} agents`;
+  const count =
+    total === undefined
+      ? undefined
+      : `${formatCount(total)} ${total === 1 ? "agent" : "agents"}${filtered ? " match" : ""}`;
 
   return (
     <>
@@ -297,29 +341,25 @@ export function AgentsPage() {
           error={agentsQuery.error}
         />
       )}
-      {withoutClient.length > 0 && (
-        <Alert severity="warning" className="page-notice">
-          <AlertTitle>Agents without a client</AlertTitle>
-          Their registration links are not active until you assign a client:{" "}
-          {withoutClient.map((agent, index) => (
-            <span key={agent.id}>
-              {index > 0 && ", "}
-              <Link to={`/admin/agents/${agent.id}`}>{agent.display_name}</Link>
-            </span>
-          ))}
-          .
-        </Alert>
-      )}
+      <WithoutClientNotice
+        onShow={() =>
+          update({
+            q: "",
+            filters: { band: "all", reviews: "all", client: "none" },
+          })
+        }
+      />
       <ListTable
         label="Agents"
         columns={columns}
-        rows={rows}
+        rows={agentsQuery.data?.items ?? []}
         rowKey={(agent) => agent.id}
-        onOpen={(agent) => setOpenId(agent.id)}
-        openKey={openId}
+        onOpen={setOpenAgent}
+        href={(agent) => `/admin/agents/${agent.id}`}
+        openKey={openAgent?.id}
         loading={agentsQuery.isPending}
-        total={matching.length}
-        page={page}
+        total={total ?? 0}
+        page={params.page}
         size={params.size}
         sort={sortKey}
         dir={params.dir}
@@ -342,13 +382,25 @@ export function AgentsPage() {
                 value: band,
                 options: bandOptions,
               },
+              {
+                name: "reviews",
+                label: "Reviews",
+                value: reviews,
+                options: reviewOptions,
+              },
+              {
+                name: "client",
+                label: "Client",
+                value: client,
+                options: clientOptions,
+              },
             ]}
             onFilter={(name, value) => update({ filters: { [name]: value } })}
-            count={agentsQuery.isPending ? undefined : count}
+            count={count}
           />
         }
       />
-      <AgentDrawer agent={openAgent} onClose={() => setOpenId(null)} />
+      <AgentDrawer agent={openAgent} onClose={() => setOpenAgent(null)} />
     </>
   );
 }

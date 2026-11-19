@@ -1,8 +1,7 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Button,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -10,7 +9,6 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Pagination,
   Select,
   Snackbar,
   Stack,
@@ -22,21 +20,30 @@ import Add from "@mui/icons-material/Add";
 import Check from "@mui/icons-material/Check";
 import Close from "@mui/icons-material/Close";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import * as adminApi from "../api/admin";
 import { sendPasswordReset } from "../auth/firebase";
+import { PageError, PageHeader } from "../components/DataComponents";
+import { DetailDrawer, DetailSection } from "../components/table/DetailDrawer";
+import { ListTable, type ListColumn } from "../components/table/ListTable";
+import { StatusBadge, type Tone } from "../components/table/StatusBadge";
+import { TableToolbar } from "../components/table/TableToolbar";
 import {
-  DataTable,
-  PageError,
-  PageFilters,
-  PageHeader,
-  type DataColumn,
-} from "../components/DataComponents";
+  pageOffset,
+  useClampPage,
+  useListParams,
+} from "../components/table/useListParams";
 import { useAuth } from "../hooks/useAuth";
 import type { AuthUser, UserRole } from "../types/auth";
 import { apiErrorMessage } from "../utils/errors";
+import { formatCount, formatDate, formatDateTime } from "../utils/format";
 
 const organisationName = z
   .string()
@@ -64,26 +71,51 @@ const createSchema = z
 
 type CreateValues = z.infer<typeof createSchema>;
 
-function userStatus(user: AuthUser) {
-  if (!user.is_active) return { label: "Inactive", color: "default" as const };
-  if (user.status === "pending")
-    return { label: "Pending", color: "warning" as const };
-  if (user.status === "rejected")
-    return { label: "Rejected", color: "error" as const };
+function userStatus(user: AuthUser): { label: string; tone: Tone } {
+  if (!user.is_active) return { label: "Inactive", tone: "neutral" };
+  if (user.status === "pending") return { label: "Pending", tone: "warning" };
+  if (user.status === "rejected") return { label: "Rejected", tone: "error" };
   // Set at the first sign-in with a Firebase-verified email.
   if (!user.email_verified_at)
-    return { label: "Not signed in yet", color: "info" as const };
-  return { label: "Active", color: "success" as const };
+    return { label: "Not signed in yet", tone: "info" };
+  return { label: "Active", tone: "success" };
 }
+
+function UserStatus({ user }: { user: AuthUser }) {
+  const { label, tone } = userStatus(user);
+  return <StatusBadge tone={tone} label={label} />;
+}
+
+const roleOptions = [
+  { value: "all", label: "All roles" },
+  { value: "admin", label: "Admin" },
+  { value: "agent", label: "Agent" },
+  { value: "client", label: "Client" },
+];
+
+// Values are the API's status filter (AccountStatus).
+const statusOptions = [
+  { value: "all", label: "All statuses" },
+  { value: "active", label: "Active" },
+  { value: "pending", label: "Pending" },
+  { value: "not_signed_in", label: "Not signed in yet" },
+  { value: "inactive", label: "Inactive" },
+  { value: "rejected", label: "Rejected" },
+];
+
+const listDefaults = {
+  sort: "created_at",
+  dir: "asc",
+  filters: { role: "all", status: "all" },
+} as const;
 
 export function AdminUserManagementPage() {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(0);
-  const [limit] = useState(25);
-  const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const { params, update, filtered, clearFilters } =
+    useListParams(listDefaults);
+  const [openUser, setOpenUser] = useState<AuthUser | null>(null);
+  const { role: roleFilter, status: statusFilter } = params.filters;
   const [createOpen, setCreateOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -91,9 +123,22 @@ export function AdminUserManagementPage() {
   const [deactivating, setDeactivating] = useState<AuthUser | null>(null);
 
   const usersQuery = useQuery({
-    queryKey: ["admin", "users", page, limit],
-    queryFn: () => adminApi.listUsers(page * limit, limit),
+    queryKey: ["admin", "users", params],
+    queryFn: () =>
+      adminApi.listUsers({
+        offset: pageOffset(params),
+        limit: params.size,
+        q: params.q.trim(),
+        role: roleFilter === "all" ? undefined : (roleFilter as UserRole),
+        status:
+          statusFilter === "all"
+            ? undefined
+            : (statusFilter as adminApi.AccountStatus),
+      }),
+    placeholderData: keepPreviousData,
   });
+  const total = usersQuery.data?.total;
+  useClampPage(total, params, update);
   const refreshUsers = () =>
     queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
   // Organisation names live in client profiles, not on the user account.
@@ -210,164 +255,42 @@ export function AdminUserManagementPage() {
       ),
   });
 
-  const rows = useMemo(
-    () =>
-      (usersQuery.data?.items ?? []).filter((row) => {
-        const matchesSearch = row.email
-          .toLowerCase()
-          .includes(search.trim().toLowerCase());
-        const matchesRole = roleFilter === "all" || row.role === roleFilter;
-        const matchesStatus =
-          statusFilter === "all" ||
-          userStatus(row).label.toLowerCase().replaceAll(" ", "-") ===
-            statusFilter;
-        return matchesSearch && matchesRole && matchesStatus;
-      }),
-    [usersQuery.data?.items, search, roleFilter, statusFilter],
-  );
+  // The drawer shows the row as last loaded, so it follows each change.
+  const current =
+    usersQuery.data?.items.find((row) => row.id === openUser?.id) ?? openUser;
+  const isSelf = current?.id === currentUser?.id;
 
-  const columns: DataColumn<AuthUser>[] = [
+  const columns: ListColumn<AuthUser>[] = [
     {
       key: "account",
       label: "Account",
+      card: "title",
       render: (row) => (
-        <div className="account-cell">
+        <span className="cell-stack">
           <strong>{row.email}</strong>
           {row.role === "client" && (
-            <span>
-              {organisations.get(row.id) ?? (
-                <Chip
-                  size="small"
-                  variant="outlined"
-                  color="warning"
-                  label="No organisation name"
-                />
-              )}
-            </span>
+            <span>{organisations.get(row.id) ?? "No organisation name"}</span>
           )}
-          <span>{row.id}</span>
-        </div>
+        </span>
       ),
     },
     {
       key: "role",
       label: "Role",
-      render: (row) => (
-        <Typography className="role-text">{row.role}</Typography>
-      ),
+      card: "stat",
+      render: (row) => <span className="sentence-case">{row.role}</span>,
     },
     {
       key: "status",
       label: "Status",
-      render: (row) => {
-        const status = userStatus(row);
-        return (
-          <Chip
-            size="small"
-            label={status.label}
-            color={status.color}
-            variant={status.color === "default" ? "outlined" : "filled"}
-          />
-        );
-      },
+      card: "badge",
+      render: (row) => <UserStatus user={row} />,
     },
     {
       key: "created",
       label: "Created",
-      render: (row) => new Date(row.created_at).toLocaleDateString(),
-    },
-    {
-      key: "permissions",
-      label: "Role and access",
-      render: (row) => (
-        <div className="user-actions-cell">
-          <FormControl size="small" className="role-select">
-            <InputLabel id={`role-${row.id}`}>Role</InputLabel>
-            <Select
-              labelId={`role-${row.id}`}
-              label="Role"
-              value={row.role}
-              disabled={row.id === currentUser?.id || roleMutation.isPending}
-              onChange={(event) =>
-                roleMutation.mutate({
-                  id: row.id,
-                  role: event.target.value as UserRole,
-                })
-              }
-            >
-              <MenuItem value="admin">Admin</MenuItem>
-              <MenuItem value="agent">Agent</MenuItem>
-              <MenuItem value="client">Client</MenuItem>
-            </Select>
-          </FormControl>
-          <TooltipText
-            text={
-              row.id === currentUser?.id
-                ? "You cannot deactivate your own account"
-                : row.is_active
-                  ? "Deactivate account"
-                  : "Activate account"
-            }
-          />
-          <Switch
-            checked={row.is_active}
-            slotProps={{
-              input: {
-                "aria-label": `${row.is_active ? "Deactivate" : "Activate"} ${row.email}`,
-              },
-            }}
-            disabled={row.id === currentUser?.id || activeMutation.isPending}
-            onChange={(_, checked) => {
-              if (checked) activeMutation.mutate({ id: row.id, active: true });
-              else setDeactivating(row);
-            }}
-          />
-          {row.role === "agent" && row.status === "pending" && (
-            <Stack direction="row" spacing={0.5}>
-              <Button
-                size="small"
-                color="success"
-                aria-label={`Approve ${row.email}`}
-                onClick={() => approveMutation.mutate(row.id)}
-                disabled={approveMutation.isPending}
-                startIcon={<Check />}
-              >
-                Approve
-              </Button>
-              <Button
-                size="small"
-                color="error"
-                aria-label={`Reject ${row.email}`}
-                onClick={() => rejectMutation.mutate(row.id)}
-                disabled={rejectMutation.isPending}
-                startIcon={<Close />}
-              >
-                Reject
-              </Button>
-            </Stack>
-          )}
-          {row.role === "client" && (
-            <Button
-              size="small"
-              aria-label={`Set organisation name for ${row.email}`}
-              onClick={() => setOrganisationFor(row)}
-            >
-              Organisation name
-            </Button>
-          )}
-          {row.is_active &&
-            (!row.email_verified_at || !row.firebase_linked) && (
-              <Button
-                size="small"
-                aria-label={`Send password email to ${row.email}`}
-                onClick={() => resendMutation.mutate(row)}
-                disabled={resendMutation.isPending}
-              >
-                Send password email
-              </Button>
-            )}
-        </div>
-      ),
+      card: "stat",
+      render: (row) => formatDate(row.created_at),
     },
   ];
 
@@ -376,7 +299,7 @@ export function AdminUserManagementPage() {
       <PageHeader
         eyebrow="ADMINISTRATION"
         title="User management"
-        description="Manage authentication accounts, approve agent registrations, and control account access."
+        description="Manage authentication accounts, approve agent registrations, and control account access. Open an account to change it."
         action={
           <Button
             variant="contained"
@@ -387,82 +310,210 @@ export function AdminUserManagementPage() {
           </Button>
         }
       />
-      <div className="page-toolbar">
-        <PageFilters
-          search={search}
-          onSearch={(value) => {
-            setSearch(value);
-            setPage(0);
-          }}
-          searchLabel="Search this page by email"
-          filterLabel="Role"
-          filterValue={roleFilter}
-          onFilter={(value) => {
-            setRoleFilter(value);
-            setPage(0);
-          }}
-          filterOptions={[
-            { value: "all", label: "All roles" },
-            { value: "admin", label: "Admin" },
-            { value: "agent", label: "Agent" },
-            { value: "client", label: "Client" },
-          ]}
-        />
-        <FormControl size="small" className="status-filter">
-          <InputLabel id="account-status-filter">Status</InputLabel>
-          <Select
-            labelId="account-status-filter"
-            label="Status"
-            value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value);
-              setPage(0);
-            }}
-          >
-            <MenuItem value="all">All statuses</MenuItem>
-            <MenuItem value="active">Active</MenuItem>
-            <MenuItem value="pending">Pending</MenuItem>
-            <MenuItem value="not-signed-in-yet">Not signed in yet</MenuItem>
-            <MenuItem value="inactive">Inactive</MenuItem>
-            <MenuItem value="rejected">Rejected</MenuItem>
-          </Select>
-        </FormControl>
-      </div>
       {usersQuery.isError && (
         <PageError
           message={apiErrorMessage(usersQuery.error, "Could not load users.")}
         />
       )}
       {error && (
-        <Alert severity="error" onClose={() => setError("")}>
+        <Alert
+          severity="error"
+          onClose={() => setError("")}
+          className="page-notice"
+        >
           {error}
         </Alert>
       )}
-      <DataTable
+      <ListTable
         label="Users"
         columns={columns}
-        rows={rows}
+        rows={usersQuery.data?.items ?? []}
         rowKey={(row) => row.id}
-        loading={usersQuery.isLoading}
-        emptyLabel={
-          usersQuery.data?.total
-            ? "No accounts match these filters."
-            : "No authentication accounts yet."
+        onOpen={setOpenUser}
+        openKey={openUser?.id}
+        loading={usersQuery.isPending}
+        total={total ?? 0}
+        page={params.page}
+        size={params.size}
+        onPage={(page) => update({ page })}
+        onSize={(size) => update({ size })}
+        filtered={filtered}
+        onClearFilters={clearFilters}
+        emptyTitle="No accounts yet"
+        emptyDescription="Create an admin or client account, or wait for agents to register."
+        toolbar={
+          <TableToolbar
+            search={params.q}
+            searchLabel="Search by email"
+            onSearch={(q) => update({ q })}
+            filters={[
+              {
+                name: "role",
+                label: "Role",
+                value: roleFilter,
+                options: roleOptions,
+              },
+              {
+                name: "status",
+                label: "Status",
+                value: statusFilter,
+                options: statusOptions,
+              },
+            ]}
+            onFilter={(name, value) => update({ filters: { [name]: value } })}
+            count={
+              total === undefined
+                ? undefined
+                : `${formatCount(total)} ${total === 1 ? "account" : "accounts"}${filtered ? " match" : ""}`
+            }
+          />
         }
       />
-      <div className="table-pagination">
-        <Typography color="text.secondary">
-          {usersQuery.data?.total ?? 0} accounts
-        </Typography>
-        <Pagination
-          page={page + 1}
-          count={Math.max(1, Math.ceil((usersQuery.data?.total ?? 0) / limit))}
-          onChange={(_, nextPage) => setPage(nextPage - 1)}
-          disabled={!usersQuery.data?.total}
-          size="small"
-          aria-label="User list pages"
-        />
-      </div>
+      <DetailDrawer
+        open={current !== null}
+        onClose={() => setOpenUser(null)}
+        title={current?.email ?? ""}
+        subtitle={
+          current ? `Created ${formatDateTime(current.created_at)}` : undefined
+        }
+        badge={current && <UserStatus user={current} />}
+      >
+        {current && (
+          <>
+            <DetailSection
+              title="Account"
+              items={[
+                {
+                  label: "Role",
+                  value: <span className="sentence-case">{current.role}</span>,
+                },
+                ...(current.role === "client"
+                  ? [
+                      {
+                        label: "Organisation",
+                        value: organisations.get(current.id) ?? (
+                          <StatusBadge
+                            tone="warning"
+                            label="No organisation name"
+                          />
+                        ),
+                      },
+                    ]
+                  : []),
+                {
+                  label: "Email verified",
+                  value: current.email_verified_at
+                    ? formatDate(current.email_verified_at)
+                    : "Not yet",
+                },
+                {
+                  label: "Signs in with Firebase",
+                  value: current.firebase_linked ? "Yes" : "Not yet",
+                },
+                {
+                  label: "User ID",
+                  value: <code className="code-text">{current.id}</code>,
+                },
+              ]}
+            />
+            <section className="detail-section">
+              <Typography component="h3" className="detail-section-title">
+                Role and access
+              </Typography>
+              <Stack spacing={2} className="drawer-controls">
+                <FormControl size="small" fullWidth>
+                  <InputLabel id={`role-${current.id}`}>Role</InputLabel>
+                  <Select
+                    labelId={`role-${current.id}`}
+                    label="Role"
+                    value={current.role}
+                    disabled={isSelf || roleMutation.isPending}
+                    onChange={(event) =>
+                      roleMutation.mutate({
+                        id: current.id,
+                        role: event.target.value as UserRole,
+                      })
+                    }
+                  >
+                    <MenuItem value="admin">Admin</MenuItem>
+                    <MenuItem value="agent">Agent</MenuItem>
+                    <MenuItem value="client">Client</MenuItem>
+                  </Select>
+                </FormControl>
+                <div className="switch-row">
+                  <Switch
+                    checked={current.is_active}
+                    slotProps={{
+                      input: {
+                        "aria-label": `${current.is_active ? "Deactivate" : "Activate"} ${current.email}`,
+                      },
+                    }}
+                    disabled={isSelf || activeMutation.isPending}
+                    onChange={(_, checked) => {
+                      if (checked)
+                        activeMutation.mutate({ id: current.id, active: true });
+                      else setDeactivating(current);
+                    }}
+                  />
+                  <TooltipText
+                    text={
+                      isSelf
+                        ? "You cannot deactivate your own account"
+                        : current.is_active
+                          ? "Active: switch off to deactivate"
+                          : "Inactive: switch on to activate"
+                    }
+                  />
+                </div>
+                {current.role === "agent" && current.status === "pending" && (
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      aria-label={`Approve ${current.email}`}
+                      onClick={() => approveMutation.mutate(current.id)}
+                      disabled={approveMutation.isPending}
+                      startIcon={<Check />}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      aria-label={`Reject ${current.email}`}
+                      onClick={() => rejectMutation.mutate(current.id)}
+                      disabled={rejectMutation.isPending}
+                      startIcon={<Close />}
+                    >
+                      Reject
+                    </Button>
+                  </Stack>
+                )}
+                {current.role === "client" && (
+                  <Button
+                    variant="outlined"
+                    aria-label={`Set organisation name for ${current.email}`}
+                    onClick={() => setOrganisationFor(current)}
+                  >
+                    Organisation name
+                  </Button>
+                )}
+                {current.is_active &&
+                  (!current.email_verified_at || !current.firebase_linked) && (
+                    <Button
+                      variant="outlined"
+                      aria-label={`Send password email to ${current.email}`}
+                      onClick={() => resendMutation.mutate(current)}
+                      disabled={resendMutation.isPending}
+                    >
+                      Send password email
+                    </Button>
+                  )}
+              </Stack>
+            </section>
+          </>
+        )}
+      </DetailDrawer>
       {createOpen && (
         <CreateAccountDialog
           open

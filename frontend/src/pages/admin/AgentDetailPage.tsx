@@ -5,43 +5,66 @@ import {
   MenuItem,
   Paper,
   Stack,
-  TablePagination,
   TextField,
   Typography,
 } from "@mui/material";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import * as adminApi from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
 import {
   BandBadge,
   ChartCard,
-  DataTable,
   EmptyState,
   EligibilityChip,
   KpiCard,
   PageError,
   PageHeader,
   RegistrationStatusChip,
-  type DataColumn,
+  StatusChip,
 } from "../../components/DataComponents";
 import { KpiTable, MonthlyLineChart } from "../../components/KpiComponents";
 import { ReviewDialog } from "../../components/ReviewDialog";
+import {
+  DetailDrawer,
+  DetailSection,
+} from "../../components/table/DetailDrawer";
+import { ListTable, type ListColumn } from "../../components/table/ListTable";
+import { TableToolbar } from "../../components/table/TableToolbar";
+import {
+  pageOffset,
+  useClampPage,
+  useListParams,
+} from "../../components/table/useListParams";
 import type {
   AgentCustomer,
   AgentDetail,
   AgentMonthKpi,
 } from "../../types/scoring";
 import { apiErrorMessage } from "../../utils/errors";
-import { formatDate, formatPercent } from "../../utils/format";
+import {
+  formatCount,
+  formatDate,
+  formatDateTime,
+  formatPercent,
+} from "../../utils/format";
 
-const PAGE_SIZE = 25;
 const NO_CLIENT = "none";
 
-const reputationColumn: DataColumn<AgentMonthKpi> = {
+const reputation = (row: AgentMonthKpi) =>
+  row.reputation === null ? "—" : row.reputation.toFixed(1);
+
+const reputationColumn: ListColumn<AgentMonthKpi> = {
   key: "reputation",
   label: "Reputation at month end",
-  render: (row) => (row.reputation === null ? "—" : row.reputation.toFixed(1)),
+  numeric: true,
+  card: "stat",
+  render: reputation,
 };
 
 function AgentKpiSection({ agentId }: { agentId: string }) {
@@ -86,6 +109,9 @@ function AgentKpiSection({ agentId }: { agentId: string }) {
       <KpiTable
         rows={months}
         extra={[reputationColumn]}
+        extraDetails={(row) => [
+          { label: "Reputation at month end", value: reputation(row) },
+        ]}
         loading={kpiQuery.isPending}
         label="No KPIs yet."
       />
@@ -177,63 +203,153 @@ function ProfileForm({ agent }: { agent: AgentDetail }) {
   );
 }
 
+const probability = (row: AgentCustomer) =>
+  row.probability === null ? "—" : formatPercent(row.probability);
+
+// Admin only: the registration status reveals the flag.
+const customerColumns: ListColumn<AgentCustomer>[] = [
+  {
+    key: "customer",
+    label: "Customer",
+    card: "title",
+    render: (row) => (
+      <span className="cell-stack">
+        <strong>{row.full_name}</strong>
+        <span className="code-text">{row.reference}</span>
+      </span>
+    ),
+  },
+  {
+    key: "date",
+    label: "Registered",
+    card: "stat",
+    render: (row) => formatDate(row.created_at),
+  },
+  {
+    key: "status",
+    label: "Status",
+    card: "badge",
+    render: (row) => (
+      <RegistrationStatusChip status={row.registration_status} />
+    ),
+  },
+  {
+    key: "eligibility",
+    label: "Commission",
+    card: "extra",
+    render: (row) => <EligibilityChip value={row.eligibility} />,
+  },
+  {
+    key: "probability",
+    label: "Probability",
+    numeric: true,
+    card: "stat",
+    render: probability,
+  },
+];
+
+const listDefaults = { sort: "created_at", dir: "desc" } as const;
+
+function CustomerDrawer({
+  customer,
+  onClose,
+  onAssessment,
+}: {
+  customer: AgentCustomer | null;
+  onClose: () => void;
+  onAssessment: (assessmentId: string) => void;
+}) {
+  return (
+    <DetailDrawer
+      open={customer !== null}
+      onClose={onClose}
+      title={customer?.full_name ?? ""}
+      subtitle={customer ? `Reference ${customer.reference}` : undefined}
+      badge={
+        customer && (
+          <RegistrationStatusChip status={customer.registration_status} />
+        )
+      }
+      actions={
+        customer?.assessment_id && (
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={() => onAssessment(customer.assessment_id!)}
+          >
+            Open assessment
+          </Button>
+        )
+      }
+    >
+      {customer && (
+        <>
+          <DetailSection
+            title="Registration"
+            items={[
+              {
+                label: "Registered",
+                value: formatDateTime(customer.created_at),
+              },
+              {
+                label: "Customer status",
+                value: <StatusChip status={customer.status} />,
+              },
+              {
+                label: "Commission",
+                value: <EligibilityChip value={customer.eligibility} />,
+              },
+              {
+                label: "Registered on the agent's device",
+                value: customer.assisted ? "Yes (assisted)" : "No",
+              },
+            ]}
+          />
+          <DetailSection
+            title="Scoring"
+            items={[
+              {
+                label: "Probability",
+                value: probability(customer),
+                numeric: true,
+              },
+              {
+                label: "Flagged",
+                value:
+                  customer.flagged === null
+                    ? "Not scored"
+                    : customer.flagged
+                      ? "Yes"
+                      : "No",
+              },
+            ]}
+          />
+        </>
+      )}
+    </DetailDrawer>
+  );
+}
+
 export function AgentDetailPage() {
   const { agentId = "" } = useParams();
-  const [page, setPage] = useState(0);
+  const { params, update, filtered, clearFilters } =
+    useListParams(listDefaults);
+  const [openCustomer, setOpenCustomer] = useState<AgentCustomer | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const agentQuery = useQuery({
-    queryKey: ["admin", "agent", agentId, page],
-    queryFn: () => scoringApi.getAgent(agentId, page * PAGE_SIZE, PAGE_SIZE),
+    queryKey: ["admin", "agent", agentId, params.page, params.size, params.q],
+    queryFn: () =>
+      scoringApi.getAgent(
+        agentId,
+        pageOffset(params),
+        params.size,
+        params.q.trim(),
+      ),
+    placeholderData: keepPreviousData,
   });
   const agent = agentQuery.data;
-
-  const columns: DataColumn<AgentCustomer>[] = [
-    { key: "reference", label: "Reference", render: (row) => row.reference },
-    { key: "name", label: "Customer", render: (row) => row.full_name },
-    {
-      key: "date",
-      label: "Registered",
-      render: (row) => formatDate(row.created_at),
-    },
-    {
-      key: "status",
-      label: "Status",
-      render: (row) => (
-        <RegistrationStatusChip status={row.registration_status} />
-      ),
-    },
-    {
-      key: "eligibility",
-      label: "Commission",
-      render: (row) => <EligibilityChip value={row.eligibility} />,
-    },
-    {
-      key: "probability",
-      label: "Probability",
-      render: (row) =>
-        row.probability === null ? "—" : formatPercent(row.probability),
-    },
-    {
-      key: "flagged",
-      label: "Flagged",
-      render: (row) => (row.flagged ? "Yes" : "No"),
-    },
-    {
-      key: "assisted",
-      label: "Assisted",
-      render: (row) => (row.assisted ? "Yes" : "No"),
-    },
-    {
-      key: "action",
-      label: "",
-      render: (row) =>
-        row.assessment_id && (
-          <Button size="small" onClick={() => setSelected(row.assessment_id)}>
-            Open
-          </Button>
-        ),
-    },
-  ];
+  const total = agent?.customers_total;
+  useClampPage(total, params, update);
 
   if (agentQuery.isError) {
     return (
@@ -271,10 +387,10 @@ export function AgentDetailPage() {
               detail="0–100, higher is better"
             />
             <KpiCard label="Risk score" value={agent.risk_score.toFixed(1)} />
-            <KpiCard label="Customers" value={agent.n_users} />
+            <KpiCard label="Customers" value={formatCount(agent.n_users)} />
             <KpiCard
               label="Flags"
-              value={agent.flags}
+              value={formatCount(agent.flags)}
               detail={`${agent.pending_review} pending · ${agent.confirmed_fake} confirmed fake`}
             />
             <KpiCard
@@ -294,21 +410,43 @@ export function AgentDetailPage() {
           </Typography>
         </>
       )}
-      <DataTable
+      <ListTable
         label="Customers"
-        columns={columns}
+        columns={customerColumns}
         rows={agent?.customers ?? []}
         rowKey={(row) => row.id}
+        onOpen={setOpenCustomer}
+        openKey={openCustomer?.id}
         loading={agentQuery.isPending}
-        emptyLabel="This agent has no customers yet."
+        total={total ?? 0}
+        page={params.page}
+        size={params.size}
+        onPage={(page) => update({ page })}
+        onSize={(size) => update({ size })}
+        filtered={filtered}
+        onClearFilters={clearFilters}
+        emptyTitle="No customers yet"
+        emptyDescription="Customers appear here when they register through this agent's link."
+        toolbar={
+          <TableToolbar
+            search={params.q}
+            searchLabel="Search name or reference"
+            onSearch={(q) => update({ q })}
+            count={
+              total === undefined
+                ? undefined
+                : `${formatCount(total)} ${total === 1 ? "customer" : "customers"}${filtered ? " match" : ""}`
+            }
+          />
+        }
       />
-      <TablePagination
-        component="div"
-        count={agent?.customers_total ?? 0}
-        page={page}
-        onPageChange={(_, next) => setPage(next)}
-        rowsPerPage={PAGE_SIZE}
-        rowsPerPageOptions={[PAGE_SIZE]}
+      <CustomerDrawer
+        customer={openCustomer}
+        onClose={() => setOpenCustomer(null)}
+        onAssessment={(assessmentId) => {
+          setOpenCustomer(null);
+          setSelected(assessmentId);
+        }}
       />
       <ReviewDialog assessmentId={selected} onClose={() => setSelected(null)} />
     </>

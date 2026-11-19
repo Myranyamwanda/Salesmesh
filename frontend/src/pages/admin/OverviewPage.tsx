@@ -6,16 +6,17 @@ import {
   AssistedAlertChip,
   BandBadge,
   ChartCard,
-  DataTable,
   EmptyState,
   KpiCard,
   PageError,
   PageHeader,
-  type DataColumn,
 } from "../../components/DataComponents";
+import { ListTable, type ListColumn } from "../../components/table/ListTable";
+import { TableToolbar } from "../../components/table/TableToolbar";
+import { pageRows, useListParams } from "../../components/table/useListParams";
 import { KpiTable, MonthlyLineChart } from "../../components/KpiComponents";
 import type { AgentRanking, BenchmarkRow } from "../../types/scoring";
-import { formatRate } from "../../utils/format";
+import { formatCount, formatRate } from "../../utils/format";
 
 function formatDifference(value: number | null) {
   if (value === null) return "—";
@@ -23,36 +24,75 @@ function formatDifference(value: number | null) {
   return value > 0 ? `+${points} pts` : `${points} pts`;
 }
 
-const benchmarkColumns: DataColumn<BenchmarkRow>[] = [
+// Links, not a drawer: the agent detail page holds everything else.
+const benchmarkColumns: ListColumn<BenchmarkRow>[] = [
   {
     key: "agent",
     label: "Agent",
+    card: "title",
+    sortable: true,
     render: (row) => (
-      <>
+      <span className="cell-stack">
         <Link to={`/admin/agents/${row.agent.id}`}>
           {row.agent.display_name}
         </Link>
-        {row.assisted_alert && <AssistedAlertChip />}
-      </>
+      </span>
     ),
   },
   {
     key: "registrations",
     label: "Registrations",
-    render: (row) => row.registrations,
+    numeric: true,
+    sortable: true,
+    card: "stat",
+    render: (row) => formatCount(row.registrations),
   },
   {
     key: "flag_rate",
     label: "Flag rate",
+    numeric: true,
+    sortable: true,
+    card: "stat",
     render: (row) => formatRate(row.flag_rate),
   },
   {
     key: "difference",
     label: "Against network",
+    numeric: true,
+    sortable: true,
+    card: "stat",
     render: (row) =>
       row.enough_data ? formatDifference(row.difference) : "Insufficient data",
   },
+  {
+    key: "signals",
+    label: "Signals",
+    card: "extra",
+    render: (row) =>
+      row.assisted_alert ? (
+        <AssistedAlertChip />
+      ) : (
+        <span className="muted-dash">
+          <span aria-hidden="true">—</span>
+          <span className="visually-hidden">None</span>
+        </span>
+      ),
+  },
 ];
+
+// Largest difference first: the agents furthest above the network rate.
+const benchmarkDefaults = {
+  sort: "difference",
+  dir: "desc",
+  prefix: "bench_",
+} as const;
+
+function benchmarkValue(row: BenchmarkRow, key: string) {
+  if (key === "agent") return row.agent.display_name.toLowerCase();
+  if (key === "registrations") return row.registrations;
+  if (key === "flag_rate") return row.flag_rate;
+  return row.enough_data ? row.difference : null;
+}
 
 function NetworkSection() {
   const kpiQuery = useQuery({
@@ -61,6 +101,13 @@ function NetworkSection() {
   });
   const kpis = kpiQuery.data;
   const hasData = kpis?.months.some((month) => month.registrations > 0);
+  const { params, update, filtered, clearFilters } =
+    useListParams(benchmarkDefaults);
+  // One row per agent from /admin/kpis; searched, sorted, and paged here.
+  const benchmark = pageRows(kpis?.benchmark ?? [], params, {
+    matches: (row, term) => row.agent.display_name.toLowerCase().includes(term),
+    sortValue: benchmarkValue,
+  });
   return (
     <section aria-label="Network KPIs">
       {kpiQuery.isError && (
@@ -105,35 +152,76 @@ function NetworkSection() {
         than {kpis?.min_registrations ?? "—"} registrations are not compared,
         because a few flags would swing their rate.
       </Typography>
-      <DataTable
+      <ListTable
         label="Flag-rate benchmark"
         columns={benchmarkColumns}
-        rows={kpis?.benchmark ?? []}
+        rows={benchmark.rows}
         rowKey={(row) => row.agent.id}
         loading={kpiQuery.isPending}
-        emptyLabel="No agents yet."
+        total={benchmark.total}
+        page={benchmark.page}
+        size={params.size}
+        sort={params.sort}
+        dir={params.dir}
+        onSort={(key) =>
+          update(
+            key === params.sort
+              ? { dir: params.dir === "asc" ? "desc" : "asc" }
+              : { sort: key, dir: key === "agent" ? "asc" : "desc" },
+          )
+        }
+        onPage={(page) => update({ page })}
+        onSize={(size) => update({ size })}
+        filtered={filtered}
+        onClearFilters={clearFilters}
+        emptyTitle="No agents yet"
+        toolbar={
+          <TableToolbar
+            search={params.q}
+            searchLabel="Search agents"
+            onSearch={(q) => update({ q })}
+            count={
+              kpis
+                ? `${formatCount(benchmark.total)} ${benchmark.total === 1 ? "agent" : "agents"}${filtered ? " match" : ""}`
+                : undefined
+            }
+          />
+        }
       />
     </section>
   );
 }
 
-const columns: DataColumn<AgentRanking>[] = [
+// At most five rows: a summary, so no toolbar or pager.
+const columns: ListColumn<AgentRanking>[] = [
   {
     key: "agent",
     label: "Agent",
+    card: "title",
     render: (row) => (
-      <Link to={`/admin/agents/${row.id}`}>{row.display_name}</Link>
+      <span className="cell-stack">
+        <Link to={`/admin/agents/${row.id}`}>{row.display_name}</Link>
+      </span>
     ),
   },
-  { key: "customers", label: "Customers", render: (row) => row.n_users },
+  {
+    key: "customers",
+    label: "Customers",
+    numeric: true,
+    card: "stat",
+    render: (row) => formatCount(row.n_users),
+  },
   {
     key: "reputation",
     label: "Reputation",
+    numeric: true,
+    card: "stat",
     render: (row) => row.reputation.toFixed(1),
   },
   {
     key: "band",
     label: "Band",
+    card: "badge",
     render: (row) => <BandBadge band={row.band} />,
   },
 ];
@@ -141,17 +229,28 @@ const columns: DataColumn<AgentRanking>[] = [
 export function OverviewPage() {
   const queueQuery = useQuery({
     queryKey: ["admin", "review-queue", 0],
-    queryFn: () => scoringApi.getReviewQueue(0, 25),
+    queryFn: () => scoringApi.getReviewQueue({ offset: 0, limit: 1 }),
   });
-  const agentsQuery = useQuery({
-    queryKey: ["admin", "agents"],
-    queryFn: scoringApi.listAgents,
+  // Three small counted requests instead of loading every agent: the
+  // agents list is paged on the server (lowest reputation first).
+  const allQuery = useQuery({
+    queryKey: ["admin", "agents", "count"],
+    queryFn: () => scoringApi.listAgents({ offset: 0, limit: 1 }),
   });
-  const agents = agentsQuery.data ?? [];
-  // The ranking is already sorted by reputation, lowest first.
-  const attention = agents
-    .filter((agent) => agent.band !== "Low risk")
-    .slice(0, 5);
+  const highRiskQuery = useQuery({
+    queryKey: ["admin", "agents", "count", "High risk"],
+    queryFn: () =>
+      scoringApi.listAgents({ offset: 0, limit: 1, band: ["High risk"] }),
+  });
+  const attentionQuery = useQuery({
+    queryKey: ["admin", "agents", "attention"],
+    queryFn: () =>
+      scoringApi.listAgents({
+        offset: 0,
+        limit: 5,
+        band: ["High risk", "Watch", "Insufficient data"],
+      }),
+  });
 
   return (
     <>
@@ -165,30 +264,23 @@ export function OverviewPage() {
           label="Reviews waiting"
           value={queueQuery.data?.total ?? null}
         />
-        <KpiCard
-          label="Agents"
-          value={agentsQuery.data ? agents.length : null}
-        />
+        <KpiCard label="Agents" value={allQuery.data?.total ?? null} />
         <KpiCard
           label="High-risk agents"
-          value={
-            agentsQuery.data
-              ? agents.filter((agent) => agent.band === "High risk").length
-              : null
-          }
+          value={highRiskQuery.data?.total ?? null}
         />
       </section>
       <ChartCard
         title="Needs attention"
         description="The lowest-reputation agents that are not Low risk."
       >
-        <DataTable
+        <ListTable
           label="Agents that need attention"
           columns={columns}
-          rows={attention}
+          rows={attentionQuery.data?.items ?? []}
           rowKey={(row) => row.id}
-          loading={agentsQuery.isPending}
-          emptyLabel="No agents need attention."
+          loading={attentionQuery.isPending}
+          emptyTitle="No agents need attention"
         />
       </ChartCard>
       <NetworkSection />
