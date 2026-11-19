@@ -10,10 +10,11 @@ app/services/standing.py for the rules.
 from datetime import UTC, date, datetime
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
+from app.api.listing import Limit, Offset, Search, contains
 from app.auth import Configuration, Database, require_roles
 from app.models import AgentProfile, Customer, ScoringConfig, User
 from app.services.kpis import load_registrations
@@ -58,19 +59,30 @@ def my_referral(
 def my_customers(
     session: Database,
     agent: Agent,
-    offset: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=100)] = 25,
+    offset: Offset = 0,
+    limit: Limit = 25,
+    q: Search = "",
+    assisted: bool | None = None,
 ) -> MyCustomerPage:
-    """Name, registration date, and assisted only, newest first."""
+    """Name, registration date, and assisted only, newest first.
+
+    q matches the customer's name; assisted keeps customers registered on
+    (true) or not on (false) the agent's own device.
+    """
+    conditions = [Customer.agent_id == agent.id]
+    if term := q.strip():
+        conditions.append(contains(Customer.full_name, term))
+    if assisted is not None:
+        conditions.append(Customer.assisted.is_(assisted))
     rows = session.execute(
         select(Customer.full_name, Customer.created_at, Customer.assisted)
-        .where(Customer.agent_id == agent.id)
+        .where(*conditions)
         .order_by(Customer.created_at.desc(), Customer.id)
         .offset(offset)
         .limit(limit)
     )
     total = session.scalar(
-        select(func.count()).select_from(Customer).where(Customer.agent_id == agent.id)
+        select(func.count()).select_from(Customer).where(*conditions)
     )
     return MyCustomerPage(
         items=[

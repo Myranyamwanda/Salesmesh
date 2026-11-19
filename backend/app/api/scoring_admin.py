@@ -70,9 +70,18 @@ type AgentSort = Literal["reputation", "display_name", "n_users", "flags"]
 
 @router.get("/review-queue", response_model=QueuePage)
 def review_queue(
-    session: Database, _: Admin, offset: Offset = 0, limit: Limit = 25
+    session: Database,
+    _: Admin,
+    offset: Offset = 0,
+    limit: Limit = 25,
+    q: Search = "",
+    kind: Literal["flag", "audit"] | None = None,
 ) -> QueuePage:
-    """Flagged or audited assessments without a review, oldest first."""
+    """Flagged or audited assessments without a review, oldest first.
+
+    q matches the customer's name or the agent's display name; kind keeps
+    flags (model or rule) or random audits (selected and not flagged).
+    """
     waiting = (
         select(RiskAssessment, Customer, AgentProfile)
         .join(Customer, Customer.id == RiskAssessment.customer_id)
@@ -83,6 +92,17 @@ def review_queue(
             Review.id.is_(None),
         )
     )
+    if term := q.strip():
+        waiting = waiting.where(
+            or_(
+                contains(Customer.full_name, term),
+                contains(AgentProfile.display_name, term),
+            )
+        )
+    if kind == "flag":
+        waiting = waiting.where(RiskAssessment.flagged)
+    elif kind == "audit":
+        waiting = waiting.where(~RiskAssessment.flagged)
     total = session.scalar(select(func.count()).select_from(waiting.subquery()))
     rows = session.execute(
         waiting.order_by(RiskAssessment.created_at, RiskAssessment.id)
