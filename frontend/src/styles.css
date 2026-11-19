@@ -1134,6 +1134,52 @@ a:hover {
   padding: 28px 20px 40px;
 }
 
+.identity-public:has(.identity-join),
+.identity-public:has(.identity-join-success) {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background:
+    radial-gradient(
+      circle at 12% 18%,
+      rgb(42 85 212 / 12%) 0 4px,
+      transparent 5px
+    ),
+    radial-gradient(
+      circle at 88% 24%,
+      rgb(19 123 104 / 10%) 0 5px,
+      transparent 6px
+    ),
+    radial-gradient(
+      circle at 18% 82%,
+      rgb(245 184 75 / 13%) 0 4px,
+      transparent 5px
+    ),
+    linear-gradient(135deg, #edf3ff 0%, #f7fafc 48%, #edf8f4 100%);
+  background-size:
+    72px 72px,
+    96px 96px,
+    84px 84px,
+    auto;
+}
+
+.identity-public:has(.identity-join)::before,
+.identity-public:has(.identity-join-success)::before {
+  position: fixed;
+  z-index: -1;
+  top: 82px;
+  right: -190px;
+  width: 520px;
+  height: 520px;
+  border: 1px solid rgb(42 85 212 / 10%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 70px rgb(42 85 212 / 3%),
+    0 0 0 140px rgb(19 123 104 / 2%);
+  content: "";
+  pointer-events: none;
+}
+
 .public-form {
   display: grid;
   gap: 16px;
@@ -2047,6 +2093,68 @@ a:hover {
 
 .identity-join {
   width: 100%;
+}
+
+@media (min-width: 681px) {
+  .identity-public:has(.identity-join) .public-main,
+  .identity-public:has(.identity-join-success) .public-main {
+    width: min(900px, calc(100% - 64px));
+  }
+
+  .identity-public:has(.identity-join) .identity-join,
+  .identity-public:has(.identity-join-success) .identity-join-success {
+    padding: 28px 32px;
+    background: rgb(255 255 255 / 96%);
+    border: 1px solid #dfe8f3;
+    border-radius: 24px;
+    box-shadow: 0 18px 50px rgb(20 33 61 / 10%);
+  }
+
+  .identity-join-brand {
+    margin-bottom: 20px;
+  }
+
+  .identity-join-heading {
+    max-width: 620px;
+  }
+
+  .identity-join-heading h1 {
+    font-size: 38px;
+  }
+
+  .identity-trust-card {
+    max-width: 720px;
+  }
+
+  .identity-join-progress,
+  .identity-join-step,
+  .identity-step-actions,
+  .identity-join-form {
+    max-width: 836px;
+  }
+
+  .identity-step-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .identity-step-fields > :only-child,
+  .identity-review-card,
+  .identity-consent,
+  .identity-assisted-toggle {
+    grid-column: 1 / -1;
+  }
+
+  .identity-review-card {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .identity-review-card > div:nth-child(odd) {
+    border-right: 1px solid #e5eaf2;
+  }
+
+  .identity-review-card > div:nth-child(3n) {
+    border-right: 0;
+  }
 }
 
 .identity-join-brand {

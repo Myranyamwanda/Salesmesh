@@ -31,6 +31,12 @@ behavior remain in place. Other screens are unchanged until Step 2 is approved.
 | Motion              | Short card-hover and drawer transitions, and a 220 ms step fade/slide. `prefers-reduced-motion` suppresses identity motion and the global reduced-motion rule disables animations. Focus remains visible on new controls.                                                                       |
 | Responsive behavior | The existing table changes to cards on narrow screens. `/join` is mobile-first; the split sign-in panel becomes a stacked brand panel and form. The 360 px check remains in the browser accessibility suite.                                                                                    |
 
+The `/join` desktop canvas uses a wider 900 px white surface over the original
+mesh-dot and network-ring background. Step 1 and address fields use a two-column
+layout on desktop; the 360 px and 390 px layouts remain single-column. The
+creative background is CSS-only, contains no third-party artwork, and is hidden
+by the existing reduced-motion behavior through static presentation.
+
 Model probability was not rendered in the proposal: the Agents list and drawer
 have no per-registration probability in their existing API data. Adding or
 aggregating that value here would expand the contract and misrepresent an
