@@ -43,6 +43,31 @@ Screenshots: `docs/screenshots/v1.4.0/identity/` (`after-identity-*` and the
 list pages), regenerated with `SCREENSHOT_SET=after`,
 `SCREENSHOT_FORMAT=jpeg`, `SCREENSHOT_DIR=../docs/screenshots/v1.4.0/identity`.
 
+### Sign-in polish (Step 4)
+
+A pass to remove generic "template" signals from the sign-in, sign-up,
+password-reset, and `/join` header screens.
+
+- **Palette (solid colours only):** night `#15123a` (brand panel, `/join`
+  header, Overview hero), indigo `#4f46e5` (actions and links), lime
+  `#bef264` and cyan `#67e8f9` (mesh nodes), flag red `#f43f5e` (one node),
+  white `#ffffff` with ink `#1b1748` (form side). No gradient washes or glows
+  anywhere in the app; KPI cards keep a solid top edge in their own colour.
+- **Type:** one family, Bricolage Grotesque (variable weight and optical
+  size, self-hosted via Fontsource), with tabular figures on by default.
+  Scale: 13 / 14 / 16 / 18 / 32 / 56 px (`typeScale` in `tokens.ts`).
+- **Layout:** solid night panel with the logo, the kept message, and the
+  Kenya mesh; the form sits directly on white, left-aligned, with labels
+  above the fields on sign in, sign up, and reset. No card, no shadow, no
+  arrow on the main button, no filler subtitle under "Sign in".
+- **The one bold element:** `KenyaMesh`, an original SVG of agent nodes and
+  links tracing a simplified outline of Kenya. About a second after load one
+  node turns red with a single ring (a flagged agent), then settles. No
+  motion with `prefers-reduced-motion`; hidden from screen readers. On
+  narrow screens it sits beside the message in the top band.
+- **Removed:** the stylised dashboard preview, the two-tone wordmark, the
+  `/join` background arcs, and the floating header card on `/join`.
+
 ## Phase 1b Identity Proposal (Step 1)
 
 This proposal applies the new visual identity only to Sign in, admin Overview,
