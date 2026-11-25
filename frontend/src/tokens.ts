@@ -55,16 +55,32 @@ export const chart = {
   markerRing: colors.paper,
 };
 
-/** Hero gradients: sign-in panel, /join header, overview hero, KPI edges. */
+/**
+ * Hero surfaces are solid colour (no gradient washes): the sign-in panel,
+ * the /join header, and the Overview hero all use "night".
+ */
 export const gradients = {
-  hero: "linear-gradient(150deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)",
-  button: "linear-gradient(100deg, #4f46e5, #7c3aed)",
-  buttonHover: "linear-gradient(100deg, #4338ca, #6d28d9)",
+  hero: "#15123a",
+  button: "#4f46e5",
+  buttonHover: "#3730a3",
 };
 
+// One family: Bricolage Grotesque (variable weight and optical size), with
+// tabular figures for scores and counts.
 export const fonts = {
-  body: '"Inter Variable", Inter, system-ui, sans-serif',
-  heading: '"Manrope Variable", Manrope, system-ui, sans-serif',
+  body: '"Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif',
+  heading:
+    '"Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif',
+};
+
+/** Type scale in px: small, label, body, lead, title, display. */
+export const typeScale = {
+  sm: 13,
+  label: 14,
+  body: 16,
+  lead: 18,
+  title: 32,
+  display: 56,
 };
 
 export const radius = { sm: 8, md: 12, lg: 20 };
@@ -87,6 +103,14 @@ export const cssVariables = {
   "--radius-lg": `${radius.lg}px`,
   "--card-shadow": cardShadow,
   "--gradient-hero": gradients.hero,
+  "--night": gradients.hero,
+  "--flag": "#f43f5e",
+  "--text-sm": `${typeScale.sm}px`,
+  "--text-label": `${typeScale.label}px`,
+  "--text-body": `${typeScale.body}px`,
+  "--text-lead": `${typeScale.lead}px`,
+  "--text-title": `${typeScale.title}px`,
+  "--text-display": `${typeScale.display}px`,
   "--gradient-button": gradients.button,
   "--gradient-button-hover": gradients.buttonHover,
 };

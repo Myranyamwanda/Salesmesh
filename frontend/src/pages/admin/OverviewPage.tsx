@@ -318,13 +318,13 @@ function OverviewMetricCard({
   );
 }
 
-// Each KPI keeps its own colour; the gradients are decoration on top of
-// the numbers and text, which carry the meaning.
+// Each KPI keeps its own solid colour; the numbers and text carry the
+// meaning, the colour only tells the cards apart.
 const chartTones = {
-  indigo: { from: "#7c3aed", to: "#22d3ee", stroke: "#4f46e5" },
-  lime: { from: "#84cc16", to: "#22d3ee", stroke: "#4d7c0f" },
-  cyan: { from: "#22d3ee", to: "#4f46e5", stroke: "#0e7490" },
-  violet: { from: "#a855f7", to: "#4f46e5", stroke: "#6d28d9" },
+  indigo: { from: "#4f46e5", stroke: "#4f46e5" },
+  lime: { from: "#84cc16", stroke: "#4d7c0f" },
+  cyan: { from: "#22d3ee", stroke: "#0e7490" },
+  violet: { from: "#a855f7", stroke: "#6d28d9" },
 };
 
 function AttentionSignals({

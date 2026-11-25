@@ -1,8 +1,8 @@
-@import "@fontsource-variable/inter";
-@import "@fontsource-variable/manrope";
+@import "@fontsource-variable/bricolage-grotesque/opsz.css";
 
 :root {
   font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
   color: var(--ink);
   background: var(--canvas);
   font-synthesis: none;
@@ -43,34 +43,23 @@ a:hover {
   text-underline-offset: 3px;
 }
 
-/* Sign-in, sign-up, and password reset: a gradient brand panel (the one
-   hero area on these pages) beside a calm, light form side. Everything in
-   the panel is in normal flow, so nothing can overlap the text. */
+/* Sign-in, sign-up, and password reset. A solid night panel carries the
+   logo, the message, and the Kenya mesh (the one bold element); the form
+   sits directly on the white side. Everything is in normal flow. */
 .auth-frame {
   display: grid;
-  grid-template-columns: minmax(380px, 1fr) minmax(480px, 1fr);
+  grid-template-columns: minmax(400px, 46fr) minmax(440px, 54fr);
   min-height: 100vh;
-  padding: 18px;
-  gap: 18px;
-  background:
-    radial-gradient(circle at 100% 0%, var(--cyan-tint), transparent 34%),
-    radial-gradient(circle at 60% 100%, var(--primary-tint), transparent 40%),
-    var(--canvas);
+  background: var(--paper);
 }
 
 .brand-panel {
   display: flex;
-  min-height: calc(100vh - 36px);
+  min-height: 100vh;
   flex-direction: column;
-  gap: clamp(28px, 5vh, 48px);
-  padding: clamp(28px, 4vw, 48px) clamp(28px, 4vw, 56px);
-  overflow: hidden;
+  padding: 40px clamp(32px, 4.5vw, 64px) 48px;
   color: var(--on-navy);
-  background:
-    radial-gradient(circle at 92% 6%, rgb(34 211 238 / 32%), transparent 30%),
-    radial-gradient(circle at 0% 100%, rgb(163 230 53 / 20%), transparent 34%),
-    var(--gradient-hero);
-  border-radius: var(--radius-lg);
+  background: var(--night);
 }
 
 .brand-lockup {
@@ -99,176 +88,149 @@ a:hover {
 .brand-wordmark {
   font-family: var(--font-heading);
   font-size: 21px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.brand-wordmark span {
-  color: var(--primary);
-}
-
-.brand-panel .brand-wordmark span {
-  color: #bef264;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .brand-copy {
-  max-width: 520px;
-  margin-top: auto;
+  max-width: 560px;
+  margin-top: clamp(48px, 10vh, 112px);
 }
 
 .brand-copy h2 {
+  max-width: 16ch;
   margin: 0;
-  font-size: clamp(36px, 3.6vw, 54px);
-  font-weight: 800;
-  letter-spacing: -0.035em;
-  line-height: 1.06;
+  font-size: var(--text-display);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1;
 }
 
 .brand-subtitle {
-  margin: 16px 0 0;
+  max-width: 52ch;
+  margin: 20px 0 0;
   color: var(--on-navy-muted);
-  font-size: 17px;
-  line-height: 1.55;
+  font-size: var(--text-lead);
+  line-height: 1.5;
 }
 
-.brand-preview {
-  width: min(100%, 520px);
-  margin-bottom: auto;
-  padding: 18px;
-  background: rgb(255 255 255 / 8%);
-  border: 1px solid rgb(255 255 255 / 18%);
-  border-radius: var(--radius-lg);
-}
-
-.brand-preview-head {
-  display: flex;
-  justify-content: space-between;
-  font-weight: 700;
-}
-
-.brand-preview-pill {
-  padding: 2px 10px;
-  color: #1a2e05;
-  background: #bef264;
-  border-radius: 999px;
-  font-size: 12px;
-}
-
-.brand-preview-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 14px 0;
-}
-
-.brand-preview-stats div {
-  padding: 12px;
-  background: rgb(255 255 255 / 10%);
-  border-radius: var(--radius-md);
-}
-
-.brand-preview-stats span {
+.brand-mesh {
   display: block;
-  color: var(--on-navy-muted);
-  font-size: 13px;
-}
-
-.brand-preview-stats strong {
-  font-family: var(--font-heading);
-  font-size: 24px;
-  font-weight: 800;
-}
-
-.brand-preview-bars {
-  display: flex;
-  height: 60px;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-.brand-preview-bars span {
-  flex: 1;
-  background: linear-gradient(180deg, #67e8f9, #a3e635);
-  border-radius: 6px 6px 2px 2px;
-}
-
-.brand-preview-agents {
-  display: grid;
-  gap: 8px;
-  margin: 14px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.brand-preview-agents li {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  color: var(--ink);
-  background: var(--paper);
-  border-radius: var(--radius-md);
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.brand-preview-avatar {
-  display: inline-grid;
-  width: 28px;
-  height: 28px;
-  place-items: center;
-  color: var(--primary-dark);
-  background: var(--primary-tint);
-  border-radius: 50%;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.brand-preview-band {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: auto;
-  padding: 3px 9px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.brand-preview-band-low {
-  color: #3f6212;
-  background: #ecfccb;
-}
-
-.brand-preview-band-high {
-  color: #9f1239;
-  background: #ffe4e6;
+  width: min(100%, 340px);
+  height: auto;
+  margin: auto 0 0 auto;
+  padding-top: 32px;
 }
 
 .eyebrow {
   margin: 0 0 14px;
   color: var(--primary);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1.4;
 }
 
 .auth-main {
   display: flex;
-  min-height: calc(100vh - 36px);
+  min-height: 100vh;
   align-items: center;
-  justify-content: center;
-  padding: 32px clamp(20px, 4vw, 56px);
+  padding: 48px clamp(24px, 6vw, 96px);
 }
 
 .auth-content {
-  width: min(100%, 460px);
-  padding: clamp(28px, 4vw, 40px);
-  background: var(--paper);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 22px 50px rgb(27 23 72 / 10%);
-  animation: reveal-in 420ms ease-out both;
+  width: min(100%, 400px);
+  animation: reveal-in 320ms ease-out both;
+}
+
+.auth-content .form-heading h1 {
+  font-size: var(--text-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.auth-content .MuiButton-contained {
+  min-height: 48px;
+  font-size: var(--text-body);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+/* The Kenya mesh. Lines and nodes are solid colours on the night panel. */
+.kenya-mesh line {
+  stroke: #4b4787;
+  stroke-width: 1.2;
+}
+
+.kenya-mesh .kenya-mesh-border {
+  stroke: #8e8ad0;
+  stroke-width: 1.6;
+}
+
+.kenya-mesh-edge-node {
+  fill: #c7c9f5;
+}
+
+.kenya-mesh-node {
+  fill: #bef264;
+  stroke: var(--night);
+  stroke-width: 2;
+}
+
+.kenya-mesh-node-cyan {
+  fill: #67e8f9;
+}
+
+.kenya-mesh-ring {
+  fill: none;
+  stroke: var(--flag);
+  stroke-width: 2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* Once, on load: the node turns red (a flagged agent), a ring goes out,
+   and the node settles back. */
+.kenya-mesh-flag {
+  animation: mesh-flag 2.6s ease-in-out 0.9s 1 both;
+}
+
+.kenya-mesh-ring {
+  animation: mesh-ring 1.4s ease-out 1.1s 1 both;
+}
+
+@keyframes mesh-flag {
+  0% {
+    fill: #bef264;
+  }
+
+  12%,
+  72% {
+    fill: #f43f5e;
+  }
+
+  100% {
+    fill: #bef264;
+  }
+}
+
+@keyframes mesh-ring {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(3.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kenya-mesh-flag,
+  .kenya-mesh-ring {
+    animation: none;
+  }
 }
 
 .form-heading {
@@ -881,23 +843,45 @@ a:hover {
   }
 }
 
-/* Narrower screens: the panel shrinks to the logo and message on top. */
+/* Narrower screens: the panel becomes a band above the form, with the
+   message on the left and a smaller mesh on the right. */
 @media (max-width: 1000px) {
   .auth-frame {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .brand-panel,
-  .auth-main {
+  .brand-panel {
+    display: grid;
     min-height: auto;
+    grid-template-columns: minmax(0, 1fr) clamp(96px, 26vw, 200px);
+    align-items: center;
+    gap: 16px 24px;
+    padding: 24px clamp(16px, 5vw, 48px) 28px;
+  }
+
+  .brand-lockup {
+    grid-column: 1 / -1;
   }
 
   .brand-copy {
-    margin-top: 0;
+    max-width: none;
+    margin-top: 8px;
   }
 
-  .brand-preview {
-    display: none;
+  .brand-copy h2 {
+    font-size: clamp(30px, 6vw, 44px);
+  }
+
+  .brand-mesh {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .auth-main {
+    min-height: auto;
+    align-items: flex-start;
+    padding: 32px clamp(16px, 5vw, 48px) 48px;
   }
 }
 
@@ -987,32 +971,9 @@ a:hover {
 }
 
 @media (max-width: 680px) {
-  .auth-frame {
-    padding: 0;
-    gap: 0;
-  }
-
-  .brand-panel {
-    gap: 18px;
-    padding: 20px 16px 24px;
-    border-radius: 0;
-  }
-
-  .brand-copy h2 {
-    font-size: 28px;
-  }
-
   .brand-subtitle {
-    margin-top: 8px;
-    font-size: 15px;
-  }
-
-  .auth-main {
-    padding: 20px 16px 28px;
-  }
-
-  .auth-content {
-    padding: 24px 18px;
+    margin-top: 10px;
+    font-size: var(--text-body);
   }
 
   .form-heading h1 {
@@ -1050,23 +1011,7 @@ a:hover {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background:
-    radial-gradient(
-      circle at 12% 18%,
-      rgb(79 70 229 / 12%) 0 4px,
-      transparent 5px
-    ),
-    radial-gradient(
-      circle at 88% 24%,
-      rgb(14 116 144 / 10%) 0 5px,
-      transparent 6px
-    ),
-    radial-gradient(
-      circle at 18% 82%,
-      rgb(163 230 53 / 13%) 0 4px,
-      transparent 5px
-    ),
-    linear-gradient(135deg, #eceafe 0%, #f9f8ff 48%, #ecfeff 100%);
+  background: #eceafe;
   background-size:
     72px 72px,
     96px 96px,
@@ -1224,9 +1169,7 @@ a:hover {
 }
 
 .identity-workspace .workspace-main {
-  background:
-    radial-gradient(ellipse at 98% 0%, rgb(79 70 229 / 5%), transparent 32rem),
-    var(--canvas);
+  background: var(--canvas);
 }
 
 .identity-workspace .workspace-page-header {
@@ -1235,9 +1178,7 @@ a:hover {
   overflow: hidden;
   min-height: 104px;
   padding: 18px 22px;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(14 116 144 / 9%), transparent 30%),
-    linear-gradient(118deg, #f1f0fd 0%, #fff 58%, #f5fdff 100%);
+  background: #f1f0fd;
   border: 1px solid var(--identity-line);
   border-radius: 20px;
   box-shadow: 0 8px 24px rgb(27 23 72 / 5%);
@@ -1304,12 +1245,7 @@ a:hover {
 .identity-workspace .list-pager {
   position: relative;
   z-index: 1;
-  background: linear-gradient(
-    120deg,
-    rgb(241 240 253 / 82%),
-    rgb(255 255 255 / 94%) 62%,
-    rgb(245 253 255 / 90%)
-  );
+  background: rgb(241 240 253 / 82%);
 }
 
 .identity-workspace .table-toolbar {
@@ -1351,7 +1287,7 @@ a:hover {
 .identity-workspace .list-table .MuiTableCell-head {
   height: 48px;
   color: #575478;
-  background: linear-gradient(180deg, #fbfaff, #f7f6fe);
+  background: #fbfaff;
   border-bottom-color: #e6e4f7;
   font-size: 11px;
   font-weight: 800;
@@ -1424,9 +1360,7 @@ a:hover {
 .identity-workspace .kpi-card {
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(14 116 144 / 6%), transparent 36%),
-    linear-gradient(145deg, #fff, #fbfaff);
+  background: #fff;
   transition:
     transform 160ms ease,
     box-shadow 160ms ease;
@@ -1438,11 +1372,7 @@ a:hover {
   bottom: 0;
   left: 0;
   width: 3px;
-  background: linear-gradient(
-    180deg,
-    var(--identity-blue),
-    var(--identity-teal)
-  );
+  background: var(--identity-blue);
   content: "";
 }
 
@@ -1462,9 +1392,7 @@ a:hover {
 }
 
 .identity-workspace .detail-drawer-head {
-  background:
-    radial-gradient(circle at 92% 0%, rgb(14 116 144 / 10%), transparent 38%),
-    linear-gradient(135deg, #f3f2fe, #fff 72%, #f5fdff);
+  background: #f3f2fe;
   border-bottom: 1px solid var(--identity-line);
 }
 
@@ -1482,9 +1410,7 @@ a:hover {
 
 .identity-public .public-header {
   color: #fff;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(34 211 238 / 22%), transparent 36%),
-    linear-gradient(120deg, #3730a3, #1e1b4b);
+  background: var(--night);
   border-bottom-color: rgb(255 255 255 / 13%);
 }
 
@@ -1497,10 +1423,7 @@ a:hover {
   position: relative;
   overflow: hidden;
   align-items: flex-start;
-  background:
-    radial-gradient(ellipse at 90% 12%, rgb(14 116 144 / 9%), transparent 34%),
-    radial-gradient(ellipse at 5% 90%, rgb(79 70 229 / 8%), transparent 38%),
-    linear-gradient(135deg, #f3f2fe, #fff 60%, #f5fdff);
+  background: #f3f2fe;
 }
 
 .identity-status .eyebrow {
@@ -1518,7 +1441,7 @@ a:hover {
   width: min(320px, 72vw);
   height: auto;
   padding: 10px;
-  background: linear-gradient(130deg, #3730a3, #1e1b4b);
+  background: var(--night);
   border: 1px solid rgb(79 70 229 / 15%);
   border-radius: 24px;
   box-shadow: 0 14px 34px rgb(27 23 72 / 13%);
@@ -1544,9 +1467,7 @@ a:hover {
   grid-column: 1 / -1;
   align-items: center;
   gap: 16px;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(14 116 144 / 8%), transparent 36%),
-    linear-gradient(115deg, #f1f0fd, #fff);
+  background: #f1f0fd;
   border-right: 0;
 }
 
@@ -1694,9 +1615,7 @@ a:hover {
   margin: 0 0 24px;
   padding: 24px;
   color: #fff;
-  background:
-    radial-gradient(ellipse at 95% 0%, rgb(163 230 53 / 26%), transparent 36%),
-    linear-gradient(125deg, #3730a3 0%, #312e81 50%, #1e1b4b 100%);
+  background: #3730a3;
   border: 1px solid rgb(255 255 255 / 14%);
   border-radius: 22px;
   box-shadow: 0 12px 30px rgb(27 23 72 / 15%);
@@ -1865,7 +1784,7 @@ a:hover {
   max-width: 100%;
   margin-bottom: 4px;
   padding: 6px;
-  background: linear-gradient(120deg, #f1f0fd, #ecfeff);
+  background: #f1f0fd;
   border: 1px solid var(--identity-line);
   border-radius: 18px;
 }
@@ -1894,7 +1813,7 @@ a:hover {
 .identity-probability-track > span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, #4f46e5, #0e7490);
+  background: #4f46e5;
   border-radius: inherit;
 }
 
@@ -2094,9 +2013,7 @@ a:hover {
 .identity-agent-drawer .detail-drawer-head {
   align-items: flex-start;
   padding: 24px;
-  background:
-    radial-gradient(circle at 90% 0%, rgb(8 145 178 / 15%), transparent 38%),
-    linear-gradient(135deg, #f3f2fe, #fff 76%);
+  background: #f3f2fe;
 }
 
 .identity-agent-drawer .detail-drawer-leading {
@@ -2115,7 +2032,7 @@ a:hover {
   gap: 12px;
   margin: 0 0 18px;
   padding: 16px;
-  background: linear-gradient(120deg, #f3f2fe, #ecfeff);
+  background: #f3f2fe;
   border: 1px solid #e6e4f7;
   border-radius: 17px;
 }
@@ -2212,7 +2129,7 @@ a:hover {
   gap: 11px;
   margin-bottom: 24px;
   padding: 14px;
-  background: linear-gradient(120deg, #f1f0fd, #ecfeff);
+  background: #f1f0fd;
   border: 1px solid #e6e4f7;
   border-radius: 16px;
 }
@@ -2371,7 +2288,7 @@ a:hover {
 }
 
 .identity-progress-track .identity-progress-active {
-  background: linear-gradient(90deg, #4f46e5, #0e7490);
+  background: #4f46e5;
 }
 
 .identity-join-progress ol {
@@ -2443,12 +2360,12 @@ a:hover {
 
 .identity-join-form .MuiButton-contained {
   color: #fff;
-  background: linear-gradient(105deg, #4f46e5, #0e7490);
+  background: #4f46e5;
   box-shadow: 0 5px 12px rgb(79 70 229 / 18%);
 }
 
 .identity-join-form .MuiButton-contained:hover {
-  background: linear-gradient(105deg, #3730a3, #3f6212);
+  background: #3730a3;
 }
 
 .identity-join-step {
@@ -2675,7 +2592,7 @@ a:hover {
   gap: 9px;
   margin-top: 7px;
   padding: 18px;
-  background: linear-gradient(135deg, #f1f0fd, #ecfeff);
+  background: #f1f0fd;
   border: 1px solid #e6e4f7;
   border-radius: 17px;
 }
@@ -3567,9 +3484,9 @@ a:hover {
 }
 
 /* ==========================================================================
-   Electric direction (v1.4.0). Gradients only on hero areas: the sign-in
-   panel, the /join header, the Overview hero, and the KPI card edges.
-   Tables, forms, drawers, and page backgrounds stay light and calm.
+   Electric direction (v1.4.0). Solid colours only: hero areas (sign-in
+   panel, /join header, Overview hero) use night; tables, forms, drawers,
+   and page backgrounds stay light and calm.
    ========================================================================== */
 
 /* ---- Overview hero ------------------------------------------------------ */
@@ -3577,10 +3494,7 @@ a:hover {
   min-height: 132px;
   padding: 26px 28px;
   color: var(--on-navy);
-  background:
-    radial-gradient(circle at 94% 0%, rgb(34 211 238 / 35%), transparent 32%),
-    radial-gradient(circle at 70% 120%, rgb(163 230 53 / 22%), transparent 34%),
-    var(--gradient-hero);
+  background: var(--gradient-hero);
   border: 0;
   box-shadow: 0 16px 40px rgb(49 46 129 / 22%);
 }
@@ -3609,10 +3523,9 @@ a:hover {
   --kpi-ink: var(--primary-dark);
   min-height: 196px;
   padding: 18px 18px 10px;
-  background:
-    linear-gradient(var(--paper), var(--paper)) padding-box,
-    linear-gradient(125deg, var(--kpi-from), var(--kpi-to)) border-box;
-  border: 2px solid transparent !important;
+  background: var(--paper);
+  border: 1px solid var(--line) !important;
+  border-top: 4px solid var(--kpi-from) !important;
   border-radius: var(--radius-lg) !important;
 }
 
@@ -3785,7 +3698,7 @@ a:hover {
   background: #bef264;
 }
 
-/* ---- /join: phone first, gradient header, light form -------------------- */
+/* ---- /join: phone first, night header, light form ------------------------ */
 .identity-public:has(.identity-join) .public-header {
   display: none;
 }
@@ -3798,10 +3711,7 @@ a:hover {
   margin: 0 0 20px;
   padding: 18px;
   color: #ffffff;
-  background:
-    radial-gradient(circle at 100% 0%, rgb(34 211 238 / 38%), transparent 40%),
-    radial-gradient(circle at 0% 120%, rgb(163 230 53 / 24%), transparent 40%),
-    var(--gradient-hero);
+  background: var(--gradient-hero);
   border: 0;
   border-radius: var(--radius-lg);
   box-shadow: 0 14px 34px rgb(49 46 129 / 22%);
@@ -3844,7 +3754,7 @@ a:hover {
 }
 
 .identity-progress-track .identity-progress-active {
-  background: linear-gradient(90deg, #4f46e5, #22d3ee);
+  background: #4f46e5;
 }
 
 .identity-join-progress ol {
@@ -3882,7 +3792,7 @@ a:hover {
   min-height: 48px;
   background: var(--primary);
   border-radius: 12px;
-  box-shadow: 0 8px 20px rgb(79 70 229 / 25%);
+  box-shadow: none;
 }
 
 .identity-join-form .MuiButton-contained:hover {
@@ -3905,12 +3815,6 @@ a:hover {
   .identity-public:has(.identity-join-success) .identity-join-success {
     border-color: var(--line);
     box-shadow: 0 18px 50px rgb(27 23 72 / 10%);
-  }
-}
-
-@media (max-width: 680px) {
-  .identity-join-brand {
-    margin: -4px -4px 18px;
   }
 }
 
@@ -3985,4 +3889,44 @@ a:hover {
 .identity-workspace .list-card,
 .list-card {
   overflow: clip;
+}
+
+/* ---- /join: plain page, solid night header ----------------------------- */
+.identity-public:has(.identity-join),
+.identity-public:has(.identity-join-success) {
+  background: var(--paper);
+}
+
+.identity-public:has(.identity-join)::before,
+.identity-public:has(.identity-join-success)::before {
+  display: none;
+}
+
+.identity-join-brand {
+  margin: -28px -20px 24px;
+  padding: 20px;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.identity-join-organisation strong {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+@media (min-width: 681px) {
+  .identity-public:has(.identity-join) .identity-join,
+  .identity-public:has(.identity-join-success) .identity-join-success {
+    padding: 0 0 32px;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .identity-join-brand {
+    margin: 0 0 28px;
+    padding: 22px 24px;
+    border-radius: 8px;
+  }
 }

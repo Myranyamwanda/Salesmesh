@@ -1,7 +1,7 @@
 import TrendingDownRounded from "@mui/icons-material/TrendingDownRounded";
 import TrendingFlatRounded from "@mui/icons-material/TrendingFlatRounded";
 import TrendingUpRounded from "@mui/icons-material/TrendingUpRounded";
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   Area,
   AreaChart,
@@ -277,14 +277,13 @@ function shortMonth(month: string) {
   );
 }
 
-/** A small month-by-month chart for a KPI card: gradient area or bars. */
+/** A small month-by-month chart for a KPI card: area or bars, solid colour. */
 export function KpiTrendChart({
   kind,
   months,
   values,
   name,
   from,
-  to,
   stroke,
 }: {
   kind: "area" | "bar";
@@ -292,10 +291,8 @@ export function KpiTrendChart({
   values: number[];
   name: string;
   from: string;
-  to: string;
   stroke: string;
 }) {
-  const id = useId().replace(/:/g, "");
   if (values.length < 2) {
     return <span className="identity-trend-empty">Trend unavailable</span>;
   }
@@ -313,12 +310,6 @@ export function KpiTrendChart({
       <ResponsiveContainer width="100%" height={92}>
         {kind === "area" ? (
           <AreaChart data={data} margin={margin}>
-            <defs>
-              <linearGradient id={`${id}-fill`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor={from} stopOpacity={0.5} />
-                <stop offset="1" stopColor={to} stopOpacity={0.05} />
-              </linearGradient>
-            </defs>
             <XAxis
               dataKey="month"
               tickLine={false}
@@ -331,18 +322,13 @@ export function KpiTrendChart({
               dataKey="value"
               stroke={stroke}
               strokeWidth={2.5}
-              fill={`url(#${id}-fill)`}
+              fill={from}
+              fillOpacity={0.16}
               isAnimationActive={false}
             />
           </AreaChart>
         ) : (
           <BarChart data={data} margin={margin}>
-            <defs>
-              <linearGradient id={`${id}-bar`} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0" stopColor={from} />
-                <stop offset="1" stopColor={to} />
-              </linearGradient>
-            </defs>
             <XAxis
               dataKey="month"
               tickLine={false}
@@ -352,7 +338,7 @@ export function KpiTrendChart({
             />
             <Bar
               dataKey="value"
-              fill={`url(#${id}-bar)`}
+              fill={from}
               radius={[6, 6, 2, 2]}
               maxBarSize={22}
               isAnimationActive={false}
@@ -366,7 +352,6 @@ export function KpiTrendChart({
 
 /** The SalesMesh mark: four connected nodes (a small mesh) on a rounded tile. */
 export function LogoMark({ size = 34 }: { size?: number }) {
-  const id = useId().replace(/:/g, "");
   return (
     <svg
       className="logo-mark"
@@ -376,13 +361,7 @@ export function LogoMark({ size = 34 }: { size?: number }) {
       aria-hidden="true"
       focusable="false"
     >
-      <defs>
-        <linearGradient id={`${id}-tile`} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#7c3aed" />
-          <stop offset="1" stopColor="#4f46e5" />
-        </linearGradient>
-      </defs>
-      <rect width="40" height="40" rx="11" fill={`url(#${id}-tile)`} />
+      <rect width="40" height="40" rx="10" fill="#4f46e5" />
       <g
         stroke="#ffffff"
         strokeWidth="2.2"
@@ -427,9 +406,7 @@ export function BrandLogo({ size = 34 }: { size?: number }) {
   return (
     <span className="brand-logo">
       <LogoMark size={size} />
-      <span className="brand-wordmark">
-        Sales<span>Mesh</span>
-      </span>
+      <span className="brand-wordmark">SalesMesh</span>
     </span>
   );
 }
@@ -448,19 +425,7 @@ export function MeshMark({
       role="img"
       aria-label="Connected nodes represent the SalesMesh network"
     >
-      <defs>
-        <linearGradient id="mesh-line" x1="0" x2="1" y1="0" y2="1">
-          <stop offset="0" stopColor="#22d3ee" stopOpacity=".45" />
-          <stop offset=".52" stopColor="#7c3aed" stopOpacity=".8" />
-          <stop offset="1" stopColor="#a3e635" stopOpacity=".7" />
-        </linearGradient>
-        <radialGradient id="mesh-glow">
-          <stop offset="0" stopColor="#4f46e5" stopOpacity=".14" />
-          <stop offset="1" stopColor="#4f46e5" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-      <ellipse cx="240" cy="153" rx="206" ry="126" fill="url(#mesh-glow)" />
-      <g fill="none" stroke="url(#mesh-line)" strokeWidth="2">
+      <g fill="none" stroke="#8e8ad0" strokeWidth="2">
         <path d="M56 178 143 83 243 145 337 56 422 126 349 228 243 145 156 238 56 178Z" />
         <path d="m143 83 13 155 181-182 5 172-99-83-187 33 220 50 146-102" />
         <path d="m56 178 200 1 81-123 85 70-179 19-87 93-100-60" />
