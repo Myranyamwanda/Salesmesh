@@ -10,6 +10,39 @@ tokens: `warningTint`, `errorTint` (badge fills), `fieldBorder` (form field
 outline, 3:1 on white for WCAG 1.4.11) and nothing else; colours, fonts, and
 radii are unchanged.
 
+## Electric Direction (Step 3, chosen from a style board)
+
+The developer compared three directions on a temporary, dev-only style board
+(Savanna, Electric, Bright; removed before merge) and chose **Electric**:
+indigo and violet primary with lime and cyan accents.
+
+- **Gradients only on hero areas:** the sign-in panel, the `/join` header,
+  the Overview hero, and the KPI card edges. Tables, forms, drawers, and page
+  backgrounds stay on light surfaces. "Needs attention" became a light card.
+- **Sign in, sign up, password reset:** the new mesh logo (four connected
+  nodes) and "SalesMesh" wordmark, the unchanged message "Every connection
+  starts here." / "A secure workspace for teams, agents, and clients.", a
+  stylised dashboard preview (decorative, hidden from screen readers, in
+  normal flow so it cannot overlap text), and the form in a card. The small
+  eyebrow and footer labels were removed.
+- **`/join`:** a gradient header with the client and agent, numbered steps
+  (current step filled and bold, `aria-current="step"`), and a light form.
+  The submitted fields and the session timer are unchanged.
+- **Tables:** at most six columns, a tinted header, a 4 px band edge plus a
+  band badge with an icon and text, tinted initials avatars, and the pager.
+  A table card's `overflow: hidden` made it the sticky container, so the
+  sticky header slid over the first row; it is now `overflow: clip`.
+- **KPI cards:** each KPI has its own colour (indigo, lime, cyan, violet), a
+  tinted icon chip, a gradient area or bar chart with a text summary for
+  screen readers, and a trend chip such as "+12% vs last month" (arrow icon
+  plus words; a count instead of a percentage when the previous month is 0).
+- **Contrast:** every text colour pair is at least 4.5:1; colour is never
+  the only signal (bands, steps, and trends all carry text).
+
+Screenshots: `docs/screenshots/v1.4.0/identity/` (`after-identity-*` and the
+list pages), regenerated with `SCREENSHOT_SET=after`,
+`SCREENSHOT_FORMAT=jpeg`, `SCREENSHOT_DIR=../docs/screenshots/v1.4.0/identity`.
+
 ## Phase 1b Identity Proposal (Step 1)
 
 This proposal applies the new visual identity only to Sign in, admin Overview,
