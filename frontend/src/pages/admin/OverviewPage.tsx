@@ -22,7 +22,7 @@ import { pageRows, useListParams } from "../../components/table/useListParams";
 import { KpiTable, MonthlyLineChart } from "../../components/KpiComponents";
 import {
   InitialsAvatar,
-  MiniSparkline,
+  KpiTrendChart,
   TrendDelta,
 } from "../../components/VisualIdentity";
 import type {
@@ -257,25 +257,33 @@ function bandRowClass(band: AgentRanking["band"]) {
 }
 
 function OverviewMetricCard({
+  tone,
   icon,
   label,
   value,
   detail,
   trend,
 }: {
+  tone: "indigo" | "lime" | "cyan" | "violet";
   icon: ReactNode;
   label: string;
   value: number | null;
   detail: string;
   trend?: {
+    kind: "area" | "bar";
+    months: string[];
     values: number[];
     name: string;
     current: number | null;
     previous: number | null;
   };
 }) {
+  const colours = chartTones[tone];
   return (
-    <Paper className="identity-kpi-card" variant="outlined">
+    <Paper
+      className={`identity-kpi-card identity-kpi-${tone}`}
+      variant="outlined"
+    >
       <div className="identity-kpi-heading">
         <span className="identity-kpi-icon" aria-hidden="true">
           {icon}
@@ -284,26 +292,40 @@ function OverviewMetricCard({
           {label}
         </Typography>
       </div>
-      <Typography className="identity-kpi-value">
-        {value === null ? "—" : formatCount(value)}
-      </Typography>
-      <Typography className="identity-kpi-detail">{detail}</Typography>
-      {trend && (
-        <div className="identity-kpi-trend">
-          <MiniSparkline
-            values={trend.values}
-            label={`${trend.name} over the last six monthly points`}
-          />
+      <div className="identity-kpi-value-row">
+        <Typography className="identity-kpi-value">
+          {value === null ? "—" : formatCount(value)}
+        </Typography>
+        {trend && (
           <TrendDelta
             current={trend.current}
             previous={trend.previous}
-            label={trend.name.toLowerCase()}
+            label={trend.name}
           />
-        </div>
+        )}
+      </div>
+      <Typography className="identity-kpi-detail">{detail}</Typography>
+      {trend && (
+        <KpiTrendChart
+          kind={trend.kind}
+          months={trend.months}
+          values={trend.values}
+          name={trend.name}
+          {...colours}
+        />
       )}
     </Paper>
   );
 }
+
+// Each KPI keeps its own colour; the gradients are decoration on top of
+// the numbers and text, which carry the meaning.
+const chartTones = {
+  indigo: { from: "#7c3aed", to: "#22d3ee", stroke: "#4f46e5" },
+  lime: { from: "#84cc16", to: "#22d3ee", stroke: "#4d7c0f" },
+  cyan: { from: "#22d3ee", to: "#4f46e5", stroke: "#0e7490" },
+  violet: { from: "#a855f7", to: "#4f46e5", stroke: "#6d28d9" },
+};
 
 function AttentionSignals({
   kpiQuery,
@@ -417,6 +439,7 @@ export function OverviewPage() {
       )}
       <section className="identity-kpi-grid" aria-label="Workspace summary">
         <OverviewMetricCard
+          tone="indigo"
           icon={<PersonAddAlt1 />}
           label="Registrations"
           value={latestMonth?.registrations ?? null}
@@ -424,6 +447,8 @@ export function OverviewPage() {
           trend={
             kpiQuery.data
               ? {
+                  kind: "area",
+                  months: completedMonths.map((month) => month.month),
                   values: completedMonths.map((month) => month.registrations),
                   name: "Registrations",
                   current: latestMonth?.registrations ?? null,
@@ -433,6 +458,7 @@ export function OverviewPage() {
           }
         />
         <OverviewMetricCard
+          tone="lime"
           icon={<ReportProblem />}
           label="Confirmed fake"
           value={latestMonth?.confirmed_fake ?? null}
@@ -444,6 +470,8 @@ export function OverviewPage() {
           trend={
             kpiQuery.data
               ? {
+                  kind: "bar",
+                  months: completedMonths.map((month) => month.month),
                   values: completedMonths.map((month) => month.confirmed_fake),
                   name: "Confirmed fake",
                   current: latestMonth?.confirmed_fake ?? null,
@@ -453,6 +481,7 @@ export function OverviewPage() {
           }
         />
         <OverviewMetricCard
+          tone="cyan"
           icon={<FactCheck />}
           label="Reviews waiting"
           value={queueQuery.data?.total ?? null}
@@ -465,6 +494,7 @@ export function OverviewPage() {
           }
         />
         <OverviewMetricCard
+          tone="violet"
           icon={<Groups />}
           label="Agents"
           value={allQuery.data?.total ?? null}
