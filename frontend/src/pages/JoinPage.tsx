@@ -27,7 +27,7 @@ import { Controller, useForm, useWatch, type Control } from "react-hook-form";
 import { useParams } from "react-router-dom";
 import { z } from "zod";
 import * as portalApi from "../api/portal";
-import { MeshMark } from "../components/VisualIdentity";
+import { LogoMark, MeshMark } from "../components/VisualIdentity";
 import { useAuth } from "../hooks/useAuth";
 import { apiErrorCode, apiErrorMessage } from "../utils/errors";
 import {
@@ -557,9 +557,7 @@ export function JoinPage() {
   return (
     <div className="identity-join">
       <header className="identity-join-brand">
-        <span className="brand-mark" aria-hidden="true">
-          S
-        </span>
+        <LogoMark size={32} />
         <span className="identity-join-organisation">
           <span>Registration for</span>
           <strong>{clientName}</strong>
@@ -569,7 +567,6 @@ export function JoinPage() {
         </span>
       </header>
       <div className="identity-join-heading">
-        <p className="eyebrow">CUSTOMER REGISTRATION</p>
         <Typography component="h1" variant="h4">
           Let&apos;s get you started
         </Typography>
