@@ -67,11 +67,11 @@ export const gradients = {
 
 // One family: Bricolage Grotesque (variable weight and optical size), with
 // tabular figures for scores and counts.
-export const fonts = {
-  body: '"Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif',
-  heading:
-    '"Bricolage Grotesque Variable", "Bricolage Grotesque", system-ui, sans-serif',
-};
+// "Bricolage Fallback" is a local Arial scaled to Bricolage's metrics
+// (styles.css), so text does not shift when the web font arrives.
+const family =
+  '"Bricolage Grotesque Variable", "Bricolage Fallback", system-ui, sans-serif';
+export const fonts = { body: family, heading: family };
 
 /** Type scale in px: small, label, body, lead, title, display. */
 export const typeScale = {
