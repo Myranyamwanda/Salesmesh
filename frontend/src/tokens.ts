@@ -3,45 +3,63 @@
  * them as CSS variables for styles.css; charts import them directly.
  */
 export const colors = {
-  ink: "#141b2d",
-  muted: "#535e75",
+  // "Electric" direction (v1.4.0): indigo/violet primary with lime and cyan
+  // accents. Gradients are kept for hero areas; work surfaces stay light.
+  ink: "#1b1748",
+  muted: "#575478",
   // At least 4.5:1 on canvas, paper, and tint (WCAG 1.4.3).
-  subtle: "#626c80",
-  line: "#e1e6ef",
-  lineSoft: "#edf0f6",
+  subtle: "#5f5c80",
+  line: "#e6e4f7",
+  lineSoft: "#f0eefb",
   // Form field borders: 3:1 on white (WCAG 1.4.11 non-text contrast).
-  fieldBorder: "#8a94a8",
-  canvas: "#f4f6fa",
+  fieldBorder: "#8b89a8",
+  canvas: "#f7f6fe",
   paper: "#ffffff",
-  tint: "#f0f3f9",
-  primary: "#2a4fc7",
-  primaryDark: "#1d3a9e",
-  primaryTint: "#e7ecfb",
-  navy: "#131c38",
-  navyDeep: "#0c1328",
-  onNavy: "#f3f5fb",
-  onNavyMuted: "#b4bdd3",
-  // Decorative fills only: 2.2:1 on white, too light for text.
-  accent: "#e8a33d",
-  // Amber for text and outlines, 5.7:1 on white.
-  accentText: "#8f5b00",
-  success: "#17795a",
-  successTint: "#e4f3ed",
-  warning: "#a35c00",
+  tint: "#f1f0fd",
+  primary: "#4f46e5",
+  primaryDark: "#3730a3",
+  primaryTint: "#eceafe",
+  violet: "#7c3aed",
+  violetText: "#6d28d9",
+  violetTint: "#f3e8ff",
+  navy: "#1e1b4b",
+  navyDeep: "#13113a",
+  onNavy: "#f5f5ff",
+  onNavyMuted: "#c7c9f5",
+  // Lime and cyan fills are decorative only (too light for text on white);
+  // the *Text values are for text and outlines on white or their tints.
+  accent: "#a3e635",
+  accentText: "#3f6212",
+  lime: "#a3e635",
+  limeText: "#3f6212",
+  limeTint: "#ecfccb",
+  cyan: "#22d3ee",
+  cyanText: "#0e7490",
+  cyanTint: "#cffafe",
+  success: "#3f6212",
+  successTint: "#ecfccb",
+  warning: "#b45309",
   // Status badge fills; each badge's text colour is at least 4.5:1 on it.
-  warningTint: "#fdf1e1",
-  error: "#bf2f36",
-  errorTint: "#fbeaeb",
+  warningTint: "#fef3c7",
+  error: "#be123c",
+  errorTint: "#ffe4e6",
 };
 
 export const chart = {
-  series: "#2a78d6",
-  comparison: "#c8590f",
+  series: "#4f46e5",
+  comparison: "#0891b2",
   // Reference lines stay grey on purpose: they are not a data category.
-  reference: "#5b6880",
+  reference: "#6b6890",
   grid: colors.line,
   axis: colors.muted,
   markerRing: colors.paper,
+};
+
+/** Hero gradients: sign-in panel, /join header, overview hero, KPI edges. */
+export const gradients = {
+  hero: "linear-gradient(150deg, #1e1b4b 0%, #312e81 50%, #4c1d95 100%)",
+  button: "linear-gradient(100deg, #4f46e5, #7c3aed)",
+  buttonHover: "linear-gradient(100deg, #4338ca, #6d28d9)",
 };
 
 export const fonts = {
@@ -49,10 +67,10 @@ export const fonts = {
   heading: '"Manrope Variable", Manrope, system-ui, sans-serif',
 };
 
-export const radius = { sm: 6, md: 10, lg: 14 };
+export const radius = { sm: 8, md: 12, lg: 20 };
 
 export const cardShadow =
-  "0 1px 2px rgb(20 27 45 / 5%), 0 4px 14px rgb(20 27 45 / 4%)";
+  "0 1px 2px rgb(27 23 72 / 5%), 0 6px 18px rgb(27 23 72 / 5%)";
 
 /** colors.primaryDark -> --primary-dark, for styles.css. */
 export const cssVariables = {
@@ -68,4 +86,7 @@ export const cssVariables = {
   "--radius-md": `${radius.md}px`,
   "--radius-lg": `${radius.lg}px`,
   "--card-shadow": cardShadow,
+  "--gradient-hero": gradients.hero,
+  "--gradient-button": gradients.button,
+  "--gradient-button-hover": gradients.buttonHover,
 };

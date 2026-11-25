@@ -39,7 +39,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { PageLoading } from "../components/PageLoading";
-import { InitialsAvatar } from "../components/VisualIdentity";
+import { InitialsAvatar, LogoMark } from "../components/VisualIdentity";
 import { useAuth } from "../hooks/useAuth";
 import type { UserRole } from "../types/auth";
 import { getInitials } from "../utils/identity";
@@ -113,9 +113,7 @@ function SideNavigation({
         className="workspace-brand"
         onClick={onNavigate}
       >
-        <span className="brand-mark" aria-hidden="true">
-          S
-        </span>
+        <LogoMark size={32} />
         <span className="workspace-brand-copy">
           <strong>SalesMesh</strong>
           <small>ONBOARDING WORKSPACE</small>
