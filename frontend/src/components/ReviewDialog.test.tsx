@@ -91,6 +91,16 @@ describe("ReviewDialog explanation", () => {
     );
   });
 
+  it("says that reasons are statistical signals, not proof", async () => {
+    await openDialog();
+
+    expect(
+      screen.getByText(
+        "Reasons are statistical signals from training data, not proof. Check the details before deciding.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("gives every feature a text effect", async () => {
     await openDialog();
 
