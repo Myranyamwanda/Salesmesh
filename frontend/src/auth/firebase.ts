@@ -136,7 +136,7 @@ const messages: Record<string, string> = {
   "auth/popup-blocked":
     "Your browser blocked the Google window. Allow pop-ups and try again.",
   "auth/unauthorized-domain":
-    "Sign-in does not work from this address. Open the app at http://localhost:5173.",
+    "This site address is not allowed for sign-in. Contact the administrator.",
   "auth/network-request-failed":
     "Could not reach the sign-in service. Check your connection.",
   "app/not-configured":

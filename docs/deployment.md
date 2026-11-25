@@ -1,8 +1,9 @@
 # Production deployment (AWS Lightsail, Ubuntu 24.04)
 
-SalesMesh runs on one Lightsail server (2 GB RAM) with Docker Compose and a
-DuckDNS host name, for example `salesmesh.duckdns.org`. The development setup
-(`docker-compose.yml`, `scripts/dev.ps1`) is separate and unchanged.
+SalesMesh runs on one Lightsail server (2 GB RAM) with Docker Compose and your
+own domain (`DOMAIN` in `.env`, for example `salesmesh.example.com`). The
+development setup (`docker-compose.yml`, `scripts/dev.ps1`) is separate and
+unchanged.
 
 ## How production differs from development
 
@@ -86,17 +87,21 @@ PowerShell commands run on Windows; all others run on the server over SSH.
 3. Instance > Networking > IPv4 firewall: keep SSH (22) and HTTP (80), add
    HTTPS (443). Restrict SSH to your IP if your connection allows it.
 
-### 2. DuckDNS
+### 2. Domain name
 
-Sign in at <https://www.duckdns.org>, add the sub domain (for example
-`salesmesh`), set its IP to the static IP, and click update. Check from Windows:
+At your domain registrar, add an A record for the host name (`@` for the bare
+domain) that points to the static IP. Check from Windows:
 
 ```powershell
-Resolve-DnsName salesmesh.duckdns.org -Type A
+Resolve-DnsName salesmesh.example.com -Type A   # your DOMAIN
 ```
 
 The answer must be the static IP before step 9, or Let's Encrypt cannot issue
 the certificate.
+
+History: production first used a free DuckDNS subdomain. It was replaced by a
+domain registered with Namecheap because Google Safe Browsing flagged the
+duckdns.org subdomain. Any registrar works; only the A record matters.
 
 ### 3. Connect over SSH
 
@@ -186,7 +191,7 @@ the "Unchanged" section as it is. Clear the terminal history afterwards with
 ### 8. Firebase authorised domain
 
 Firebase console > Authentication > Settings > Authorized domains > Add
-domain: `salesmesh.duckdns.org`. Without it, Google sign-in and the links in
+domain: your `DOMAIN`. Without it, Google sign-in and the links in
 password-reset emails fail on the server.
 
 ### 9. First start
@@ -257,7 +262,7 @@ server; for protection against losing the instance, also copy them off
 From Windows PowerShell (`curl.exe` is built into Windows 10 and 11):
 
 ```powershell
-$D = "salesmesh.duckdns.org"
+$D = "salesmesh.example.com"   # your DOMAIN
 curl.exe -s "https://$D/api/health"                                   # "status":"ok", "model":"ok"
 curl.exe -s -o NUL -w "%{http_code}`n" "http://$D/"                   # 308 (redirect to HTTPS)
 curl.exe -s -o NUL -w "%{http_code}`n" "https://$D/join/AGT-NOTREAL"  # 200 (app page)

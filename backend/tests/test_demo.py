@@ -14,7 +14,7 @@ from test_auth import auth_context, bearer_headers  # noqa: F401
 from test_domain_tables import make_customer, make_user
 from test_firebase_auth import firebase_sign_in
 
-from app.cli import demo_firebase
+from app.cli import demo_firebase, print_demo_logins
 from app.core.config import get_settings
 from app.demo import (
     ADMIN_EMAIL,
@@ -560,3 +560,10 @@ def test_abuser_assisted_rows_are_partly_fraud(sample):
     assert sum(row.fraud_bool for row, is_assisted in planned if not is_assisted) == 0
     used = {id(row) for rows in assigned.values() for row in rows}
     assert not any(id(row) in used for row, _ in planned)
+
+
+def test_demo_logins_point_to_the_frontend_url(capsys):
+    print_demo_logins(DemoPlan(), "https://salesmesh.example.org")
+    output = capsys.readouterr().out
+    assert "Open https://salesmesh.example.org to sign in." in output
+    assert "localhost" not in output
