@@ -53,7 +53,7 @@ sequenceDiagram
     J->>J: Check link, rate limit, assisted mode
     J->>F: Registration data
     F->>D: Count emails per device (56 days) and per date of birth (28 days)
-    F-->>J: 13 raw feature values
+    F-->>J: 11 raw feature values
     J->>D: Save customer
     J->>S: score_customer(raw features)
     S->>S: Clip to training range, neutralise date-of-birth count
