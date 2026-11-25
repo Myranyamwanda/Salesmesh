@@ -101,6 +101,11 @@ def test_scoring_config_has_approved_defaults(db_session):
         config.high_risk_below,
         config.watch_below,
     ) == (0.0539, 10, 30, 90, 92)
+    assert (
+        config.assisted_threshold,
+        config.audit_share,
+        config.assisted_alert_multiple,
+    ) == (0.014058, 0.2, 2.0)
     assert db_session.scalars(select(ScoringConfig)).all() == [config]
 
 

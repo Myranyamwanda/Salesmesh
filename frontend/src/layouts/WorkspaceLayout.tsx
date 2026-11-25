@@ -1,7 +1,6 @@
 import { Suspense, useState } from "react";
 import {
   AppBar,
-  Avatar,
   Box,
   Chip,
   Divider,
@@ -27,7 +26,6 @@ import GroupOutlined from "@mui/icons-material/GroupOutlined";
 import HistoryOutlined from "@mui/icons-material/HistoryOutlined";
 import InsightsOutlined from "@mui/icons-material/InsightsOutlined";
 import MenuOutlined from "@mui/icons-material/MenuOutlined";
-import ModelTrainingOutlined from "@mui/icons-material/ModelTrainingOutlined";
 import PersonOutlined from "@mui/icons-material/PersonOutlined";
 import RequestQuoteOutlined from "@mui/icons-material/RequestQuoteOutlined";
 import QrCode2 from "@mui/icons-material/QrCode2";
@@ -41,8 +39,11 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { PageLoading } from "../components/PageLoading";
+import { RouteFade } from "../components/RouteFade";
+import { InitialsAvatar, LogoMark } from "../components/VisualIdentity";
 import { useAuth } from "../hooks/useAuth";
 import type { UserRole } from "../types/auth";
+import { getInitials } from "../utils/identity";
 import { roleHome } from "../utils/roleHome";
 
 const drawerWidth = 252;
@@ -69,11 +70,6 @@ const navItems: Record<
       label: "Commission eligibility",
       path: "/admin/eligibility",
       icon: RequestQuoteOutlined,
-    },
-    {
-      label: "Model",
-      path: "/admin/models",
-      icon: ModelTrainingOutlined,
     },
     {
       label: "User management",
@@ -118,9 +114,7 @@ function SideNavigation({
         className="workspace-brand"
         onClick={onNavigate}
       >
-        <span className="brand-mark" aria-hidden="true">
-          S
-        </span>
+        <LogoMark size={32} />
         <span className="workspace-brand-copy">
           <strong>SalesMesh</strong>
           <small>ONBOARDING WORKSPACE</small>
@@ -128,7 +122,12 @@ function SideNavigation({
       </Link>
       <Divider />
       <Typography className="nav-section-label">WORKSPACE</Typography>
-      <List className="workspace-nav" disablePadding>
+      <List
+        component="nav"
+        aria-label="Workspace"
+        className="workspace-nav"
+        disablePadding
+      >
         {navItems[role].map(({ label, path, icon: Icon }) => {
           const selected =
             location.pathname === path ||
@@ -154,7 +153,12 @@ function SideNavigation({
       <Box className="workspace-sidebar-bottom">
         <Divider />
         <Typography className="nav-section-label">ACCOUNT</Typography>
-        <List className="workspace-nav" disablePadding>
+        <List
+          component="nav"
+          aria-label="Account"
+          className="workspace-nav"
+          disablePadding
+        >
           <ListItemButton
             component={NavLink}
             to="/profile"
@@ -200,7 +204,8 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const navigate = useNavigate();
-  const initials = user?.email.slice(0, 1).toUpperCase() ?? "U";
+  const avatarName =
+    user?.email.split("@")[0].replace(/[._-]+/g, " ") ?? "User";
 
   async function signOut() {
     setMenuAnchor(null);
@@ -209,7 +214,11 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
   }
 
   return (
-    <Box className="workspace-app">
+    <Box className="workspace-app identity-workspace">
+      {/* First on the page, so keyboard users can jump past the menus. */}
+      <a className="skip-link" href="#main">
+        Skip to main content
+      </a>
       <AppBar position="fixed" elevation={0} className="workspace-topbar">
         <Toolbar className="workspace-toolbar">
           <IconButton
@@ -235,9 +244,12 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
           <Tooltip title="Account menu">
             <IconButton
               onClick={(event) => setMenuAnchor(event.currentTarget)}
-              aria-label="Open account menu"
+              aria-label={`Open account menu ${getInitials(avatarName)}`}
             >
-              <Avatar className="topbar-avatar">{initials}</Avatar>
+              <InitialsAvatar
+                name={avatarName}
+                seed={user?.id ?? user?.email}
+              />
             </IconButton>
           </Tooltip>
           <Menu
@@ -284,11 +296,13 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
         <SideNavigation role={role} onNavigate={() => setMobileOpen(false)} />
       </Drawer>
 
-      <Box component="main" className="workspace-main">
+      <Box component="main" id="main" tabIndex={-1} className="workspace-main">
         <Toolbar className="workspace-topbar-spacer" />
         <div className="workspace-content">
           <Suspense fallback={<PageLoading />}>
-            <Outlet />
+            <RouteFade>
+              <Outlet />
+            </RouteFade>
           </Suspense>
         </div>
         <footer className="workspace-footer">

@@ -1,0 +1,69 @@
+{
+  "assisted_threshold": 0.008039,
+  "chosen_on": "month 5, features withheld, model fitted on months 0-4",
+  "validation_month_5": {
+    "threshold": 0.008039123433258995,
+    "recall": 0.222537207654146,
+    "precision": 0.05067785668173015,
+    "fpr": 0.04988465974625144,
+    "fpr_under_50": 0.050728570404579294,
+    "fpr_50_plus": 0.045815847938780546,
+    "fpr_ratio": 0.9031566940164497,
+    "tp": 314,
+    "fp": 5882,
+    "fn": 1097,
+    "roc_auc": 0.7360738135790489,
+    "flag_rate": 0.0519262841195746
+  },
+  "test_months_withheld": {
+    "months_0_4_model": {
+      "threshold": 0.008039123433258995,
+      "recall": 0.1862404447533009,
+      "precision": 0.055104348720057574,
+      "fpr": 0.045470061790998995,
+      "fpr_under_50": 0.044932474327252975,
+      "fpr_50_plus": 0.04824641659042391,
+      "fpr_ratio": 0.9313121575161979,
+      "tp": 536,
+      "fp": 9191,
+      "fn": 2342,
+      "roc_auc": 0.7426145949143834,
+      "flag_rate": 0.04744623459229017
+    },
+    "deployed_model_v1": {
+      "threshold": 0.008039123433258995,
+      "recall": 0.2428769979152189,
+      "precision": 0.04884013415315819,
+      "fpr": 0.0673467469438439,
+      "fpr_under_50": 0.06779140560873494,
+      "fpr_50_plus": 0.06505032021957914,
+      "fpr_ratio": 0.9595658864933964,
+      "tp": 699,
+      "fp": 13613,
+      "fn": 2179,
+      "roc_auc": 0.7421956542989518,
+      "flag_rate": 0.06981088819624313
+    }
+  },
+  "test_months_as_entered_deployed_pipeline": {
+    "threshold": 0.035,
+    "recall": 0.29291174426685196,
+    "precision": 0.09312859036676978,
+    "fpr": 0.040611874359951124,
+    "fpr_under_50": 0.03706678162073425,
+    "fpr_50_plus": 0.05892040256175663,
+    "fpr_ratio": 0.6290992594947599,
+    "tp": 843,
+    "fp": 8209,
+    "fn": 2035,
+    "roc_auc": 0.8119615695411769,
+    "flag_rate": 0.04415372833652828
+  },
+  "demo_assisted": {
+    "customers": 309,
+    "flagged": 15,
+    "flagged_fraud": 1,
+    "fraud": 22,
+    "not_flagged": 294
+  }
+}

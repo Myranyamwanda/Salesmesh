@@ -1,0 +1,102 @@
+{
+  "model_version": "v1",
+  "threshold": 0.035,
+  "withheld_features": [
+    "session_length_in_minutes",
+    "device_os",
+    "keep_alive_session",
+    "device_distinct_emails_8w"
+  ],
+  "session_reason_text": "Time spent on the form was not measured",
+  "session_indicator_contribution_when_missing": 0.2307,
+  "demo": {
+    "customers": 3328,
+    "assisted": {
+      "rows": 309,
+      "flag_rate": 0.0,
+      "mean_probability": 0.002739213287209399,
+      "max_probability": 0.011578416957009646,
+      "false_positive_rate": 0.0,
+      "recall": 0.0
+    },
+    "not_assisted": {
+      "rows": 3019,
+      "flag_rate": 0.06392845313017556,
+      "mean_probability": 0.010083868342806054,
+      "max_probability": 0.2062178848200791,
+      "false_positive_rate": 0.046236559139784944,
+      "recall": 0.2794759825327511
+    },
+    "flagged_with_session_reason": {
+      "assisted": 0,
+      "not_assisted": 0
+    },
+    "flagged_not_assisted": 193,
+    "assisted_with_session_reason_in_top_3": 194,
+    "not_assisted_with_session_missing_in_dataset": 5,
+    "same_rows_both_ways": {
+      "as_entered": {
+        "rows": 3328,
+        "flag_rate": 0.06310096153846154,
+        "mean_probability": 0.009985877260880016,
+        "max_probability": 0.2062178848200791,
+        "false_positive_rate": 0.045173870653233666,
+        "recall": 0.28286852589641437
+      },
+      "withheld": {
+        "rows": 3328,
+        "flag_rate": 0.0,
+        "mean_probability": 0.0031309409150373775,
+        "max_probability": 0.02129801520510875,
+        "false_positive_rate": 0.0,
+        "recall": 0.0
+      },
+      "probability_change": {
+        "mean": -0.00685493634584264,
+        "median": -0.001311392704668314,
+        "mean_relative": 0.6008705865537484,
+        "share_raised": 0.19381009615384615
+      },
+      "newly_flagged_share": 0.0,
+      "no_longer_flagged_share": 0.06310096153846154,
+      "mean_logit_change_by_feature": {
+        "session_length_in_minutes": 0.2248,
+        "device_os": 0.1824,
+        "keep_alive_session": -0.2889,
+        "device_distinct_emails_8w": -0.8929
+      }
+    }
+  },
+  "baf_test_months": {
+    "as_entered": {
+      "rows": 205011,
+      "flag_rate": 0.04415372833652828,
+      "mean_probability": 0.008518520588468484,
+      "max_probability": 0.33701644999799146,
+      "false_positive_rate": 0.040611874359951124,
+      "recall": 0.29291174426685196
+    },
+    "withheld": {
+      "rows": 205011,
+      "flag_rate": 0.0,
+      "mean_probability": 0.0029759136183820033,
+      "max_probability": 0.03462946150909159,
+      "false_positive_rate": 0.0,
+      "recall": 0.0
+    },
+    "probability_change": {
+      "mean": -0.005542606970086481,
+      "median": -0.0011614465356514607,
+      "mean_relative": 0.6133161922591919,
+      "share_raised": 0.19549194921248128
+    },
+    "newly_flagged_share": 0.0,
+    "no_longer_flagged_share": 0.04415372833652828,
+    "mean_logit_change_by_feature": {
+      "session_length_in_minutes": 0.2249,
+      "device_os": 0.2198,
+      "keep_alive_session": -0.2874,
+      "device_distinct_emails_8w": -0.8894
+    }
+  }
+}

@@ -69,6 +69,14 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** Open an account's drawer, where its role and access are changed. */
+async function openAccount(email: string) {
+  await userEvent.click(
+    await screen.findByRole("button", { name: new RegExp(`^${email}`) }),
+  );
+  return screen.findByRole("dialog", { name: email });
+}
+
 describe("admin user management", () => {
   beforeEach(() => {
     vi.spyOn(adminApi, "listClients").mockResolvedValue([]);
@@ -90,9 +98,13 @@ describe("admin user management", () => {
     renderAdmin(<AdminUserManagementPage />);
 
     expect(await screen.findByText(adminUser.email)).toBeInTheDocument();
-    expect(screen.getByText(pendingAgent.email)).toBeInTheDocument();
+    const row = screen.getByText(pendingAgent.email).closest("tr")!;
+    expect(row).toHaveTextContent("Pending");
+    const drawer = await openAccount(pendingAgent.email);
     await userEvent.click(
-      screen.getByRole("button", { name: `Approve ${pendingAgent.email}` }),
+      within(drawer).getByRole("button", {
+        name: `Approve ${pendingAgent.email}`,
+      }),
     );
     await waitFor(() => expect(approve).toHaveBeenCalledWith(pendingAgent.id));
     expect(
@@ -208,8 +220,9 @@ describe("admin user management", () => {
       .mockResolvedValue({ ...legacyClient, firebase_linked: true });
     renderAdmin(<AdminUserManagementPage />);
     const interaction = userEvent.setup();
+    const drawer = await openAccount("legacy@example.com");
     await interaction.click(
-      await screen.findByRole("button", {
+      within(drawer).getByRole("button", {
         name: "Send password email to legacy@example.com",
       }),
     );
@@ -222,15 +235,20 @@ describe("admin user management", () => {
     expect(prepare.mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(firebase.sendPasswordReset).mock.invocationCallOrder[0],
     );
-    // A linked, verified account does not need one.
-    expect(
-      screen.queryByRole("button", {
-        name: "Send password email to admin@example.com",
-      }),
-    ).not.toBeInTheDocument();
     expect(
       await screen.findByText("Password email sent to legacy@example.com."),
     ).toBeInTheDocument();
+    // A linked, verified account does not need one.
+    await interaction.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    const admin = await openAccount("admin@example.com");
+    expect(
+      within(admin).queryByRole("button", {
+        name: "Send password email to admin@example.com",
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("changes an account role and activation state through admin APIs", async () => {
@@ -251,10 +269,10 @@ describe("admin user management", () => {
 
     renderAdmin(<AdminUserManagementPage />);
     const interaction = userEvent.setup();
-    const row = await screen.findByRole("row", { name: /pending@example.com/ });
+    const drawer = await openAccount(pendingAgent.email);
 
     await interaction.click(
-      within(row).getByRole("combobox", { name: "Role" }),
+      within(drawer).getByRole("combobox", { name: "Role" }),
     );
     await interaction.click(
       await screen.findByRole("option", { name: "Client" }),
@@ -264,13 +282,47 @@ describe("admin user management", () => {
     );
 
     await interaction.click(
-      within(row).getByRole("switch", {
+      within(drawer).getByRole("switch", {
         name: `Deactivate ${pendingAgent.email}`,
       }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Deactivate this account?",
+    });
+    expect(setActive).not.toHaveBeenCalled();
+    await interaction.click(
+      within(dialog).getByRole("button", { name: "Deactivate account" }),
     );
     await waitFor(() =>
       expect(setActive).toHaveBeenCalledWith(pendingAgent.id, false),
     );
+  });
+
+  it("searches and filters accounts on the server", async () => {
+    const list = vi
+      .spyOn(adminApi, "listUsers")
+      .mockResolvedValue({ items: [pendingAgent], total: 1 });
+    renderAdmin(<AdminUserManagementPage />);
+    const interaction = userEvent.setup();
+
+    await screen.findByText(pendingAgent.email);
+    await interaction.click(screen.getByRole("combobox", { name: "Role" }));
+    await interaction.click(screen.getByRole("option", { name: "Agent" }));
+    await interaction.click(screen.getByRole("combobox", { name: "Status" }));
+    await interaction.click(
+      screen.getByRole("option", { name: "Not signed in yet" }),
+    );
+    await interaction.type(screen.getByLabelText("Search by email"), "pend");
+    await waitFor(() =>
+      expect(list).toHaveBeenLastCalledWith({
+        offset: 0,
+        limit: 25,
+        q: "pend",
+        role: "agent",
+        status: "not_signed_in",
+      }),
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("1 account match");
   });
 });
 
@@ -295,9 +347,46 @@ describe("admin audit log", () => {
     renderAdmin(<AdminAuditLogPage />);
 
     expect(await screen.findByText("agent approved")).toBeInTheDocument();
-    expect(screen.getByText(adminUser.id)).toBeInTheDocument();
+    expect(screen.getByText("Success")).toBeInTheDocument();
     expect(screen.queryByText("private-ip-hash")).not.toBeInTheDocument();
     expect(screen.queryByText("hidden-password")).not.toBeInTheDocument();
+    // Full IDs are in the drawer; the table shows the first block.
+    await userEvent.click(
+      screen.getByRole("button", { name: "agent approved" }),
+    );
+    const drawer = await screen.findByRole("dialog", {
+      name: "agent approved",
+    });
+    expect(within(drawer).getByText(adminUser.id)).toBeInTheDocument();
+    expect(within(drawer).getByText("request-id")).toBeInTheDocument();
+  });
+
+  it("searches and filters events on the server", async () => {
+    const list = vi
+      .spyOn(adminApi, "listAuditLogs")
+      .mockResolvedValue({ items: [], total: 0 });
+    renderAdmin(<AdminAuditLogPage />);
+    const interaction = userEvent.setup();
+
+    await interaction.click(
+      await screen.findByRole("combobox", { name: "Outcome" }),
+    );
+    await interaction.click(screen.getByRole("option", { name: "Failure" }));
+    await interaction.type(
+      screen.getByLabelText("Search action, subject, or ID"),
+      "login",
+    );
+    await waitFor(() =>
+      expect(list).toHaveBeenLastCalledWith({
+        offset: 0,
+        limit: 25,
+        q: "login",
+        outcome: "failure",
+      }),
+    );
+    expect(
+      await screen.findByText("No results match your search or filters"),
+    ).toBeInTheDocument();
   });
 });
 
@@ -374,8 +463,9 @@ describe("client organisation names", () => {
     const interaction = userEvent.setup();
 
     expect(await screen.findByText("No organisation name")).toBeInTheDocument();
+    const drawer = await openAccount(client.email);
     await interaction.click(
-      screen.getByRole("button", {
+      within(drawer).getByRole("button", {
         name: "Set organisation name for client@example.com",
       }),
     );

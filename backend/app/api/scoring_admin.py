@@ -1,14 +1,18 @@
 """Admin endpoints for reviews, agent reputation, and scoring settings."""
 
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import aliased
 
+from app.api.listing import Direction, Limit, Offset, Search, contains
 from app.auth import Database, require_roles
+from app.ml.explain import with_current_texts
+from app.ml.feature_effects import feature_effects
+from app.ml.model_service import ModelService, get_model_service
 from app.models import (
     AgentProfile,
     ClientProfile,
@@ -22,6 +26,7 @@ from app.schemas.scoring import (
     AgentCustomer,
     AgentDetail,
     AgentEligibility,
+    AgentPage,
     AgentProfileUpdate,
     AgentRanking,
     AgentSummary,
@@ -50,27 +55,55 @@ from app.services.erasure import erase_customer
 from app.services.periods import recent_months
 from app.services.pipeline import registration_status
 from app.services.registration import link_is_active
-from app.services.reputation import AgentReputation, agent_reputations
+from app.services.reputation import (
+    AgentReputation,
+    agent_reputations,
+    assisted_alert,
+    network_assisted_share,
+)
 from app.services.reviews import review_assessment
 
 router = APIRouter(prefix="/admin", tags=["Scoring administration"])
 type Admin = Annotated[User, Depends(require_roles("admin"))]
-type Offset = Annotated[int, Query(ge=0)]
-type Limit = Annotated[int, Query(ge=1, le=100)]
+type Band = Literal["High risk", "Watch", "Low risk", "Insufficient data"]
+type AgentSort = Literal["reputation", "display_name", "n_users", "flags"]
 
 
 @router.get("/review-queue", response_model=QueuePage)
 def review_queue(
-    session: Database, _: Admin, offset: Offset = 0, limit: Limit = 25
+    session: Database,
+    _: Admin,
+    offset: Offset = 0,
+    limit: Limit = 25,
+    q: Search = "",
+    kind: Literal["flag", "audit"] | None = None,
 ) -> QueuePage:
-    """Flagged assessments without a review, oldest first."""
+    """Flagged or audited assessments without a review, oldest first.
+
+    q matches the customer's name or the agent's display name; kind keeps
+    flags (model or rule) or random audits (selected and not flagged).
+    """
     waiting = (
         select(RiskAssessment, Customer, AgentProfile)
         .join(Customer, Customer.id == RiskAssessment.customer_id)
         .join(AgentProfile, AgentProfile.user_id == Customer.agent_id)
         .outerjoin(Review, Review.assessment_id == RiskAssessment.id)
-        .where(RiskAssessment.flagged, Review.id.is_(None))
+        .where(
+            RiskAssessment.flagged | RiskAssessment.audit_selected,
+            Review.id.is_(None),
+        )
     )
+    if term := q.strip():
+        waiting = waiting.where(
+            or_(
+                contains(Customer.full_name, term),
+                contains(AgentProfile.display_name, term),
+            )
+        )
+    if kind == "flag":
+        waiting = waiting.where(RiskAssessment.flagged)
+    elif kind == "audit":
+        waiting = waiting.where(~RiskAssessment.flagged)
     total = session.scalar(select(func.count()).select_from(waiting.subquery()))
     rows = session.execute(
         waiting.order_by(RiskAssessment.created_at, RiskAssessment.id)
@@ -83,7 +116,8 @@ def review_queue(
             created_at=assessment.created_at,
             probability=assessment.probability,
             threshold=assessment.threshold,
-            reasons=assessment.reasons[:3],
+            audit=assessment.audit_selected and not assessment.flagged,
+            reasons=with_current_texts(assessment.reasons[:3]),
             customer_name=customer.full_name,
             agent=AgentSummary(id=profile.user_id, display_name=profile.display_name),
         )
@@ -94,7 +128,10 @@ def review_queue(
 
 @router.get("/assessments/{assessment_id}", response_model=AssessmentDetail)
 def read_assessment(
-    assessment_id: UUID, session: Database, _: Admin
+    assessment_id: UUID,
+    session: Database,
+    _: Admin,
+    model_service: Annotated[ModelService, Depends(get_model_service)],
 ) -> AssessmentDetail:
     assessment = session.get(RiskAssessment, assessment_id)
     if assessment is None:
@@ -107,9 +144,17 @@ def read_assessment(
         model_version=assessment.model_version,
         probability=assessment.probability,
         threshold=assessment.threshold,
+        threshold_kind=assessment.threshold_kind,
         flagged=assessment.flagged,
-        reasons=assessment.reasons,
+        audit_selected=assessment.audit_selected,
+        reasons=with_current_texts(assessment.reasons),
         features=assessment.features,
+        feature_effects=feature_effects(
+            model_service.state,
+            assessment.model_version,
+            assessment.features,
+            customer.assisted,
+        ),
         created_at=assessment.created_at,
         customer=CustomerDetail.model_validate(customer),
         registration_status=registration_status(
@@ -156,7 +201,7 @@ def agent_rows(session, agent_id: UUID | None = None):
 
 
 def ranking(
-    profile, user, client, client_profile, stats: AgentReputation
+    profile, user, client, client_profile, stats: AgentReputation, alert: bool
 ) -> AgentRanking:
     return AgentRanking(
         id=profile.user_id,
@@ -180,18 +225,70 @@ def ranking(
         confirmed_fake=stats.confirmed_fake,
         pending_review=stats.pending_review,
         assisted_share=stats.assisted_share,
+        assisted_alert=alert,
         reputation=stats.reputation,
         risk_score=stats.risk_score,
         band=stats.band,
     )
 
 
-@router.get("/agents", response_model=list[AgentRanking])
-def list_agents(session: Database, _: Admin) -> list[AgentRanking]:
-    """Every agent with reputation, lowest (most at risk) first."""
-    stats = agent_reputations(session, config_row(session))
-    rows = [ranking(*row, stats[row[0].user_id]) for row in agent_rows(session)]
-    return sorted(rows, key=lambda row: (row.reputation, row.display_name))
+@router.get("/agents", response_model=AgentPage)
+def list_agents(
+    session: Database,
+    _: Admin,
+    offset: Offset = 0,
+    limit: Limit = 25,
+    q: Search = "",
+    band: Annotated[list[Band] | None, Query()] = None,
+    has_pending: bool = False,
+    no_client: bool = False,
+    sort: AgentSort = "reputation",
+    direction: Direction = "asc",
+) -> AgentPage:
+    """Agents with reputation, lowest (most at risk) first by default.
+
+    q matches the display name or email; band may repeat (any of them);
+    has_pending keeps agents with flags waiting for a review; no_client keeps
+    agents without a client. Ties are ordered by name.
+
+    Reputation is computed on read from every customer and the network's
+    assisted share needs every agent anyway, so the ranking is built in full
+    and then filtered, sorted, and sliced here. Agents number in the tens or
+    hundreds, so this stays cheap and keeps one definition of reputation.
+    """
+    config = config_row(session)
+    stats = agent_reputations(session, config)
+    share = network_assisted_share(stats.values())
+    rows = [
+        ranking(*row, mine, assisted_alert(mine, share, config))
+        for row in agent_rows(session)
+        for mine in [stats[row[0].user_id]]
+    ]
+    term = q.strip().casefold()
+    rows = [
+        row
+        for row in rows
+        if (
+            not term
+            or term in row.display_name.casefold()
+            or term in row.email.casefold()
+        )
+        and (not band or row.band in band)
+        and (not has_pending or row.pending_review > 0)
+        and (not no_client or row.client is None)
+    ]
+
+    def name(row: AgentRanking):
+        return (row.display_name.casefold(), str(row.id))
+
+    # Two stable sorts: by name, then by the chosen column, so ties keep
+    # name order in both directions.
+    rows.sort(key=name)
+    if sort != "display_name":
+        rows.sort(key=lambda row: getattr(row, sort), reverse=direction == "desc")
+    elif direction == "desc":
+        rows.reverse()
+    return AgentPage(items=rows[offset : offset + limit], total=len(rows))
 
 
 def find_agent(session, agent_id: UUID):
@@ -203,15 +300,35 @@ def find_agent(session, agent_id: UUID):
 
 @router.get("/agents/{agent_id}", response_model=AgentDetail)
 def read_agent(
-    agent_id: UUID, session: Database, _: Admin, offset: Offset = 0, limit: Limit = 25
+    agent_id: UUID,
+    session: Database,
+    _: Admin,
+    offset: Offset = 0,
+    limit: Limit = 25,
+    q: Search = "",
 ) -> AgentDetail:
+    """One agent with a page of customers, newest first; q matches the
+    customer's name or registration reference."""
     row = find_agent(session, agent_id)
-    stats = agent_reputations(session, config_row(session), [agent_id])[agent_id]
+    config = config_row(session)
+    every_agent = agent_reputations(session, config)
+    stats = every_agent[agent_id]
+    alert = assisted_alert(stats, network_assisted_share(every_agent.values()), config)
+    matching = [Customer.agent_id == agent_id]
+    if term := q.strip():
+        matching.append(
+            or_(contains(Customer.full_name, term), contains(Customer.reference, term))
+        )
+    total = (
+        session.scalar(select(func.count()).select_from(Customer).where(*matching))
+        if q.strip()
+        else stats.n_users
+    )
     rows = session.execute(
         select(Customer, RiskAssessment, Review.decision)
         .outerjoin(RiskAssessment, RiskAssessment.customer_id == Customer.id)
         .outerjoin(Review, Review.assessment_id == RiskAssessment.id)
-        .where(Customer.agent_id == agent_id)
+        .where(*matching)
         .order_by(Customer.created_at.desc(), Customer.id)
         .offset(offset)
         .limit(limit)
@@ -237,9 +354,9 @@ def read_agent(
             )
         )
     return AgentDetail(
-        **ranking(*row, stats).model_dump(),
+        **ranking(*row, stats, alert).model_dump(),
         customers=customers,
-        customers_total=stats.n_users,
+        customers_total=total,
     )
 
 
@@ -289,11 +406,18 @@ def months_read(by_month: dict, months: list) -> list[MonthEligibility]:
 
 
 @router.get("/eligibility", response_model=EligibilityReport)
-def eligibility_report(session: Database, _: Admin) -> EligibilityReport:
+def eligibility_report(
+    session: Database,
+    _: Admin,
+    offset: Offset = 0,
+    limit: Limit = 25,
+    q: Search = "",
+) -> EligibilityReport:
     """Commission eligibility for the network and per agent, by name.
 
     Totals cover every registration; months are the last 12 registration
-    months (UTC). Agents without customers are listed with zeros.
+    months (UTC). The agents are one page (offset/limit) of those whose
+    display name contains q; agents without customers are listed with zeros.
     """
     months = recent_months(datetime.now(UTC).date(), ELIGIBILITY_MONTHS)
     counts = eligibility_counts(session)
@@ -302,8 +426,14 @@ def eligibility_report(session: Database, _: Admin) -> EligibilityReport:
         network.totals.merge(agent.totals)
         for start, month_counts in agent.by_month.items():
             network.by_month.setdefault(start, Counts()).merge(month_counts)
+    matching = select(AgentProfile)
+    if term := q.strip():
+        matching = matching.where(contains(AgentProfile.display_name, term))
+    agents_total = session.scalar(select(func.count()).select_from(matching.subquery()))
     profiles = session.scalars(
-        select(AgentProfile).order_by(AgentProfile.display_name, AgentProfile.user_id)
+        matching.order_by(AgentProfile.display_name, AgentProfile.user_id)
+        .offset(offset)
+        .limit(limit)
     )
     agents = []
     for profile in profiles:
@@ -321,6 +451,7 @@ def eligibility_report(session: Database, _: Admin) -> EligibilityReport:
         totals=counts_read(network.totals),
         months=months_read(network.by_month, months),
         agents=agents,
+        agents_total=agents_total,
     )
 
 

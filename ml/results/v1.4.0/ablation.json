@@ -1,0 +1,582 @@
+{
+  "variants": {
+    "v1 (13 features)": {
+      "features": [
+        "name_email_similarity",
+        "prev_address_months_count",
+        "current_address_months_count",
+        "date_of_birth_distinct_emails_4w",
+        "email_is_free",
+        "phone_home_valid",
+        "phone_mobile_valid",
+        "foreign_request",
+        "source",
+        "session_length_in_minutes",
+        "device_os",
+        "keep_alive_session",
+        "device_distinct_emails_8w"
+      ],
+      "dropped": [],
+      "months_0_5_model": {
+        "roc_auc": 0.8164972634263503,
+        "pr_auc": 0.08263610515663324,
+        "brier": 0.013397653671463373,
+        "coefficients": {
+          "num__name_email_similarity": -0.35,
+          "num__keep_alive_session": -0.3626
+        }
+      },
+      "validation_threshold": {
+        "threshold": 0.03560494155163799,
+        "recall": 0.32904794996525366,
+        "precision": 0.09260707999217681,
+        "fpr": 0.04590541870946357,
+        "fpr_under_50": 0.038749756411543435,
+        "fpr_50_plus": 0.08286062824031717,
+        "fpr_ratio": 0.4676498022578245,
+        "tp": 947,
+        "fp": 9279,
+        "fn": 1931,
+        "roc_auc": 0.8163352508457687,
+        "pr_auc": 0.08249674906304778,
+        "brier": 0.013409875480113976
+      },
+      "assisted": {
+        "withheld": [
+          "session_length_in_minutes",
+          "device_os",
+          "keep_alive_session",
+          "device_distinct_emails_8w"
+        ],
+        "threshold": 0.008039123433258995,
+        "recall": 0.1862404447533009,
+        "precision": 0.055104348720057574,
+        "fpr": 0.045470061790998995,
+        "fpr_under_50": 0.044932474327252975,
+        "fpr_50_plus": 0.04824641659042391,
+        "fpr_ratio": 0.9313121575161979,
+        "tp": 536,
+        "fp": 9191,
+        "fn": 2342,
+        "roc_auc": 0.7426145949143834
+      },
+      "low_similarity_at_validation_threshold": {
+        "threshold": 0.03560494155163799,
+        "similarity_below_0.2": {
+          "rows": 45874,
+          "honest": 44816,
+          "fraud": 1058,
+          "flagged": 4317,
+          "honest_flagged": 3865,
+          "fpr": 0.08624152088539808,
+          "recall": 0.42722117202268434
+        },
+        "similarity_0.2_or_more": {
+          "rows": 159137,
+          "honest": 157317,
+          "fraud": 1820,
+          "flagged": 5909,
+          "honest_flagged": 5414,
+          "fpr": 0.03441458965019674,
+          "recall": 0.27197802197802196
+        },
+        "share_of_all_honest_flags": 0.4165319538743399
+      },
+      "seconds": 35.6,
+      "low_similarity_at_deployed_threshold": {
+        "threshold": 0.035,
+        "similarity_below_0.2": {
+          "rows": 45874,
+          "honest": 44816,
+          "fraud": 1058,
+          "flagged": 4618,
+          "honest_flagged": 4151,
+          "fpr": 0.09262317029632275,
+          "recall": 0.44139886578449905
+        },
+        "similarity_0.2_or_more": {
+          "rows": 159137,
+          "honest": 157317,
+          "fraud": 1820,
+          "flagged": 6427,
+          "honest_flagged": 5906,
+          "fpr": 0.03754203296528665,
+          "recall": 0.28626373626373625
+        },
+        "share_of_all_honest_flags": 0.41274734016108183
+      }
+    },
+    "without name_email_similarity": {
+      "features": [
+        "prev_address_months_count",
+        "current_address_months_count",
+        "date_of_birth_distinct_emails_4w",
+        "email_is_free",
+        "phone_home_valid",
+        "phone_mobile_valid",
+        "foreign_request",
+        "source",
+        "session_length_in_minutes",
+        "device_os",
+        "keep_alive_session",
+        "device_distinct_emails_8w"
+      ],
+      "dropped": [
+        "name_email_similarity"
+      ],
+      "months_0_5_model": {
+        "roc_auc": 0.806570259660911,
+        "pr_auc": 0.07760912629512703,
+        "brier": 0.013449791860402044,
+        "coefficients": {
+          "num__keep_alive_session": -0.3669
+        }
+      },
+      "validation_threshold": {
+        "threshold": 0.03405160701561078,
+        "recall": 0.31931897150799166,
+        "precision": 0.08786690888230232,
+        "fpr": 0.04719664775172782,
+        "fpr_under_50": 0.03977725681014273,
+        "fpr_50_plus": 0.08551387618176273,
+        "fpr_ratio": 0.46515558159935094,
+        "tp": 919,
+        "fp": 9540,
+        "fn": 1959,
+        "roc_auc": 0.8065121545430973,
+        "pr_auc": 0.07738550994248063,
+        "brier": 0.013462001897003362
+      },
+      "assisted": {
+        "withheld": [
+          "session_length_in_minutes",
+          "device_os",
+          "keep_alive_session",
+          "device_distinct_emails_8w"
+        ],
+        "threshold": 0.006672190174962798,
+        "recall": 0.1275191104933982,
+        "precision": 0.041515837104072396,
+        "fpr": 0.04191794511534485,
+        "fpr_under_50": 0.03996031722598513,
+        "fpr_50_plus": 0.052028057334553214,
+        "fpr_ratio": 0.7680532249941691,
+        "tp": 367,
+        "fp": 8473,
+        "fn": 2511,
+        "roc_auc": 0.7312804303465597
+      },
+      "low_similarity_at_validation_threshold": {
+        "threshold": 0.03405160701561078,
+        "similarity_below_0.2": {
+          "rows": 45874,
+          "honest": 44816,
+          "fraud": 1058,
+          "flagged": 2649,
+          "honest_flagged": 2317,
+          "fpr": 0.05170028561228133,
+          "recall": 0.31379962192816635
+        },
+        "similarity_0.2_or_more": {
+          "rows": 159137,
+          "honest": 157317,
+          "fraud": 1820,
+          "flagged": 7810,
+          "honest_flagged": 7223,
+          "fpr": 0.04591366476604563,
+          "recall": 0.32252747252747255
+        },
+        "share_of_all_honest_flags": 0.24287211740041928
+      },
+      "seconds": 33.6
+    },
+    "without keep_alive_session": {
+      "features": [
+        "name_email_similarity",
+        "prev_address_months_count",
+        "current_address_months_count",
+        "date_of_birth_distinct_emails_4w",
+        "email_is_free",
+        "phone_home_valid",
+        "phone_mobile_valid",
+        "foreign_request",
+        "source",
+        "session_length_in_minutes",
+        "device_os",
+        "device_distinct_emails_8w"
+      ],
+      "dropped": [
+        "keep_alive_session"
+      ],
+      "months_0_5_model": {
+        "roc_auc": 0.805442055681164,
+        "pr_auc": 0.07287853786088999,
+        "brier": 0.013456959043196883,
+        "coefficients": {
+          "num__name_email_similarity": -0.3542
+        }
+      },
+      "validation_threshold": {
+        "threshold": 0.03618684996655935,
+        "recall": 0.31202223766504517,
+        "precision": 0.08441436360218087,
+        "fpr": 0.04818609529369277,
+        "fpr_under_50": 0.041117731468085485,
+        "fpr_50_plus": 0.08469045440683134,
+        "fpr_ratio": 0.4855060910473616,
+        "tp": 898,
+        "fp": 9740,
+        "fn": 1980,
+        "roc_auc": 0.8052129287844237,
+        "pr_auc": 0.07266745574870549,
+        "brier": 0.013466035850988874
+      },
+      "assisted": {
+        "withheld": [
+          "session_length_in_minutes",
+          "device_os",
+          "device_distinct_emails_8w"
+        ],
+        "threshold": 0.014713277850661031,
+        "recall": 0.1883252258512856,
+        "precision": 0.05556125064069708,
+        "fpr": 0.04557890102061514,
+        "fpr_under_50": 0.04497971572488972,
+        "fpr_50_plus": 0.04867337602927722,
+        "fpr_ratio": 0.9241133324681291,
+        "tp": 542,
+        "fp": 9213,
+        "fn": 2336,
+        "roc_auc": 0.7427074613389961
+      },
+      "low_similarity_at_validation_threshold": {
+        "threshold": 0.03618684996655935,
+        "similarity_below_0.2": {
+          "rows": 45874,
+          "honest": 44816,
+          "fraud": 1058,
+          "flagged": 4496,
+          "honest_flagged": 4067,
+          "fpr": 0.09074883970010711,
+          "recall": 0.4054820415879017
+        },
+        "similarity_0.2_or_more": {
+          "rows": 159137,
+          "honest": 157317,
+          "fraud": 1820,
+          "flagged": 6142,
+          "honest_flagged": 5673,
+          "fpr": 0.03606094700509163,
+          "recall": 0.25769230769230766
+        },
+        "share_of_all_honest_flags": 0.4175564681724846
+      },
+      "seconds": 39.1
+    },
+    "without both (11 features)": {
+      "features": [
+        "prev_address_months_count",
+        "current_address_months_count",
+        "date_of_birth_distinct_emails_4w",
+        "email_is_free",
+        "phone_home_valid",
+        "phone_mobile_valid",
+        "foreign_request",
+        "source",
+        "session_length_in_minutes",
+        "device_os",
+        "device_distinct_emails_8w"
+      ],
+      "dropped": [
+        "name_email_similarity",
+        "keep_alive_session"
+      ],
+      "months_0_5_model": {
+        "roc_auc": 0.7937966362888509,
+        "pr_auc": 0.06839410657264679,
+        "brier": 0.013506078717757728,
+        "coefficients": {}
+      },
+      "validation_threshold": {
+        "threshold": 0.035389754535593426,
+        "recall": 0.2946490618485059,
+        "precision": 0.0812027195250407,
+        "fpr": 0.04746874582576818,
+        "fpr_under_50": 0.04106458489574414,
+        "fpr_50_plus": 0.08054284842939921,
+        "fpr_ratio": 0.5098476860020638,
+        "tp": 848,
+        "fp": 9595,
+        "fn": 2030,
+        "roc_auc": 0.7936659779875699,
+        "pr_auc": 0.06802757718482912,
+        "brier": 0.013515423019934789
+      },
+      "assisted": {
+        "withheld": [
+          "session_length_in_minutes",
+          "device_os",
+          "device_distinct_emails_8w"
+        ],
+        "threshold": 0.012416899224907746,
+        "recall": 0.12821403752605975,
+        "precision": 0.0414933093444282,
+        "fpr": 0.04217025423854591,
+        "fpr_under_50": 0.04023195526239644,
+        "fpr_50_plus": 0.0521805428484294,
+        "fpr_ratio": 0.7710145020771357,
+        "tp": 369,
+        "fp": 8524,
+        "fn": 2509,
+        "roc_auc": 0.7313800076870929
+      },
+      "low_similarity_at_validation_threshold": {
+        "threshold": 0.035389754535593426,
+        "similarity_below_0.2": {
+          "rows": 45874,
+          "honest": 44816,
+          "fraud": 1058,
+          "flagged": 2582,
+          "honest_flagged": 2279,
+          "fpr": 0.05085237415208854,
+          "recall": 0.28638941398865786
+        },
+        "similarity_0.2_or_more": {
+          "rows": 159137,
+          "honest": 157317,
+          "fraud": 1820,
+          "flagged": 7861,
+          "honest_flagged": 7316,
+          "fpr": 0.046504827831702865,
+          "recall": 0.29945054945054944
+        },
+        "share_of_all_honest_flags": 0.237519541427827
+      },
+      "seconds": 38.2
+    }
+  },
+  "bootstrap_vs_v1": {
+    "without name_email_similarity": {
+      "roc_auc": {
+        "difference": -0.009927003765439313,
+        "ci95": [
+          -0.012271986078970051,
+          -0.007654391247975327
+        ]
+      },
+      "recall": {
+        "difference": -0.009728978457262005,
+        "ci95": [
+          -0.02046270954498802,
+          0.0014171504556806352
+        ]
+      },
+      "fpr": {
+        "difference": 0.0012912290422642525,
+        "ci95": [
+          0.0006968346895358446,
+          0.0018011098614716182
+        ]
+      },
+      "assisted_recall": {
+        "difference": -0.0587213342599027,
+        "ci95": [
+          -0.07214274318938055,
+          -0.044943959110261555
+        ]
+      }
+    },
+    "without keep_alive_session": {
+      "roc_auc": {
+        "difference": -0.011055207745186313,
+        "ci95": [
+          -0.013527999651545063,
+          -0.008732787625083414
+        ]
+      },
+      "recall": {
+        "difference": -0.017025712300208495,
+        "ci95": [
+          -0.027666364648918806,
+          -0.004842381376176832
+        ]
+      },
+      "fpr": {
+        "difference": 0.002280676584229202,
+        "ci95": [
+          0.0015436347849066175,
+          0.003024812313456733
+        ]
+      },
+      "assisted_recall": {
+        "difference": 0.0020847810979847115,
+        "ci95": [
+          -0.0007041119304994041,
+          0.00456175581175579
+        ]
+      }
+    },
+    "without both (11 features)": {
+      "roc_auc": {
+        "difference": -0.02270062713749943,
+        "ci95": [
+          -0.026066972742603067,
+          -0.01951924922511707
+        ]
+      },
+      "recall": {
+        "difference": -0.03439888811674774,
+        "ci95": [
+          -0.0476541419186376,
+          -0.02108454608454603
+        ]
+      },
+      "fpr": {
+        "difference": 0.001563327116304615,
+        "ci95": [
+          0.0008102447809534884,
+          0.0024141934788313242
+        ]
+      },
+      "assisted_recall": {
+        "difference": -0.058026407227241145,
+        "ci95": [
+          -0.07220785898942766,
+          -0.04409952894344936
+        ]
+      }
+    }
+  },
+  "v1_similarity_distribution_test_months": {
+    "legitimate": {
+      "rows": 202133,
+      "mean": 0.4744583997251992,
+      "quantiles": {
+        "p10": 0.11592078036896045,
+        "p25": 0.2195595456625959,
+        "p50": 0.4633134484174524,
+        "p75": 0.718880501392097,
+        "p90": 0.8756389369942058
+      },
+      "share_below_0.2": 0.22171540520350463,
+      "histogram_share": {
+        "0.0-0.1": 0.07931906220161973,
+        "0.1-0.2": 0.1423963430018849,
+        "0.2-0.3": 0.13152231451569016,
+        "0.3-0.4": 0.08728906215214735,
+        "0.4-0.5": 0.10045860893570076,
+        "0.5-0.6": 0.10621719362993673,
+        "0.6-0.7": 0.08633424527415118,
+        "0.7-0.8": 0.08620561709369573,
+        "0.8-0.9": 0.11761068207566305,
+        "0.9-1.0": 0.06264687111951042
+      }
+    },
+    "fraud": {
+      "rows": 2878,
+      "mean": 0.3828805562405268,
+      "quantiles": {
+        "p10": 0.07473436979365206,
+        "p25": 0.14032141321814418,
+        "p50": 0.2912632720829924,
+        "p75": 0.6273226495068706,
+        "p90": 0.8365958272966713
+      },
+      "share_below_0.2": 0.3676164002779708,
+      "histogram_share": {
+        "0.0-0.1": 0.16191799861014594,
+        "0.1-0.2": 0.20569840166782488,
+        "0.2-0.3": 0.14732453092425296,
+        "0.3-0.4": 0.08790826963168867,
+        "0.4-0.5": 0.07088255733148019,
+        "0.5-0.6": 0.06289089645587213,
+        "0.6-0.7": 0.050382209867963865,
+        "0.7-0.8": 0.08269631688672689,
+        "0.8-0.9": 0.09763724808895066,
+        "0.9-1.0": 0.03266157053509382
+      }
+    }
+  },
+  "v1_similarity_distribution_all_months": {
+    "legitimate": {
+      "rows": 988971,
+      "mean": 0.4948152347980062,
+      "quantiles": {
+        "p10": 0.10777749676492,
+        "p25": 0.2269631256722484,
+        "p50": 0.493571204543752,
+        "p75": 0.7562106319696238,
+        "p90": 0.8833338255239729
+      },
+      "share_below_0.2": 0.21924909830520814,
+      "histogram_share": {
+        "0.0-0.1": 0.08947481776513164,
+        "0.1-0.2": 0.1297742805400765,
+        "0.2-0.3": 0.1050303800617005,
+        "0.3-0.4": 0.08204386175125458,
+        "0.4-0.5": 0.1012112589752379,
+        "0.5-0.6": 0.10163796511727846,
+        "0.6-0.7": 0.08352924403243371,
+        "0.7-0.8": 0.1016956007810138,
+        "0.8-0.9": 0.13345487380317522,
+        "0.9-1.0": 0.07214771717269769
+      }
+    },
+    "fraud": {
+      "rows": 11029,
+      "mean": 0.39316142802688536,
+      "quantiles": {
+        "p10": 0.07076776031697249,
+        "p25": 0.1342572702208903,
+        "p50": 0.2924198502300904,
+        "p75": 0.6765425359471179,
+        "p90": 0.8495550306942767
+      },
+      "share_below_0.2": 0.3820835977876507,
+      "histogram_share": {
+        "0.0-0.1": 0.16973433674857194,
+        "0.1-0.2": 0.21234926103907878,
+        "0.2-0.3": 0.1268474023030193,
+        "0.3-0.4": 0.07298939160395321,
+        "0.4-0.5": 0.06392238643576027,
+        "0.5-0.6": 0.06365037628071447,
+        "0.6-0.7": 0.05603409193943241,
+        "0.7-0.8": 0.0911234019403391,
+        "0.8-0.9": 0.10009973705685012,
+        "0.9-1.0": 0.04324961465228035
+      }
+    }
+  },
+  "run_record": {
+    "date_utc": "2026-11-10T09:06:09+00:00",
+    "git": {
+      "commit": "143da6e1faac2d4ca62257526a289b41eade2417",
+      "dirty": false
+    },
+    "dataset_file": "Base.csv",
+    "dataset_sha256": "7bf10a37ce07e72e14c1b09e5efee3d27261baff4facc7da767b0474dcf9b809",
+    "rows_used": 1000000,
+    "split": {
+      "ranking_metrics_train": "months 0-5",
+      "threshold_fit": "months 0-4",
+      "threshold_validation": "month 5",
+      "test": "months 6-7"
+    },
+    "target_fpr": 0.05,
+    "low_similarity_cutoff": 0.2,
+    "model": "LogisticRegression(C=0.01, class_weight=balanced, max_iter=2000) + sigmoid calibration (cv=3, ensemble=False)",
+    "bootstrap_rounds": 200,
+    "seed": 42,
+    "packages": {
+      "scikit-learn": "1.7.2",
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "joblib": "1.6.0",
+      "scipy": "1.18.1"
+    },
+    "sklearn_loaded": "1.7.2",
+    "python": "3.14.3",
+    "machine": "Windows-11-10.0.26300-SP0",
+    "total_seconds": 279.4
+  }
+}

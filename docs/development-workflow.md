@@ -59,6 +59,7 @@ Useful commands:
 .\scripts\dev.ps1 fetch-model
 .\scripts\dev.ps1 seed-demo
 .\scripts\dev.ps1 reset-demo
+.\scripts\dev.ps1 clear-demo-data
 .\scripts\dev.ps1 up-lan
 .\scripts\dev.ps1 test
 .\scripts\dev.ps1 lint
@@ -69,7 +70,8 @@ one-time set-password link; `reset-mfa` removes an admin's authenticator;
 `deactivate-user` deactivates an account but never the last usable admin.
 `fetch-model` downloads the model files and checks their SHA-256; `seed-demo`
 and `reset-demo` create and remove the demo data, including the demo Firebase
-accounts; `up-lan` makes the `/join` page reachable from a phone on the same
+accounts; `clear-demo-data` removes the demo data but keeps the Firebase
+accounts, for a Firebase project shared with another install; `up-lan` makes the `/join` page reachable from a phone on the same
 Wi-Fi (sign-in works only on `localhost`; see the README).
 
 `down` preserves the named database volume. The first `test` run creates the

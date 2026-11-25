@@ -28,11 +28,40 @@ export function getAccessToken() {
   return accessToken;
 }
 
+// A request that never answers becomes a clear error, not an endless spinner.
+const REQUEST_TIMEOUT_MS = 20000;
+
 export const api = axios.create({
   baseURL,
+  timeout: REQUEST_TIMEOUT_MS,
   withCredentials: true,
   headers: { Accept: "application/json" },
+  // Lists repeat a key for several values (band=Watch&band=High%20risk),
+  // which is what FastAPI reads; axios would send band[]= by default.
+  paramsSerializer: { indexes: null },
 });
+
+/** Paging, search, and sort shared by the server-side lists. */
+export type ListParams = {
+  offset: number;
+  limit: number;
+  q?: string;
+  sort?: string;
+  dir?: "asc" | "desc";
+};
+
+/** Leave out empty values, so the URL carries only what is set. */
+export function listParams(params: object) {
+  return Object.fromEntries(
+    Object.entries(params).filter(
+      ([, value]) =>
+        value !== undefined &&
+        value !== "" &&
+        value !== false &&
+        !(Array.isArray(value) && value.length === 0),
+    ),
+  );
+}
 
 export function refreshAccessToken() {
   if (!refreshInFlight) {
@@ -40,7 +69,11 @@ export function refreshAccessToken() {
       .post<AccessTokenResponse>(
         `${baseURL}/auth/refresh`,
         {},
-        { withCredentials: true, headers: { Accept: "application/json" } },
+        {
+          timeout: REQUEST_TIMEOUT_MS,
+          withCredentials: true,
+          headers: { Accept: "application/json" },
+        },
       )
       .then(({ data }) => {
         setAccessToken(data.access_token);

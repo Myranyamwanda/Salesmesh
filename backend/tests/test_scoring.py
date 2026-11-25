@@ -13,7 +13,6 @@ NEVER_FLAG = 1.0
 
 def raw_features(**overrides):
     values = {
-        "name_email_similarity": 0.9,
         "prev_address_months_count": 2,
         "current_address_months_count": 24.0,
         "date_of_birth_distinct_emails_4w": 0,
@@ -24,7 +23,6 @@ def raw_features(**overrides):
         "source": "INTERNET",
         "session_length_in_minutes": 4.5,
         "device_os": "windows",
-        "keep_alive_session": 1,
         "device_distinct_emails_8w": 1,
     }
     assert set(values) == set(FEATURE_NAMES)

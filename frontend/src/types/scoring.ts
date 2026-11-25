@@ -3,7 +3,7 @@
 
 export type Page<T> = { items: T[]; total: number };
 
-export type ReasonSource = "model" | "rule";
+export type ReasonSource = "model" | "rule" | "audit";
 
 export type Reason = {
   source: ReasonSource;
@@ -29,6 +29,8 @@ export type QueueItem = {
   created_at: string;
   probability: number;
   threshold: number;
+  /** A random audit of an assisted registration, not a flag. */
+  audit: boolean;
   reasons: Reason[];
   customer_name: string;
   agent: AgentSummary;
@@ -58,14 +60,27 @@ export type CustomerDetail = {
   created_at: string;
 };
 
+export type FeatureEffect =
+  | "raised"
+  | "lowered"
+  | "no_effect"
+  | "not_used_bank_scale"
+  | "withheld_raised"
+  | "withheld_lowered"
+  | "withheld_no_effect"
+  | "unavailable";
+
 export type AssessmentDetail = {
   id: string;
   model_version: string;
   probability: number;
   threshold: number;
+  threshold_kind: "standard" | "assisted";
   flagged: boolean;
+  audit_selected: boolean;
   reasons: Reason[];
   features: Record<string, string | number | null>;
+  feature_effects: Record<string, FeatureEffect>;
   created_at: string;
   customer: CustomerDetail;
   registration_status: RegistrationStatus;
@@ -94,6 +109,8 @@ export type AgentRanking = {
   confirmed_fake: number;
   pending_review: number;
   assisted_share: number;
+  /** Admin only: assisted share far above the network's. */
+  assisted_alert: boolean;
   reputation: number;
   risk_score: number;
   band: Band;
@@ -127,11 +144,13 @@ export type MonthEligibility = EligibilityCounts & { month: string };
 export type EligibilityReport = {
   totals: EligibilityCounts;
   months: MonthEligibility[];
+  /** One page of agents (offset/limit); agents_total counts every match. */
   agents: {
     agent: AgentSummary;
     totals: EligibilityCounts;
     months: MonthEligibility[];
   }[];
+  agents_total: number;
 };
 
 /** Client view: pending only as a total, never per agent or per month. */
@@ -168,6 +187,7 @@ export type BenchmarkRow = {
   flag_rate: number | null;
   difference: number | null;
   enough_data: boolean;
+  assisted_alert: boolean;
 };
 
 export type NetworkKpis = {
@@ -189,6 +209,9 @@ export type ScoringConfig = {
   high_risk_below: number;
   watch_below: number;
   device_email_rule_min: number;
+  assisted_threshold: number;
+  audit_share: number;
+  assisted_alert_multiple: number;
 };
 
 export type ScoringConfigRead = ScoringConfig & {
@@ -276,10 +299,10 @@ export type JoinRegistration = {
   country: string;
   current_address_months: number;
   previous_address_months: number | null;
-  keep_signed_in: boolean;
   consent: true;
   session_length_minutes: number;
   device_id: string | null;
+  submission_id: string;
   user_agent: string;
   assisted: boolean;
 };

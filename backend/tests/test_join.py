@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import date, timedelta
 from uuid import uuid4
@@ -13,6 +14,7 @@ from app.ml.features import ASSISTED_UNKNOWN, FEATURE_NAMES
 from app.ml.model_service import ModelService, load_folder
 from app.models import AgentProfile, ClientProfile, Customer, RiskAssessment, User
 from app.models.customer import CONSENT_VERSION
+from app.services import registration
 from app.services.agents import create_agent_profile
 
 NEVER_FLAG = 1.0
@@ -59,7 +61,6 @@ def form(**overrides):
         "country": "ke",
         "current_address_months": 24,
         "previous_address_months": None,
-        "keep_signed_in": True,
         "consent": True,
         "session_length_minutes": 4.5,
         "device_id": str(uuid4()),
@@ -170,7 +171,9 @@ def test_registration_saves_customer_and_assessment(join):
     assert set(assessment.features) == set(FEATURE_NAMES)
     assert assessment.features["device_os"] == "windows"
     assert assessment.features["date_of_birth_distinct_emails_4w"] == 0
-    assert assessment.features["name_email_similarity"] == 1.0
+    # Model v2: no name-email similarity is computed or stored.
+    assert "name_email_similarity" not in assessment.features
+    assert "keep_alive_session" not in assessment.features
 
 
 def test_flagged_registration_waits_for_review(join):
@@ -335,7 +338,7 @@ def test_third_email_on_one_device_is_flagged_by_rule(join):
 
 @pytest.mark.skipif(
     not (REAL_MODEL_DIR / "model.joblib").is_file(),
-    reason="Model files are not in Git; download them to backend/models/v1",
+    reason="Model files are not in Git; download them to backend/models/v2",
 )
 def test_registration_with_the_real_model(join):
     client, session, _, _, code = join
@@ -345,9 +348,89 @@ def test_registration_with_the_real_model(join):
 
     assert response.status_code == 201
     assessment = session.scalar(select(RiskAssessment))
-    assert assessment.model_version == "v1"
-    assert assessment.threshold == 0.035
+    assert assessment.model_version == "v2"
+    assert assessment.threshold == 0.03539
     assert 0 < assessment.probability < 1
-    assert assessment.flagged == (assessment.probability >= 0.035)
+    assert assessment.flagged == (assessment.probability >= 0.03539)
     assert len(assessment.reasons) <= 3
     assert all(reason["text"] for reason in assessment.reasons)
+
+
+def test_a_repeated_submission_is_one_registration(join):
+    client, session, _, _, code = join
+    values = form(submission_id=str(uuid4()))
+
+    first = client.post(f"/join/{code}/register", json=values)
+    second = client.post(f"/join/{code}/register", json=values)
+
+    assert first.status_code == second.status_code == 201
+    assert first.json() == second.json()
+    assert count(session, Customer) == count(session, RiskAssessment) == 1
+
+
+def test_a_repeat_still_gets_its_reference_while_the_model_is_down(join):
+    client, session, _, _, code = join
+    values = form(submission_id=str(uuid4()))
+    reference = client.post(f"/join/{code}/register", json=values).json()["reference"]
+
+    client.app.state.model_service = ModelService()
+    response = client.post(f"/join/{code}/register", json=values)
+
+    assert response.json()["reference"] == reference
+    assert count(session, Customer) == 1
+
+
+def test_different_submissions_are_different_registrations(join):
+    client, session, _, _, code = join
+
+    for _ in range(2):
+        response = client.post(
+            f"/join/{code}/register", json=form(submission_id=str(uuid4()))
+        )
+        assert response.status_code == 201
+
+    assert count(session, Customer) == 2
+
+
+def test_a_lost_race_returns_the_winning_registration(join, monkeypatch):
+    client, session, _, _, code = join
+    values = form(submission_id=str(uuid4()))
+    winner = client.post(f"/join/{code}/register", json=values).json()
+    real_lookup = registration.earlier_submission
+    calls = []
+
+    def misses_first_time(*arguments):
+        calls.append(arguments)
+        return None if len(calls) == 1 else real_lookup(*arguments)
+
+    monkeypatch.setattr(registration, "earlier_submission", misses_first_time)
+    response = client.post(f"/join/{code}/register", json=values)
+
+    assert response.status_code == 201
+    assert response.json() == winner
+    assert len(calls) == 2
+    assert count(session, Customer) == 1
+
+
+@pytest.mark.parametrize(
+    ("body", "message"),
+    [
+        ('{"full_name": ', "The request body is not valid JSON."),
+        (json.dumps(form(consent=False)), "Check the consent field."),
+        (
+            json.dumps(form(date_of_birth="2999-01-01")),
+            "Check the date of birth field. Date of birth must be in the past.",
+        ),
+    ],
+)
+def test_invalid_forms_name_the_problem(join, body, message):
+    client, _, _, _, code = join
+
+    response = client.post(
+        f"/join/{code}/register",
+        content=body,
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["message"] == message

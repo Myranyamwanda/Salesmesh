@@ -264,6 +264,7 @@ def test_network_kpis_and_flag_rate_benchmark(stored):
         "flag_rate": round(5 / 11, 4),
         "difference": round(round(5 / 11, 4) - round(5 / 13, 4), 4),
         "enough_data": False,
+        "assisted_alert": False,
     }
     assert rows["Brian Mwangi"]["flag_rate"] == 0.0
     assert rows["Brian Mwangi"]["difference"] == -round(5 / 13, 4)

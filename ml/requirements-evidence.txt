@@ -1,0 +1,6 @@
+# Packages for ml/compare_models.py. The first four match the model pins.
+scikit-learn==1.7.2
+numpy==2.5.4
+pandas==3.0.6
+joblib==1.6.0
+matplotlib==3.11.2

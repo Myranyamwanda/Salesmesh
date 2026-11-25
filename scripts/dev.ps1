@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $true, Position = 0)]
-    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "reset-mfa", "deactivate-user", "fetch-model", "seed-demo", "reset-demo", "test", "lint")]
+    [ValidateSet("up", "up-lan", "down", "migrate", "create-admin", "reset-mfa", "deactivate-user", "fetch-model", "seed-demo", "reset-demo", "clear-demo-data", "test", "lint")]
     [string]$Command,
     [string]$Email
 )
@@ -73,6 +73,12 @@ try {
             # Deletes only demo users, their Firebase accounts, and the customers
             # of demo agents. Never touches other accounts.
             docker compose exec backend python manage.py reset-demo
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        }
+        "clear-demo-data" {
+            # Deletes the same demo data as reset-demo, but only in this
+            # database: the demo Firebase accounts are kept for seed-demo to reuse.
+            docker compose exec backend python manage.py clear-demo-data
             if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         }
         "test" {

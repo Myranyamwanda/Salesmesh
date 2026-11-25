@@ -1,0 +1,46 @@
+# Production web server: serves the built React app and forwards /api/* to
+# the FastAPI backend on the same origin (no CORS, and the SameSite=Strict
+# refresh cookie works). Caddy obtains and renews the HTTPS certificate for
+# DOMAIN automatically and redirects HTTP to HTTPS.
+#
+# DOMAIN=localhost uses Caddy's own local certificate authority instead, which
+# is how the production setup is tested on a laptop.
+{$DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		# Report-only first: violations appear in the browser console but
+		# nothing is blocked, so Firebase sign-in cannot break on release day.
+		# Switch the name to Content-Security-Policy once the smoke test shows
+		# no violations (docs/deployment.md, "Security headers").
+		Content-Security-Policy-Report-Only "default-src 'self'; script-src 'self' https://apis.google.com https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googleusercontent.com; font-src 'self' data:; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://www.googleapis.com; frame-src https://*.firebaseapp.com https://accounts.google.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		-Server
+	}
+
+	# API: the browser calls /api/<path>; the backend receives /<path>.
+	handle_path /api/* {
+		reverse_proxy backend:8000 {
+			# The backend sets the refresh cookie for Path=/auth, which the
+			# browser sees as /api/auth. Rewriting the path here keeps the
+			# application unchanged.
+			header_down Set-Cookie "Path=/auth(;|$)" "Path=/api/auth$1"
+		}
+	}
+
+	# Frontend: built files; any other path (/join/<code>, /admin/...) is a
+	# client-side route, so it falls back to index.html.
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@html not path /assets/*
+		header @html Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

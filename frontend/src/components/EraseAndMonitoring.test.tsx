@@ -19,9 +19,12 @@ function assessment(status: CustomerStatus): AssessmentDetail {
     model_version: "v1",
     probability: 0.06,
     threshold: 0.035,
+    threshold_kind: "standard",
     flagged: status !== "verified",
+    audit_selected: false,
     reasons: [],
     features: {},
+    feature_effects: {},
     created_at: "2026-10-10T08:00:00Z",
     customer: {
       id: "customer-1",

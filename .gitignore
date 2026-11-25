@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.production.example
 *.pem
 *.key
 # Firebase service-account keys belong outside the repository.
@@ -30,6 +31,9 @@ env/
 # Node and build output
 node_modules/
 dist/
+dist-e2e/
+test-results/
+playwright-report/
 build/
 coverage/
 *.tsbuildinfo

@@ -1,0 +1,125 @@
+{
+  "model_name": "salesmesh-fake-user-detector",
+  "model_version": "v2",
+  "model_type": "LogisticRegression (C=0.01, class_weight=balanced) + sigmoid calibration",
+  "created_at": "2026-11-10",
+  "training_data": "BAF Base (NeurIPS 2022), months 0-5, 794,989 rows",
+  "test_data": "BAF Base, months 6-7, 205,011 rows",
+  "sklearn_version": "1.7.2",
+  "features": [
+    "prev_address_months_count",
+    "current_address_months_count",
+    "date_of_birth_distinct_emails_4w",
+    "email_is_free",
+    "phone_home_valid",
+    "phone_mobile_valid",
+    "foreign_request",
+    "source",
+    "session_length_in_minutes",
+    "device_os",
+    "device_distinct_emails_8w"
+  ],
+  "numeric_features": [
+    "prev_address_months_count",
+    "current_address_months_count",
+    "date_of_birth_distinct_emails_4w",
+    "email_is_free",
+    "phone_home_valid",
+    "phone_mobile_valid",
+    "foreign_request",
+    "session_length_in_minutes",
+    "device_distinct_emails_8w"
+  ],
+  "categorical_features": {
+    "source": [
+      "INTERNET",
+      "TELEAPP"
+    ],
+    "device_os": [
+      "linux",
+      "macintosh",
+      "other",
+      "windows",
+      "x11"
+    ]
+  },
+  "missing_value_rule": "Send null (None) for unknown values. Negative values are not valid.",
+  "numeric_ranges": {
+    "prev_address_months_count": {
+      "min": 5.0,
+      "max": 377.0,
+      "median": 32.0
+    },
+    "current_address_months_count": {
+      "min": 0.0,
+      "max": 425.0,
+      "median": 53.0
+    },
+    "date_of_birth_distinct_emails_4w": {
+      "min": 0.0,
+      "max": 39.0,
+      "median": 9.0
+    },
+    "email_is_free": {
+      "min": 0.0,
+      "max": 1.0,
+      "median": 1.0
+    },
+    "phone_home_valid": {
+      "min": 0.0,
+      "max": 1.0,
+      "median": 0.0
+    },
+    "phone_mobile_valid": {
+      "min": 0.0,
+      "max": 1.0,
+      "median": 1.0
+    },
+    "foreign_request": {
+      "min": 0.0,
+      "max": 1.0,
+      "median": 0.0
+    },
+    "session_length_in_minutes": {
+      "min": 0.0032623528255633,
+      "max": 85.89914319274027,
+      "median": 5.237647594965571
+    },
+    "device_distinct_emails_8w": {
+      "min": 0.0,
+      "max": 2.0,
+      "median": 1.0
+    }
+  },
+  "threshold": 0.03539,
+  "threshold_rule": "flag if probability >= threshold (5% FPR on validation month 5, model fitted on months 0-4)",
+  "assisted_threshold": 0.014058,
+  "assisted_threshold_rule": "5% FPR on month 5 with the device features withheld and the deployed input rules, scored by this model (months 0-5)",
+  "metrics_test": {
+    "n_features": 11.0,
+    "recall@5%FPR": 0.3061,
+    "threshold": 0.03539,
+    "precision": 0.0799,
+    "FPR": 0.0502,
+    "accuracy": 0.9408,
+    "balanced_acc": 0.628,
+    "ROC-AUC": 0.7938,
+    "PR-AUC": 0.0684,
+    "Brier": 0.0135,
+    "mean_prob": 0.0098,
+    "FPR <50": 0.0433,
+    "FPR >=50": 0.0853,
+    "FPR ratio": 0.508,
+    "TP": 881.0,
+    "FP": 10139.0,
+    "FN": 1997.0,
+    "TN": 191994.0
+  },
+  "excluded_features": {
+    "customer_age": "fairness (FPR ratio 0.18 -> 0.47)",
+    "velocity_*, zip_count_4w": "bank-scale counts, no added value",
+    "name_email_similarity": "many genuine users' emails are unrelated to their name (ablation v1.4.0: their FPR 8.6% vs 3.4%)",
+    "keep_alive_session": "the \"Keep me signed in\" box was removed from /join"
+  },
+  "previous_version": "v1"
+}

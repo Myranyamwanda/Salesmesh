@@ -13,28 +13,36 @@ import {
 } from "recharts";
 import * as scoringApi from "../api/scoring";
 import type { MonitoringMonth } from "../types/scoring";
-import { formatPercent } from "../utils/format";
-import {
-  ChartCard,
-  DataTable,
-  PageError,
-  type DataColumn,
-} from "./DataComponents";
+import { chart } from "../tokens";
+import { formatCount, formatPercent } from "../utils/format";
+import { ChartCard, PageError } from "./DataComponents";
+import { ListTable, type ListColumn } from "./table/ListTable";
 
 const percentOrDash = (value: number | null) =>
   value === null ? "—" : formatPercent(value, 2);
 
-const columns: DataColumn<MonitoringMonth>[] = [
-  { key: "month", label: "Month", render: (row) => row.month },
-  { key: "count", label: "Assessments", render: (row) => row.assessments },
+// Twelve fixed months: a report, so no search, pager, or details.
+const columns: ListColumn<MonitoringMonth>[] = [
+  { key: "month", label: "Month", card: "title", render: (row) => row.month },
+  {
+    key: "count",
+    label: "Assessments",
+    numeric: true,
+    card: "stat",
+    render: (row) => formatCount(row.assessments),
+  },
   {
     key: "rate",
     label: "Model flag rate",
+    numeric: true,
+    card: "stat",
     render: (row) => percentOrDash(row.flag_rate),
   },
   {
     key: "mean",
     label: "Mean probability",
+    numeric: true,
+    card: "stat",
     render: (row) => percentOrDash(row.mean_probability),
   },
 ];
@@ -60,7 +68,10 @@ export function MonitoringCard() {
       description="Monthly share of registrations the model flagged, and the mean probability, over the last 12 months."
     >
       {monitoringQuery.isError && (
-        <PageError message="Monitoring data could not be loaded." />
+        <PageError
+          message="Monitoring data could not be loaded."
+          error={monitoringQuery.error}
+        />
       )}
       {monitoring && (
         <>
@@ -71,28 +82,28 @@ export function MonitoringCard() {
           </Typography>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={points} margin={{ top: 8, right: 16, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e3e8e2" />
+              <CartesianGrid strokeDasharray="3 3" stroke={chart.grid} />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis unit="%" tick={{ fontSize: 12 }} />
               <Tooltip formatter={(value) => `${Number(value).toFixed(2)}%`} />
               <Legend />
               <ReferenceLine
                 y={monitoring.p0 * 100}
-                stroke="#66736d"
+                stroke={chart.reference}
                 strokeDasharray="6 4"
                 label={{ value: "p0", position: "insideTopRight" }}
               />
               <Line
                 dataKey="flagRate"
                 name="Model flag rate"
-                stroke="#e66c4a"
+                stroke={chart.comparison}
                 strokeWidth={2}
                 connectNulls={false}
               />
               <Line
                 dataKey="meanProbability"
                 name="Mean probability"
-                stroke="#1d5141"
+                stroke={chart.series}
                 strokeWidth={2}
                 connectNulls={false}
               />
@@ -100,12 +111,13 @@ export function MonitoringCard() {
           </ResponsiveContainer>
         </>
       )}
-      <DataTable
+      <ListTable
+        label="Monthly model monitoring"
         columns={columns}
         rows={monitoring?.months ?? []}
         rowKey={(row) => row.month}
         loading={monitoringQuery.isPending}
-        emptyLabel="No assessments yet."
+        emptyTitle="No assessments yet"
       />
     </ChartCard>
   );

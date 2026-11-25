@@ -1,0 +1,131 @@
+{
+  "data": "BAF test months 6-7, device features withheld, deployed inputs",
+  "rows": 205011,
+  "fraud": 2878,
+  "v1": {
+    "assisted_threshold": 0.008039,
+    "withheld": [
+      "session_length_in_minutes",
+      "device_os",
+      "keep_alive_session",
+      "device_distinct_emails_8w"
+    ],
+    "flags_only": {
+      "audit_share": 0.0,
+      "recall": 0.2428769979152189,
+      "precision": 0.04884013415315819,
+      "fpr": 0.0673467469438439,
+      "fpr_under_50": 0.06779140560873494,
+      "fpr_50_plus": 0.06505032021957914,
+      "reviews_per_1000": 69.81088819624314,
+      "flags_per_1000": 69.81088819624314,
+      "audits_per_1000": 0.0
+    },
+    "with_audits": [
+      {
+        "audit_share": 0.1,
+        "recall": 0.318589298123697,
+        "precision": 0.027466980609252314,
+        "fpr": 0.16061207224945956,
+        "fpr_under_50": 0.16101226504786145,
+        "fpr_50_plus": 0.15854528819762126,
+        "reviews_per_1000": 162.82979937661884,
+        "flags_per_1000": 69.81088819624314,
+        "audits_per_1000": 93.01891118037568
+      },
+      {
+        "audit_share": 0.15,
+        "recall": 0.35644544822793606,
+        "precision": 0.023903198860121377,
+        "fpr": 0.20724473490226727,
+        "fpr_under_50": 0.20762269476742468,
+        "fpr_50_plus": 0.20529277218664224,
+        "reviews_per_1000": 209.3392549668066,
+        "flags_per_1000": 69.81088819624314,
+        "audits_per_1000": 139.5283667705635
+      },
+      {
+        "audit_share": 0.2,
+        "recall": 0.3943015983321752,
+        "precision": 0.021635101178605884,
+        "fpr": 0.2538773975550751,
+        "fpr_under_50": 0.254233124486988,
+        "fpr_50_plus": 0.25204025617566334,
+        "reviews_per_1000": 255.84871055699455,
+        "flags_per_1000": 69.81088819624314,
+        "audits_per_1000": 186.03782236075136
+      }
+    ]
+  },
+  "v2": {
+    "assisted_threshold": 0.014058,
+    "withheld": [
+      "session_length_in_minutes",
+      "device_os",
+      "device_distinct_emails_8w"
+    ],
+    "flags_only": {
+      "audit_share": 0.0,
+      "recall": 0.12856150104239056,
+      "precision": 0.04188837314615646,
+      "fpr": 0.0418684727382466,
+      "fpr_under_50": 0.03996622240068973,
+      "fpr_50_plus": 0.05169258920402562,
+      "reviews_per_1000": 43.08549297354776,
+      "flags_per_1000": 43.08549297354776,
+      "audits_per_1000": 0.0
+    },
+    "with_audits": [
+      {
+        "audit_share": 0.1,
+        "recall": 0.21570535093815152,
+        "precision": 0.021820124565917302,
+        "fpr": 0.13768162546442195,
+        "fpr_under_50": 0.13596960016062076,
+        "fpr_50_plus": 0.1465233302836231,
+        "reviews_per_1000": 138.776943676193,
+        "flags_per_1000": 43.08549297354776,
+        "audits_per_1000": 95.69145070264521
+      },
+      {
+        "audit_share": 0.15,
+        "recall": 0.25927727588603194,
+        "precision": 0.019503550733539467,
+        "fpr": 0.18558820182750957,
+        "fpr_under_50": 0.18397128904058624,
+        "fpr_50_plus": 0.1939387008234217,
+        "reviews_per_1000": 186.6226690275156,
+        "flags_per_1000": 43.08549297354776,
+        "audits_per_1000": 143.53717605396778
+      },
+      {
+        "audit_share": 0.2,
+        "recall": 0.3028492008339125,
+        "precision": 0.01813241908439189,
+        "fpr": 0.23349477819059727,
+        "fpr_under_50": 0.23197297792055177,
+        "fpr_50_plus": 0.24135407136322054,
+        "reviews_per_1000": 234.46839437883824,
+        "flags_per_1000": 43.08549297354776,
+        "audits_per_1000": 191.38290140529043
+      }
+    ]
+  },
+  "run_record": {
+    "date_utc": "2026-11-10T09:32:58+00:00",
+    "git": {
+      "commit": "55199cffe2645e3d52a9605c3a7a2b38382d2337",
+      "dirty": false
+    },
+    "dataset_file": "Base.csv",
+    "dataset_sha256": "7bf10a37ce07e72e14c1b09e5efee3d27261baff4facc7da767b0474dcf9b809",
+    "packages": {
+      "scikit-learn": "1.7.2",
+      "numpy": "2.5.4",
+      "pandas": "3.0.6",
+      "joblib": "1.6.0"
+    },
+    "python": "3.14.3",
+    "machine": "Windows-11-10.0.26300-SP0"
+  }
+}

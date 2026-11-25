@@ -13,6 +13,7 @@ from app.demo import (
     ADMIN_EMAIL,
     DemoPlan,
     agent_email,
+    clear_demo_data,
     client_email,
     reset_demo,
     seed_demo,
@@ -128,7 +129,7 @@ def deactivate_user(session: Session, email: str, firebase: FirebaseAuth) -> boo
     return True
 
 
-def print_demo_logins(plan: DemoPlan) -> None:
+def print_demo_logins(plan: DemoPlan, frontend_url: str) -> None:
     honest = next(
         n
         for n in range(1, plan.agents + 1)
@@ -141,7 +142,7 @@ def print_demo_logins(plan: DemoPlan) -> None:
     print(f"  Agent (fraudulent) {agent_email(plan.fraudulent_agents[0])}")
     for number in range(1, plan.clients + 1):
         print(f"  Client {number}           {client_email(number)}")
-    print("Open http://localhost:5173 to sign in.")
+    print(f"Open {frontend_url} to sign in.")
 
 
 def demo_firebase(settings) -> FirebaseAuth:
@@ -187,18 +188,19 @@ def run_seed_demo() -> None:
             f"{summary.firebase['reused']} reused."
         )
         print(
-            f"Created {plan.agents} agents, {plan.clients} clients, and "
+            f"Created {plan.agents + bool(plan.abuser)} agents, "
+            f"{plan.clients} clients, and "
             f"{summary.customers} scored customers."
         )
         print(
             f"Flagged: {summary.flagged} | reviewed automatically: "
             f"{summary.reviewed['confirmed_fake']} confirmed fake, "
             f"{summary.reviewed['confirmed_real']} confirmed real | "
-            f"pending review: {summary.pending}"
+            f"pending review: {summary.pending} | random audits: {summary.audited}"
         )
         bands = sorted(summary.bands.items())
         print("Agent bands: " + ", ".join(f"{band} {count}" for band, count in bands))
-    print_demo_logins(plan)
+    print_demo_logins(plan, settings.frontend_url)
     if summary.admin_totp_secret:
         # Shown once: the secret is stored encrypted and cannot be printed again.
         print()
@@ -228,6 +230,11 @@ def main() -> None:
         "seed-demo", help="Create demo users and scored customers (safe to rerun)"
     )
     commands.add_parser("reset-demo", help="Delete only the demo data")
+    commands.add_parser(
+        "clear-demo-data",
+        help="Delete only the demo data in this database; keep the Firebase "
+        "accounts (for a Firebase project shared with another environment)",
+    )
     args = parser.parse_args()
     try:
         if args.command == "init-secret":
@@ -249,6 +256,15 @@ def main() -> None:
                 f"Removed {removed['users']} demo users, "
                 f"{removed['firebase']} demo Firebase accounts, and "
                 f"{removed['customers']} demo customers."
+            )
+            return
+        if args.command == "clear-demo-data":
+            with Session(get_engine()) as session:
+                removed = clear_demo_data(session)
+            print(
+                f"Removed {removed['users']} demo users and "
+                f"{removed['customers']} demo customers from this database. "
+                "Firebase accounts were kept; seed-demo reuses them."
             )
             return
         settings = get_settings()

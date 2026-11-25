@@ -70,7 +70,7 @@ the admin types the customer's email (see
 
 ## 5. Model and Client Views
 
-- **Model** shows the version, test metrics, the golden check, monthly
+- **Model** (open `/admin/models`; it is not in the sidebar) shows the version, test metrics, the golden check, monthly
   monitoring against p0, and **Reload model** (a failed reload keeps the
   current model).
 - **Settings** edits the reputation and rule settings; reputations update at
@@ -85,6 +85,7 @@ the admin types the customer's email (see
 | `.\scripts\dev.ps1 up` / `down` | Start or stop all services; the database volume is kept |
 | `docker compose logs -f backend` | Follow API logs, including development emails |
 | `.\scripts\dev.ps1 reset-demo` | Remove only the demo data |
+| `.\scripts\dev.ps1 clear-demo-data` | Remove only the demo data in this database, keeping the demo Firebase accounts |
 | `docker compose down -v` | Delete all local data, including the database volume |
 
 For more detail see the [development workflow](development-workflow.md),

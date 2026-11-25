@@ -21,7 +21,8 @@ and can export their verified customers.
 - **Registration pipeline.** Each registration is received, then clear (not
   flagged) or under review (flagged), then verified or rejected by a person.
 - **Fraud detection.** A calibrated logistic regression, trained on the BAF
-  dataset (NeurIPS 2022), scores every registration from 13 features. Numeric
+  dataset (NeurIPS 2022), scores every registration from 11 features (model v2
+  since v1.4.0; see the [model card](docs/model-card.md#model-v2-v140)). Numeric
   values are clipped to the training range, and a transparent rule flags a
   device that registers many different emails. Every flag comes with
   plain-English reasons labelled **Model** or **Rule**.
@@ -50,7 +51,7 @@ and can export their verified customers.
   task assignment.
 - **Model operations.** The API refuses to load the model with a different
   scikit-learn version and checks 20 golden examples at every start. The admin
-  Model page shows metrics, the golden check, a safe reload, and monthly drift
+  Model page (`/admin/models`, not in the sidebar) shows metrics, the golden check, a safe reload, and monthly drift
   monitoring against the expected flag rate.
 - **Privacy.** Admins can erase a customer's data on request; the erasure is
   audited without personal data. Agents and customers never see probabilities
@@ -88,7 +89,7 @@ flowchart LR
     end
 
     api --> db[("PostgreSQL 16<br/>users, customers, assessments,<br/>reviews, settings, audit log")]
-    release[["Model files<br/>GitHub Release model-v1<br/>or S3"]] -.->|"fetch-model<br/>(SHA-256 checked)"| model
+    release[["Model files<br/>GitHub Release model-v2<br/>or S3"]] -.->|"fetch-model<br/>(SHA-256 checked)"| model
     notebooks["ml/notebooks<br/>training and evaluation"] -.->|export| release
 ```
 
@@ -98,7 +99,7 @@ flowchart LR
 | Backend | FastAPI, pydantic-settings, SQLAlchemy 2.0, Alembic, firebase-admin, PyJWT, pyotp, cryptography, dnspython, phonenumbers |
 | Machine learning | scikit-learn 1.7.2, pandas, numpy, joblib (training in Jupyter notebooks) |
 | Database | PostgreSQL 16 (Docker) |
-| Tooling | Docker Compose, Ruff, pytest, ESLint, Prettier, Vitest, pre-commit, GitHub Actions, Dependabot |
+| Tooling | Docker Compose, Ruff, pytest, ESLint, Prettier, Vitest, Playwright with axe-core, pre-commit, GitHub Actions, Dependabot |
 
 See [architecture](docs/architecture.md), [ML integration](docs/ml-integration.md),
 and the [authentication overview](docs/authentication.md) for diagrams.
@@ -148,7 +149,8 @@ Only one clone can run at a time, because both use the same ports.
 >
 > - **Never run `reset-demo`.** It deletes the demo users' Firebase accounts,
 >   which the main install's demo users use too. Run `seed-demo` only: it
->   reuses the existing demo accounts.
+>   reuses the existing demo accounts. To start the demo data again, use
+>   `clear-demo-data`, which keeps the Firebase accounts.
 > - Use the **same `DEMO_PASSWORD`** as the main install, because `seed-demo`
 >   sets the demo accounts' Firebase password.
 > - Run `create-admin` with an address that has **no** Firebase account yet
@@ -217,9 +219,12 @@ existing values unchanged.
 
 This downloads `model.joblib`, `metadata.json`, `golden_examples.json`, and
 `coefficients.json` from the GitHub Release
-[`model-v1`](https://github.com/Myranyamwanda/Salesmesh/releases/tag/model-v1)
-into `backend/models/v1/` and keeps a file only if its SHA-256 matches
-`ml/model_contract/model-v1.sha256`. Model files are never committed. The
+[`model-v2`](https://github.com/Myranyamwanda/Salesmesh/releases/tag/model-v2)
+into `backend/models/v2/` and keeps a file only if its SHA-256 matches
+`ml/model_contract/v2/model-v2.sha256`. Model files are never committed.
+`.\scripts\fetch-model.ps1 -Version v1` fetches the previous model,
+[`model-v1`](https://github.com/Myranyamwanda/Salesmesh/releases/tag/model-v1),
+for a rollback. The
 alternative source is S3 (`MODEL_SOURCE=s3`, see
 [ML model service](docs/ml-scoring.md#getting-the-model-files)).
 
@@ -267,9 +272,10 @@ Google (see [Authentication](docs/authentication.md#replacing-an-admin-whose-ema
 .\scripts\dev.ps1 seed-demo
 ```
 
-This takes about two minutes. It creates a demo admin, 3 clients, and 40
-agents (4 of them fraudulent) with about 3,300 customers scored by the real
-model, creates the 44 demo users in Firebase, and prints the logins. It also
+This takes about two minutes. It creates a demo admin, 3 clients, and 41
+agents (5 of them fraudulent, one of them through assisted mode) with about
+3,400 customers scored by the real model, creates the 45 demo users in
+Firebase, and prints the logins. It also
 prints the **demo admin's authenticator setup key once**: add it to your
 authenticator app ("Enter a setup key") straight away. Running it again adds
 nothing; `.\scripts\dev.ps1 reset-demo` removes only the demo data and the
@@ -295,12 +301,18 @@ Push-Location frontend
 npm ci
 npm test
 npm run build
+npx playwright install chromium
+npm run test:e2e
 Pop-Location
 ```
 
 `test` runs the backend tests in the API container against a separate
 `salesmesh_test` database, never against development data. The first
 `npm ci` takes a few minutes (about 3½ in the clean-clone check).
+`test:e2e` builds the frontend and runs the accessibility and phone-width
+checks in Chromium against mocked API responses, so it needs no backend or
+Firebase; `playwright install` downloads Chromium once. See
+[docs/accessibility.md](docs/accessibility.md).
 
 ### 10. Git hooks (optional)
 
@@ -323,12 +335,14 @@ large files and private keys.
 | `.\scripts\dev.ps1 create-admin -Email <address>` | Create an admin in SalesMesh and Firebase; prints a one-time set-password link |
 | `.\scripts\dev.ps1 reset-mfa -Email <address>` | Remove an admin's authenticator (lost phone); the next sign-in sets up a new one |
 | `.\scripts\dev.ps1 deactivate-user -Email <address>` | Deactivate an account (kept for audit history); refuses to leave no usable admin |
-| `.\scripts\dev.ps1 fetch-model` | Download the model v1 files from the GitHub Release `model-v1` and verify their SHA-256 (no `.env` needed) |
-| `.\scripts\dev.ps1 seed-demo` | Create demo users (in SalesMesh and Firebase) and about 3,300 scored demo customers (needs `DEMO_PASSWORD` and the Firebase settings; safe to rerun) |
+| `.\scripts\dev.ps1 fetch-model` | Download the model v2 files from the GitHub Release `model-v2` and verify their SHA-256 (no `.env` needed) |
+| `.\scripts\dev.ps1 seed-demo` | Create demo users (in SalesMesh and Firebase) and about 3,400 scored demo customers (needs `DEMO_PASSWORD` and the Firebase settings; safe to rerun) |
 | `.\scripts\dev.ps1 reset-demo` | Delete only the demo data and the demo Firebase accounts |
+| `.\scripts\dev.ps1 clear-demo-data` | Delete only the demo data in this database and keep the demo Firebase accounts (for a Firebase project shared with another install) |
 | `.\scripts\dev.ps1 test` | Run backend tests against the separate test database |
 | `.\scripts\dev.ps1 lint` | Run Ruff and ESLint |
 | `npm test` / `npm run build` (in `frontend/`) | Run frontend tests / production build |
+| `npm run test:e2e` (in `frontend/`) | Accessibility (axe, WCAG 2.2 AA), keyboard, and 360 px phone checks in Chromium |
 
 ## Testing on a Phone
 
@@ -437,7 +451,7 @@ salesmesh/
 │   │   ├── demo.py       demo data (seed-demo, reset-demo)
 │   │   └── cli.py        terminal commands
 │   ├── alembic/          database migrations 0001–0008
-│   ├── models/v1/        model files (downloaded, ignored by Git)
+│   ├── models/v2/        model files (downloaded, ignored by Git; v1/ for rollback)
 │   ├── tests/            pytest suite
 │   └── manage.py         init-secret, create-admin, reset-mfa, deactivate-user, seed-demo, reset-demo
 ├── frontend/src/
@@ -445,7 +459,7 @@ salesmesh/
 │   └── pages/            admin/, agent/, client/, JoinPage, auth and account pages
 ├── ml/
 │   ├── notebooks/        01_eda to 06_agent_simulation (the training record)
-│   ├── model_contract/   metadata.json, golden_examples.json, demo_sample.csv, model-v1.sha256
+│   ├── model_contract/   v1/ and v2/: metadata.json, golden_examples.json, coefficients.json, demo_sample.csv, model-<version>.sha256
 │   ├── src/              pointers to the notebooks for each pipeline stage
 │   └── artifacts/        generated models (ignored by Git)
 ├── data/                 datasets (ignored by Git)
@@ -471,8 +485,10 @@ salesmesh/
 | [Workspace pages](docs/workspace-pages.md) | Public join page and the admin, agent, and client pages |
 | [API summary](docs/api-summary.md) | Endpoints, access rules, and error format |
 | [Authentication](docs/authentication.md) | Firebase and SalesMesh roles, sign-in and admin MFA diagrams, account creation, Firebase setup |
+| [Failure scenarios](docs/failure-scenarios.md) | What users see when the database, backend, Firebase, DNS, or model fails, and the drill |
 | [Limitations and future work](docs/limitations-and-future-work.md) | What the system does not do yet, and what comes next |
 | [Development workflow](docs/development-workflow.md) | Compose, hooks, CI, and branch protection |
+| [Production deployment](docs/deployment.md) | Lightsail server, HTTPS with Caddy, backups, updates, and rollback |
 | [Backend foundation](docs/backend-foundation.md) | Phase 2: settings, database, logging, and tests |
 | [Backend authentication](docs/backend-authentication.md) | Phase 3 (historical, before Firebase): security design and settings |
 | [Frontend authentication](docs/frontend-authentication.md) | Phase 4 (historical, before Firebase): session handling and auth pages |

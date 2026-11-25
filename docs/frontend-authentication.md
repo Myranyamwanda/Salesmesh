@@ -19,9 +19,10 @@ pages are Phase 5. No domain data fields or sample records are invented.
 
 MUI is the sole component library. It provides accessible form controls, helper
 text, loading/disabled states, buttons, alerts, and responsive primitives in
-one consistent system. The visual layer uses Manrope, a restrained forest-green
-and warm-coral identity, and a compact two-column PC auth shell that collapses
-to a short brand header on small screens.
+one consistent system. The visual layer uses Inter for text, Manrope for
+headings, a navy-and-cobalt identity with an amber accent (all values live in
+`frontend/src/tokens.ts`), and a compact two-column PC auth shell that
+collapses to a short brand header on small screens.
 
 ## Windows Setup
 

@@ -1,10 +1,11 @@
 // Admin endpoints for reviews, agents, scoring settings, and the model.
-import { api } from "./client";
+import { api, listParams, type ListParams } from "./client";
 import type {
   AgentDetail,
   AgentKpis,
   AgentRanking,
   AssessmentDetail,
+  Band,
   Decision,
   EligibilityReport,
   ModelStatus,
@@ -17,9 +18,11 @@ import type {
   ScoringConfigRead,
 } from "../types/scoring";
 
-export async function getReviewQueue(offset: number, limit: number) {
+export async function getReviewQueue(
+  params: ListParams & { kind?: "flag" | "audit" },
+) {
   const { data } = await api.get<Page<QueueItem>>("/admin/review-queue", {
-    params: { offset, limit },
+    params: listParams(params),
   });
   return data;
 }
@@ -43,14 +46,30 @@ export async function reviewAssessment(
   return data;
 }
 
-export async function listAgents() {
-  const { data } = await api.get<AgentRanking[]>("/admin/agents");
+export type AgentListParams = ListParams & {
+  sort?: "reputation" | "display_name" | "n_users" | "flags";
+  /** Any of these bands. */
+  band?: Band[];
+  has_pending?: boolean;
+  no_client?: boolean;
+};
+
+/** One page of agents, lowest reputation first unless sorted otherwise. */
+export async function listAgents(params: AgentListParams) {
+  const { data } = await api.get<Page<AgentRanking>>("/admin/agents", {
+    params: listParams(params),
+  });
   return data;
 }
 
-export async function getAgent(agentId: string, offset: number, limit: number) {
+export async function getAgent(
+  agentId: string,
+  offset: number,
+  limit: number,
+  q = "",
+) {
   const { data } = await api.get<AgentDetail>(`/admin/agents/${agentId}`, {
-    params: { offset, limit },
+    params: listParams({ offset, limit, q }),
   });
   return data;
 }
@@ -76,8 +95,10 @@ export async function getNetworkKpis() {
   return data;
 }
 
-export async function getEligibility() {
-  const { data } = await api.get<EligibilityReport>("/admin/eligibility");
+export async function getEligibility(params: ListParams) {
+  const { data } = await api.get<EligibilityReport>("/admin/eligibility", {
+    params: listParams(params),
+  });
   return data;
 }
 
@@ -100,7 +121,10 @@ export async function getModel() {
 }
 
 export async function reloadModel() {
-  const { data } = await api.post<ModelStatus>("/admin/model/reload");
+  // Loading from S3 and running the golden check can take longer than a request.
+  const { data } = await api.post<ModelStatus>("/admin/model/reload", null, {
+    timeout: 120000,
+  });
   return data;
 }
 

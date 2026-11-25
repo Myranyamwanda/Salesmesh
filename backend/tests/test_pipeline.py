@@ -191,7 +191,7 @@ def test_agents_page_shows_which_links_are_inactive(api):  # noqa: F811
     client, session, users, headers = api
     agents = {
         row["email"]: row
-        for row in client.get("/admin/agents", headers=headers["admin"]).json()
+        for row in client.get("/admin/agents", headers=headers["admin"]).json()["items"]
     }
     # Neither agent has a client yet.
     assert agents["agent@example.com"]["client"] is None

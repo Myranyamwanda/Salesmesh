@@ -59,8 +59,8 @@ def active_user(user: User) -> bool:
     )
 
 
-def other_usable_admins(session: Session, user_id) -> int:
-    """Admins other than user_id who can actually sign in today.
+def usable_admins(session: Session, *where) -> int:
+    """Admins who can actually sign in today, optionally narrowed by `where`.
 
     Usable means active, approved, verified, linked to Firebase, and with an
     authenticator app set up. An admin with an undeliverable email (who can
@@ -76,9 +76,14 @@ def other_usable_admins(session: Session, user_id) -> int:
             User.email_verified_at.is_not(None),
             User.firebase_uid.is_not(None),
             User.totp_enabled_at.is_not(None),
-            User.id != user_id,
+            *where,
         )
     )
+
+
+def other_usable_admins(session: Session, user_id) -> int:
+    """Usable admins other than user_id (see usable_admins)."""
+    return usable_admins(session, User.id != user_id)
 
 
 def client_address(request: Request) -> str:

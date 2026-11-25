@@ -1,4 +1,4 @@
-"""Turn one SalesMesh registration into the 13 features the model expects.
+"""Turn one SalesMesh registration into the 11 features model v2 expects.
 
 There is one function per feature, so each rule can be tested and explained
 on its own. The BAF dataset the model was trained on is bank application data,
@@ -6,12 +6,15 @@ so some features are adaptations; each function's docstring says how.
 
 build_features() returns the raw values, which are stored as the snapshot on
 the risk assessment. model_input() then prepares those values for the model.
+
+Model v2 (v1.4.0) dropped name_email_similarity and keep_alive_session, so the
+name-email similarity is no longer computed or stored (data minimisation) and
+/join has no "Keep me signed in" box. Snapshots scored by model v1 keep their
+13 values as history.
 """
 
-import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
-from difflib import SequenceMatcher
 from typing import Any
 from uuid import UUID
 
@@ -23,7 +26,6 @@ from app.models import Customer
 
 # Same order as "features" in metadata.json (a test checks this).
 FEATURE_NAMES = (
-    "name_email_similarity",
     "prev_address_months_count",
     "current_address_months_count",
     "date_of_birth_distinct_emails_4w",
@@ -34,7 +36,6 @@ FEATURE_NAMES = (
     "source",
     "session_length_in_minutes",
     "device_os",
-    "keep_alive_session",
     "device_distinct_emails_8w",
 )
 # Measured on the customer's own device, so unknown when an agent registers
@@ -42,7 +43,6 @@ FEATURE_NAMES = (
 ASSISTED_UNKNOWN = (
     "session_length_in_minutes",
     "device_os",
-    "keep_alive_session",
     "device_distinct_emails_8w",
 )
 # Stored in the snapshot but sent to the model as None. In BAF this is a
@@ -52,7 +52,6 @@ NOT_SENT_TO_MODEL = ("date_of_birth_distinct_emails_4w",)
 
 DATE_OF_BIRTH_WINDOW = timedelta(days=28)
 DEVICE_WINDOW = timedelta(days=56)
-SIMILARITY_IGNORED = re.compile(r"[\d._\s-]")
 
 
 @dataclass(frozen=True)
@@ -67,30 +66,11 @@ class RegistrationData:
     country: str
     current_address_months: int
     previous_address_months: int | None
-    keep_signed_in: bool
     session_length_minutes: float | None
     device_id: UUID | None
     user_agent: str | None
     ip_country: str | None
     assisted: bool
-
-
-def normalise_for_similarity(text: str) -> str:
-    """Lowercase and drop digits, dots, underscores, spaces, and hyphens."""
-    return SIMILARITY_IGNORED.sub("", text.lower())
-
-
-def name_email_similarity(full_name: str, email: str) -> float:
-    """Similarity from 0 to 1 between the full name and the email local part.
-
-    The exact BAF formula is not published; this uses difflib's ratio, so
-    "Amina Otieno" and "amina.otieno99@..." give 1.0.
-    """
-    name = normalise_for_similarity(full_name)
-    local_part = normalise_for_similarity(email.split("@", 1)[0])
-    if not name or not local_part:
-        return 0.0
-    return SequenceMatcher(None, name, local_part).ratio()
 
 
 def prev_address_months_count(months: int | None) -> float | None:
@@ -185,11 +165,6 @@ def device_os(user_agent: str | None) -> str:
     return "other"
 
 
-def keep_alive_session(keep_signed_in: bool) -> int:
-    """1 if the customer ticked "Keep me signed in", else 0."""
-    return int(keep_signed_in)
-
-
 def device_distinct_emails_8w(
     session: Session, device_id: UUID | None, email: str, now: datetime
 ) -> int | None:
@@ -215,7 +190,6 @@ def build_features(
 ) -> dict[str, Any]:
     """Return the raw value of every feature, in the model's order."""
     features = {
-        "name_email_similarity": name_email_similarity(data.full_name, data.email),
         "prev_address_months_count": prev_address_months_count(
             data.previous_address_months
         ),
@@ -234,7 +208,6 @@ def build_features(
             data.session_length_minutes
         ),
         "device_os": device_os(data.user_agent),
-        "keep_alive_session": keep_alive_session(data.keep_signed_in),
         "device_distinct_emails_8w": device_distinct_emails_8w(
             session, data.device_id, data.email, now
         ),

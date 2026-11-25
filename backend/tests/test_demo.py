@@ -14,15 +14,17 @@ from test_auth import auth_context, bearer_headers  # noqa: F401
 from test_domain_tables import make_customer, make_user
 from test_firebase_auth import firebase_sign_in
 
-from app.cli import demo_firebase
+from app.cli import demo_firebase, print_demo_logins
 from app.core.config import get_settings
 from app.demo import (
     ADMIN_EMAIL,
     REVIEW_NOTE,
     DemoPlan,
     DemoRow,
+    abuser_rows,
     agent_email,
     assign_rows,
+    clear_demo_data,
     client_email,
     is_demo_email,
     planned_emails,
@@ -31,7 +33,7 @@ from app.demo import (
     reset_demo,
     seed_demo,
 )
-from app.ml.features import ASSISTED_UNKNOWN
+from app.ml.features import ASSISTED_UNKNOWN, FEATURE_NAMES
 from app.ml.model_service import ModelService, ModelUnavailableError
 from app.models import (
     AgentProfile,
@@ -59,6 +61,8 @@ SMALL = DemoPlan(
     assisted_share=0.0,
     history_days=120,
     auto_review_after=timedelta(days=60),
+    # Tested on its own below, so the other tests keep their simple counts.
+    abuser_customers=0,
 )
 
 
@@ -101,7 +105,7 @@ def test_sample_has_features_and_labels_but_no_age(sample):
     assert len(sample) == 5000
     assert sum(row.fraud_bool for row in sample) == 300
     assert "customer_age" not in sample[0].features
-    assert len(sample[0].features) == 13
+    assert tuple(sample[0].features) == FEATURE_NAMES
 
 
 def test_fraudulent_agents_get_forty_percent_fraud_rows(sample):
@@ -299,6 +303,57 @@ def test_reset_removes_only_demo_data(db_session, sample):
     assert seed(db_session, sample).created
 
 
+def make_usable_admin(session):
+    admin = make_user(session, role="admin")
+    admin.status = "approved"
+    admin.email_verified_at = NOW
+    admin.firebase_uid = "real-admin-uid"
+    admin.totp_enabled_at = NOW
+    return admin
+
+
+def test_clear_demo_data_keeps_firebase_accounts_for_the_next_seed(db_session, sample):
+    real_admin = make_usable_admin(db_session)
+    real_agent = make_user(db_session)
+    real_customer = make_customer(db_session, real_agent)
+    db_session.commit()
+    firebase = FakeFirebase()
+    seed(db_session, sample, firebase=firebase)
+    accounts = dict(firebase.users)
+
+    removed = clear_demo_data(db_session)
+
+    assert removed["users"] == 1 + 3 + 6
+    assert removed["customers"] > 0
+    db_session.expire_all()
+    assert count(db_session, User, User.email.like("%@demo.example.com")) == 0
+    assert count(db_session, Review) == 0
+    assert db_session.get(User, real_admin.id) is not None
+    assert db_session.get(Customer, real_customer.id) is not None
+    # Firebase is never called: the shared demo accounts survive unchanged.
+    assert firebase.users == accounts
+    # The next seed reuses every account and links the same Firebase users.
+    summary = seed(db_session, sample, firebase=firebase)
+    assert summary.created
+    assert (summary.firebase["created"], summary.firebase["reused"]) == (0, 10)
+    admin = db_session.scalar(select(User).where(User.email == ADMIN_EMAIL))
+    assert firebase.users[admin.firebase_uid]["email"] == ADMIN_EMAIL
+
+
+def test_clear_demo_data_refuses_without_a_usable_real_admin(db_session, sample):
+    seed(db_session, sample)
+    demo_users = count(db_session, User, User.email.like("%@demo.example.com"))
+    # A real admin without an authenticator cannot sign in, so does not count.
+    unusable = make_user(db_session, role="admin")
+    unusable.status = "approved"
+    db_session.commit()
+
+    with pytest.raises(ValueError, match="no usable administrator"):
+        clear_demo_data(db_session)
+
+    assert count(db_session, User, User.email.like("%@demo.example.com")) == demo_users
+
+
 def customer_snapshot(session):
     """What a presenter sees: customers, scores, and review decisions."""
     rows = session.execute(
@@ -455,3 +510,60 @@ def test_demo_accounts_can_sign_in(auth_context, fake_firebase, sample):  # noqa
     assert response.status_code == 200
     me = client.get("/auth/me", headers=bearer_headers(response))
     assert me.json()["email"] == ADMIN_EMAIL
+
+
+ABUSER = replace(SMALL, abuser_customers=10)
+
+
+def test_assisted_mode_abuser_is_added_after_the_regular_agents(db_session, sample):
+    without = seed(db_session, sample, plan=SMALL, threshold=1.0)
+    before = {
+        customer.email: (customer.full_name, customer.agent_id, customer.created_at)
+        for customer in db_session.scalars(select(Customer))
+    }
+    agents_before = {
+        profile.display_name for profile in db_session.scalars(select(AgentProfile))
+    }
+    reset_demo(db_session, FakeFirebase(), SMALL)
+
+    summary = seed(db_session, sample, plan=ABUSER, threshold=1.0)
+
+    abuser = db_session.scalar(select(User).where(User.email == agent_email(7)))
+    customers = db_session.scalars(
+        select(Customer).where(Customer.agent_id == abuser.id)
+    ).all()
+    assert summary.customers == without.customers + 10
+    assert len(customers) == 10
+    assert sum(customer.assisted for customer in customers) == 6
+    assert db_session.get(AgentProfile, abuser.id).client_id is not None
+    # The first agents and their customers are unchanged.
+    regular = {
+        customer.email: (customer.full_name, customer.created_at)
+        for customer in db_session.scalars(
+            select(Customer).where(Customer.agent_id != abuser.id)
+        )
+    }
+    assert {email: (name, when) for email, (name, _, when) in before.items()} == regular
+    assert agents_before < {
+        profile.display_name for profile in db_session.scalars(select(AgentProfile))
+    }
+
+
+def test_abuser_assisted_rows_are_partly_fraud(sample):
+    assigned = assign_rows(sample, ABUSER, random.Random(ABUSER.seed))
+    planned = abuser_rows(sample, assigned, ABUSER, random.Random(1))
+
+    assisted = [row for row, is_assisted in planned if is_assisted]
+    assert len(planned) == 10
+    assert len(assisted) == 6
+    assert sum(row.fraud_bool for row in assisted) == 2
+    assert sum(row.fraud_bool for row, is_assisted in planned if not is_assisted) == 0
+    used = {id(row) for rows in assigned.values() for row in rows}
+    assert not any(id(row) in used for row, _ in planned)
+
+
+def test_demo_logins_point_to_the_frontend_url(capsys):
+    print_demo_logins(DemoPlan(), "https://salesmesh.example.org")
+    output = capsys.readouterr().out
+    assert "Open https://salesmesh.example.org to sign in." in output
+    assert "localhost" not in output

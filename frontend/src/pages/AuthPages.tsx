@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Alert, Button, Divider } from "@mui/material";
-import ArrowForward from "@mui/icons-material/ArrowForward";
+import { Alert, Button, CircularProgress, Divider } from "@mui/material";
 import Google from "@mui/icons-material/Google";
 import TaskAlt from "@mui/icons-material/TaskAlt";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -23,7 +22,10 @@ import {
   type FirebaseUser,
 } from "../auth/firebase";
 import { AuthFeedback } from "../components/AuthFeedback";
-import { FormTextField } from "../components/FormTextField";
+import {
+  StackedField,
+  StackedPasswordField,
+} from "../components/form/StackedField";
 import { PasswordField } from "../components/PasswordField";
 import {
   MfaStep,
@@ -112,6 +114,7 @@ function GoogleButton({
     <>
       <Divider className="or-divider">or</Divider>
       <Button
+        className="google-button"
         variant="outlined"
         startIcon={<Google />}
         disabled={disabled}
@@ -229,7 +232,6 @@ export function LoginPage() {
     return (
       <>
         <PageHeading
-          eyebrow="NO ACCOUNT YET"
           title="This email has no SalesMesh account"
           description={`${step.email} is not registered. Agents can request access now. Admin and client accounts are created by an administrator.`}
         />
@@ -248,50 +250,64 @@ export function LoginPage() {
   }
   return (
     <>
-      <PageHeading
-        eyebrow="WELCOME BACK"
-        title="Sign in"
-        description="Enter your account details to continue."
-      />
+      <PageHeading title="Sign in" />
+      {/* Proposal layout (Phase 0): labels above the fields, the server
+          error first, one field group and one action group. */}
       <form
-        className="auth-form"
+        className="auth-form stacked-form"
         onSubmit={handleSubmit((values) =>
           attempt(() => signInWithPassword(values.email, values.password)),
         )}
         noValidate
       >
-        <FormTextField
-          label="Email address"
-          type="email"
-          autoComplete="email"
-          registration={register("email")}
-          error={errors.email?.message}
-          autoFocus
-        />
-        <PasswordField
-          label="Password"
-          autoComplete="current-password"
-          registration={register("password")}
-          error={errors.password?.message}
-        />
-        <div className="form-inline-link">
-          <Link to="/forgot-password">Forgot password?</Link>
-        </div>
         <AuthFeedback error={serverError} />
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={busy}
-          endIcon={<ArrowForward />}
-          fullWidth
-        >
-          {busy ? "Signing in…" : "Sign in"}
-        </Button>
-        <GoogleButton
-          label="Sign in with Google"
-          disabled={busy}
-          onClick={() => void attempt(signInWithGoogle)}
-        />
+        <div className="form-fields">
+          <StackedField
+            label="Email address"
+            type="email"
+            autoComplete="email"
+            placeholder="name@example.com"
+            registration={register("email")}
+            error={errors.email?.message}
+            autoFocus
+          />
+          <StackedPasswordField
+            label="Password"
+            autoComplete="current-password"
+            registration={register("password")}
+            error={errors.password?.message}
+            aside={
+              <Link to="/forgot-password" className="helper-link">
+                Forgot password?
+              </Link>
+            }
+          />
+        </div>
+        <div className="form-actions">
+          <Button
+            type="submit"
+            variant="contained"
+            size="large"
+            disabled={busy}
+            fullWidth
+          >
+            {busy ? "Signing in…" : "Sign in"}
+            {/* In a fixed slot, so the button keeps its size while busy. */}
+            {busy && (
+              <CircularProgress
+                className="button-spinner"
+                size={16}
+                color="inherit"
+                aria-hidden
+              />
+            )}
+          </Button>
+          <GoogleButton
+            label="Sign in with Google"
+            disabled={busy}
+            onClick={() => void attempt(signInWithGoogle)}
+          />
+        </div>
       </form>
       <FormFooter>
         New to SalesMesh? <Link to="/register">Create an agent account</Link>
@@ -386,12 +402,11 @@ export function RegistrationPage() {
     return (
       <>
         <PageHeading
-          eyebrow="AGENT ACCESS"
           title="One last step"
           description={`Signed in as ${user.email}. Choose the name customers will see on your registration link.`}
         />
         <form className="auth-form" onSubmit={handleSubmit(finish)} noValidate>
-          <FormTextField
+          <StackedField
             label="Display name"
             autoComplete="name"
             registration={register("displayName")}
@@ -410,7 +425,6 @@ export function RegistrationPage() {
             type="submit"
             variant="contained"
             disabled={isSubmitting}
-            endIcon={<ArrowForward />}
             fullWidth
           >
             {isSubmitting ? "Sending request…" : "Request agent access"}
@@ -432,7 +446,6 @@ export function RegistrationPage() {
   return (
     <>
       <PageHeading
-        eyebrow="AGENT ACCESS"
         title="Create your account"
         description="Register as an agent to request access to the workspace. An administrator approves new agents."
       />
@@ -445,7 +458,7 @@ export function RegistrationPage() {
         )}
         noValidate
       >
-        <FormTextField
+        <StackedField
           label="Email address"
           type="email"
           autoComplete="email"
@@ -453,27 +466,21 @@ export function RegistrationPage() {
           error={errors.email?.message}
           autoFocus
         />
-        <PasswordField
+        <StackedPasswordField
           label="Password"
           autoComplete="new-password"
           registration={register("password")}
           error={errors.password?.message}
           hint={PASSWORD_HINT}
         />
-        <PasswordField
+        <StackedPasswordField
           label="Confirm password"
           autoComplete="new-password"
           registration={register("confirmPassword")}
           error={errors.confirmPassword?.message}
         />
         <AuthFeedback error={serverError} />
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={busy}
-          endIcon={<ArrowForward />}
-          fullWidth
-        >
+        <Button type="submit" variant="contained" disabled={busy} fullWidth>
           {busy ? "Creating account…" : "Create account"}
         </Button>
         <GoogleButton
@@ -496,7 +503,6 @@ export function RegistrationPendingPage() {
         <TaskAlt />
       </div>
       <PageHeading
-        eyebrow="REQUEST RECEIVED"
         title="You’re in the review queue"
         description="Your agent account is waiting for administrator approval. You can sign in as soon as it is approved."
       />
@@ -534,12 +540,11 @@ export function ForgotPasswordPage() {
   return (
     <>
       <PageHeading
-        eyebrow="ACCOUNT RECOVERY"
         title="Reset your password"
         description="Enter your account email and we’ll send a link to choose a new password. Accounts that sign in with Google do not need one."
       />
       <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
-        <FormTextField
+        <StackedField
           label="Email address"
           type="email"
           autoComplete="email"
@@ -597,7 +602,6 @@ export function ChangePasswordPage() {
   return (
     <>
       <PageHeading
-        eyebrow="ACCOUNT SECURITY"
         title="Change password"
         description="Confirm your current password, then choose a new one. You will be signed out everywhere."
       />

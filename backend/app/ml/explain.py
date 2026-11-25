@@ -7,7 +7,9 @@ average. Each code therefore needs only one sentence, written for that
 direction.
 
 Reasons are for administrators only and are never shown to agents or
-customers.
+customers. Device and session reasons describe a pattern in the training
+data ("... was more common in past fraud cases"), not an accusation: a value
+like "Windows computer" is common among genuine customers too.
 """
 
 from collections.abc import Mapping
@@ -22,7 +24,6 @@ from app.ml.model_service import feature_frame
 # example "the current address was provided"), or the feature is not sent to
 # the model (date_of_birth_distinct_emails_4w is always imputed).
 REASON_TEXTS: dict[str, str | None] = {
-    "num__name_email_similarity": "Name and email address are not similar",
     "num__prev_address_months_count": "Long time at the previous address",
     "num__current_address_months_count": "Long time at the current address",
     "num__date_of_birth_distinct_emails_4w": None,
@@ -30,10 +31,11 @@ REASON_TEXTS: dict[str, str | None] = {
     "num__phone_home_valid": "No valid secondary phone number",
     "num__phone_mobile_valid": "Mobile number is not valid",
     "num__foreign_request": "Request came from a different country than the one given",
-    "num__session_length_in_minutes": "Long time spent filling in the form",
-    "num__keep_alive_session": "Did not choose to stay signed in",
+    "num__session_length_in_minutes": (
+        "A long time on the form was more common in past fraud cases"
+    ),
     "num__device_distinct_emails_8w": (
-        "This device was used for several email addresses"
+        "Devices used for several email addresses were more common in past fraud cases"
     ),
     "num__missingindicator_prev_address_months_count": "No previous address provided",
     "num__missingindicator_current_address_months_count": None,
@@ -43,12 +45,40 @@ REASON_TEXTS: dict[str, str | None] = {
     "num__missingindicator_device_distinct_emails_8w": None,
     "cat__source_INTERNET": None,
     "cat__source_TELEAPP": "Registered through the phone application",
-    "cat__device_os_linux": "Registered from a Linux computer",
-    "cat__device_os_macintosh": "Registered from a Mac computer",
-    "cat__device_os_other": "Registered from a phone or other device",
-    "cat__device_os_windows": "Registered from a Windows computer",
-    "cat__device_os_x11": "Registered from an X11 (Unix-like) computer",
+    "cat__device_os_linux": (
+        "Device type (Linux computer) was more common in past fraud cases"
+    ),
+    "cat__device_os_macintosh": (
+        "Device type (Mac computer) was more common in past fraud cases"
+    ),
+    "cat__device_os_other": (
+        "Device type (phone or other device) was more common in past fraud cases"
+    ),
+    "cat__device_os_windows": (
+        "Device type (Windows computer) was more common in past fraud cases"
+    ),
+    "cat__device_os_x11": (
+        "Device type (X11 Unix-like computer) was more common in past fraud cases"
+    ),
 }
+
+
+def with_current_texts(reasons: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Show stored model reasons with today's wording.
+
+    Each assessment keeps the reasons it was scored with; only the sentence
+    shown for a model reason code follows REASON_TEXTS, so earlier assessments
+    get reworded texts too. Rule and audit reasons are returned unchanged.
+    """
+    shown = []
+    for reason in reasons:
+        text = (
+            REASON_TEXTS.get(reason.get("code", ""))
+            if reason.get("source") == "model"
+            else None
+        )
+        shown.append({**reason, "text": text} if text else reason)
+    return shown
 
 
 def contributions(

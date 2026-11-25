@@ -37,9 +37,9 @@ class Settings(BaseSettings):
     login_failure_limit: int = Field(default=5, ge=1)
     account_lockout_minutes: int = Field(default=15, ge=1)
     model_source: Literal["local", "s3"] = "local"
-    model_dir: Path = BACKEND_DIR / "models" / "v1"
+    model_dir: Path = BACKEND_DIR / "models" / "v2"
     model_s3_bucket: str | None = None
-    model_s3_prefix: str = "models/final/v1"
+    model_s3_prefix: str = "models/final/v2"
     aws_region: str | None = None
     aws_access_key_id: str | None = None
     aws_secret_access_key: SecretStr | None = None

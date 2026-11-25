@@ -13,6 +13,11 @@ from app.models import AgentProfile, ScoringConfig, User
 from app.schemas.scoring import AgentSummary
 from app.services.kpis import MonthKpis, load_registrations, monthly_kpis, rate
 from app.services.periods import recent_months
+from app.services.reputation import (
+    agent_reputations,
+    assisted_alert,
+    network_assisted_share,
+)
 
 router = APIRouter(prefix="/admin", tags=["KPIs"])
 type Admin = Annotated[User, Depends(require_roles("admin"))]
@@ -55,6 +60,8 @@ class BenchmarkRow(BaseModel):
     difference: float | None
     # Below min_users_for_band registrations the rate is too noisy to compare.
     enough_data: bool
+    # Assisted share far above the network's, over all time (reputation.py).
+    assisted_alert: bool
 
 
 class NetworkKpis(BaseModel):
@@ -103,6 +110,8 @@ def network_kpis(session: Database, _: Admin) -> NetworkKpis:
     network_registrations = sum(row.registrations for row in network)
     network_rate = rate(sum(row.flagged for row in network), network_registrations)
 
+    stats = agent_reputations(session, config)
+    share = network_assisted_share(stats.values())
     start = datetime.combine(months[0], datetime.min.time(), UTC)
     recent = [r for r in registrations if r.registered_at >= start]
     benchmark = []
@@ -123,6 +132,8 @@ def network_kpis(session: Database, _: Admin) -> NetworkKpis:
                 flag_rate=agent_rate,
                 difference=difference,
                 enough_data=len(mine) >= config.min_users_for_band,
+                assisted_alert=profile.user_id in stats
+                and assisted_alert(stats[profile.user_id], share, config),
             )
         )
     benchmark.sort(

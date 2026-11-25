@@ -1,3 +1,4 @@
+import hashlib
 import json
 import math
 import shutil
@@ -8,17 +9,20 @@ import numpy as np
 import pytest
 import sklearn
 
-from app.core.config import BACKEND_DIR, Settings
+from app.core.config import BACKEND_DIR, ROOT_DIR, Settings
 from app.ml import model_source
 from app.ml.model_service import (
+    CHECKSUM_DIR,
     GOLDEN_TOLERANCE,
+    ModelLoadError,
     ModelService,
     ModelUnavailableError,
     load_folder,
     load_model_state,
 )
+from app.ml.model_source import MODEL_FILES
 
-REAL_MODEL_DIR = BACKEND_DIR / "models" / "v1"
+REAL_MODEL_DIR = BACKEND_DIR / "models" / "v2"
 FEATURES = {"size": 2.0, "colour": "red"}
 
 
@@ -65,7 +69,7 @@ def write_model_folder(
 
 @pytest.mark.skipif(
     not (REAL_MODEL_DIR / "model.joblib").is_file(),
-    reason="Model files are not in Git; download them to backend/models/v1",
+    reason="Model files are not in Git; download them to backend/models/v2",
 )
 def test_real_model_passes_golden_examples():
     state = load_folder(REAL_MODEL_DIR, "local")
@@ -145,7 +149,7 @@ def test_missing_files_are_reported_without_paths(tmp_path):
 
 
 def test_relative_model_dir_is_resolved_from_backend():
-    assert make_settings(model_dir="models/v1").model_dir == REAL_MODEL_DIR
+    assert make_settings(model_dir="models/v2").model_dir == REAL_MODEL_DIR
 
 
 class FakeS3Client:
@@ -173,7 +177,11 @@ def use_fake_s3(monkeypatch, client):
 
 
 def test_s3_source_downloads_and_loads_model(tmp_path, monkeypatch):
-    client = FakeS3Client(write_model_folder(tmp_path))
+    monkeypatch.setattr("app.ml.features.FEATURE_NAMES", ("size", "colour"))
+    folder = write_model_folder(tmp_path)
+    directory = record_checksums(folder, tmp_path / "sums")
+    monkeypatch.setattr("app.ml.model_service.CHECKSUM_DIR", directory)
+    client = FakeS3Client(folder)
     calls = use_fake_s3(monkeypatch, client)
     settings = make_settings(
         model_source="s3",
@@ -218,3 +226,89 @@ def test_s3_download_failure_is_reported(tmp_path, monkeypatch):
     )
     assert state.status == "failed"
     assert state.error == "Could not download model.joblib from S3"
+
+
+def record_checksums(folder, directory, version="test"):
+    directory.mkdir(exist_ok=True)
+    lines = [
+        f"{hashlib.sha256((folder / name).read_bytes()).hexdigest()}  {name}"
+        for name in MODEL_FILES
+    ]
+    (directory / f"model-{version}.sha256").write_text("\n".join(lines) + "\n")
+    return directory
+
+
+def test_matching_checksums_load(tmp_path):
+    folder = write_model_folder(tmp_path)
+    directory = record_checksums(folder, tmp_path / "sums")
+
+    assert load_folder(folder, "local", directory).status == "ok"
+
+
+def test_a_changed_model_file_is_never_unpickled(tmp_path, monkeypatch):
+    folder = write_model_folder(tmp_path)
+    directory = record_checksums(folder, tmp_path / "sums")
+    with (folder / "model.joblib").open("ab") as handle:
+        handle.write(b"changed")
+    monkeypatch.setattr(joblib, "load", lambda path: pytest.fail("unpickled"))
+
+    with pytest.raises(ModelLoadError, match="model.joblib does not match"):
+        load_folder(folder, "local", directory)
+
+
+def test_an_unknown_model_version_is_refused(tmp_path):
+    folder = write_model_folder(tmp_path)
+
+    with pytest.raises(ModelLoadError, match="No checksums are recorded"):
+        load_folder(folder, "local", tmp_path)
+
+
+def test_a_checksum_failure_becomes_a_failed_state(tmp_path, monkeypatch):
+    folder = write_model_folder(tmp_path)
+    directory = record_checksums(folder, tmp_path / "sums")
+    (folder / "golden_examples.json").write_text("[]")
+    monkeypatch.setattr("app.ml.model_service.CHECKSUM_DIR", directory)
+
+    state = load_model_state(make_settings(model_dir=folder))
+
+    assert state.status == "failed"
+    assert state.error == "golden_examples.json does not match its recorded checksum"
+
+
+@pytest.mark.parametrize("version", ["v1", "v2"])
+def test_backend_checksums_match_the_model_contract(version):
+    # v1 stays recorded so a rollback to model v1 can still be verified.
+    name = f"model-{version}.sha256"
+    contract = ROOT_DIR / "ml" / "model_contract" / version / name
+
+    assert (CHECKSUM_DIR / name).read_text() == contract.read_text()
+
+
+def test_a_model_for_other_features_is_refused(tmp_path, monkeypatch):
+    folder = write_model_folder(tmp_path)
+    directory = record_checksums(folder, tmp_path / "sums")
+    monkeypatch.setattr("app.ml.model_service.CHECKSUM_DIR", directory)
+
+    state = load_model_state(make_settings(model_dir=folder))
+
+    assert state.status == "failed"
+    assert state.model is None
+    assert "does not build; check MODEL_DIR" in state.error
+
+
+def test_a_model_for_the_built_features_is_accepted(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.ml.features.FEATURE_NAMES", ("size", "colour"))
+    folder = write_model_folder(tmp_path)
+    directory = record_checksums(folder, tmp_path / "sums")
+    monkeypatch.setattr("app.ml.model_service.CHECKSUM_DIR", directory)
+
+    assert load_model_state(make_settings(model_dir=folder)).status == "ok"
+
+
+@pytest.mark.skipif(
+    not (REAL_MODEL_DIR / "model.joblib").is_file(), reason="model files not present"
+)
+def test_real_model_files_match_their_checksums():
+    state = load_folder(REAL_MODEL_DIR, "local", CHECKSUM_DIR)
+
+    assert state.status == "ok"

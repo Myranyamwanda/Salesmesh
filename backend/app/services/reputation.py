@@ -10,6 +10,7 @@ formula as ml/notebooks/06_agent_simulation.ipynb.
 Reputation is an admin-only decision-support tool; agents never see it.
 """
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -54,6 +55,28 @@ class AgentReputation:
     def assisted_share(self) -> float:
         """Share of customers the agent registered on their own device."""
         return round(self.assisted / self.n_users, 3) if self.n_users else 0.0
+
+
+def network_assisted_share(stats: Iterable[AgentReputation]) -> float:
+    rows = list(stats)
+    registrations = sum(row.n_users for row in rows)
+    return sum(row.assisted for row in rows) / registrations if registrations else 0.0
+
+
+def assisted_alert(
+    stats: AgentReputation, network_share: float, config: ScoringConfig
+) -> bool:
+    """Admin-only warning: far more assisted registrations than the network.
+
+    Assisted registrations withhold device features, so an agent could use
+    assisted mode to avoid the model. The rule needs min_users_for_band
+    registrations, so a few assisted customers cannot trigger it.
+    """
+    return (
+        stats.n_users >= config.min_users_for_band
+        and stats.assisted
+        > config.assisted_alert_multiple * network_share * stats.n_users
+    )
 
 
 def agent_reputations(

@@ -1,0 +1,78 @@
+{
+  "date_utc": "2026-11-02T19:52:07+00:00",
+  "git": {
+    "commit": "d57815f0c5dec4bbc871d6ca5cee361484874b2a",
+    "dirty": false
+  },
+  "dataset_file": "Base.csv",
+  "dataset_sha256": "7bf10a37ce07e72e14c1b09e5efee3d27261baff4facc7da767b0474dcf9b809",
+  "rows_used": 1000000,
+  "row_sampling": "all rows",
+  "split": {
+    "train": "months 0-5",
+    "threshold_fit": "months 0-4",
+    "threshold_validation": "month 5",
+    "test": "months 6-7"
+  },
+  "features": [
+    "name_email_similarity",
+    "prev_address_months_count",
+    "current_address_months_count",
+    "date_of_birth_distinct_emails_4w",
+    "email_is_free",
+    "phone_home_valid",
+    "phone_mobile_valid",
+    "foreign_request",
+    "source",
+    "session_length_in_minutes",
+    "device_os",
+    "keep_alive_session",
+    "device_distinct_emails_8w"
+  ],
+  "target_fpr": 0.05,
+  "seed": 42,
+  "n_jobs": -1,
+  "parameters": {
+    "Dummy (prior)": {
+      "strategy": "prior"
+    },
+    "Calibrated LR (model v1 setup)": {
+      "C": 0.01,
+      "class_weight": "balanced",
+      "max_iter": 2000,
+      "calibration": "sigmoid, cv=3, ensemble=False"
+    },
+    "Random forest": {
+      "n_estimators": 150,
+      "class_weight": "balanced_subsample",
+      "max_samples": 0.3,
+      "max_depth": 24,
+      "min_samples_leaf": 50,
+      "n_jobs": -1,
+      "random_state": 42
+    },
+    "Gradient boosting": {
+      "max_iter": 200,
+      "learning_rate": 0.1,
+      "class_weight": "balanced",
+      "early_stopping": false,
+      "random_state": 42
+    }
+  },
+  "packages": {
+    "scikit-learn": "1.7.2",
+    "numpy": "2.5.4",
+    "pandas": "3.0.6",
+    "joblib": "1.6.0",
+    "scipy": "1.18.1",
+    "matplotlib": "3.11.2"
+  },
+  "sklearn_loaded": "1.7.2",
+  "python": "3.14.3",
+  "machine": {
+    "system": "Windows-11-10.0.26300-SP0",
+    "processor": "AMD64 Family 25 Model 80 Stepping 0, AuthenticAMD",
+    "logical_cpus": 12
+  },
+  "total_seconds": 145.4
+}

@@ -7,15 +7,15 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { DataTable, type DataColumn } from "./DataComponents";
+import { useState } from "react";
+import { DetailDrawer, DetailSection } from "./table/DetailDrawer";
+import { ListTable, type ListColumn } from "./table/ListTable";
 import type { MonthKpi } from "../types/scoring";
-import { formatHours, formatRate } from "../utils/format";
+import { chart } from "../tokens";
+import { formatCount, formatHours, formatRate } from "../utils/format";
 
 // One series per chart, so no legend box: the card title names it. Colour is
 // categorical slot 1 of the dataviz reference palette, validated on white.
-const SERIES = "#2a78d6";
-const GRID = "#e3e8e2";
-const AXIS_TEXT = "#52514e";
 
 /** A single-series monthly line. Null months stay gaps, never a fake 0. */
 export function MonthlyLineChart<Row extends { month: string }>({
@@ -37,15 +37,15 @@ export function MonthlyLineChart<Row extends { month: string }>({
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 16, left: 0 }}>
-        <CartesianGrid stroke={GRID} vertical={false} />
+        <CartesianGrid stroke={chart.grid} vertical={false} />
         <XAxis
           dataKey="month"
-          tick={{ fontSize: 12, fill: AXIS_TEXT }}
+          tick={{ fontSize: 12, fill: chart.axis }}
           tickLine={false}
         />
         <YAxis
           domain={domain}
-          tick={{ fontSize: 12, fill: AXIS_TEXT }}
+          tick={{ fontSize: 12, fill: chart.axis }}
           tickFormatter={format}
           tickLine={false}
           axisLine={false}
@@ -60,10 +60,15 @@ export function MonthlyLineChart<Row extends { month: string }>({
           type="monotone"
           dataKey="value"
           name={name}
-          stroke={SERIES}
+          stroke={chart.series}
           strokeWidth={2}
-          dot={{ r: 4, strokeWidth: 2, stroke: "#fff", fill: SERIES }}
-          activeDot={{ r: 6, strokeWidth: 2, stroke: "#fff" }}
+          dot={{
+            r: 4,
+            strokeWidth: 2,
+            stroke: chart.markerRing,
+            fill: chart.series,
+          }}
+          activeDot={{ r: 6, strokeWidth: 2, stroke: chart.markerRing }}
           connectNulls={false}
           isAnimationActive={false}
         />
@@ -73,57 +78,124 @@ export function MonthlyLineChart<Row extends { month: string }>({
 }
 
 /** The KPI columns shared by the agent and network tables. */
-function kpiColumns<Row extends MonthKpi>(): DataColumn<Row>[] {
+function kpiColumns<Row extends MonthKpi>(): ListColumn<Row>[] {
   return [
-    { key: "month", label: "Month", render: (row) => row.month },
+    { key: "month", label: "Month", card: "title", render: (row) => row.month },
     {
       key: "registrations",
       label: "Registrations",
-      render: (row) => row.registrations,
+      numeric: true,
+      card: "stat",
+      render: (row) => formatCount(row.registrations),
     },
     {
       key: "flag_rate",
       label: "Flag rate",
+      numeric: true,
+      card: "stat",
       render: (row) => formatRate(row.flag_rate),
     },
     {
       key: "fake_rate",
       label: "Confirmed fake",
+      numeric: true,
+      card: "stat",
       render: (row) => formatRate(row.confirmed_fake_rate),
     },
     {
       key: "verification",
       label: "Verification rate",
+      numeric: true,
+      hideBelow: 1100,
       render: (row) => formatRate(row.verification_rate),
     },
-    {
-      key: "review_time",
-      label: "Avg time to review",
-      render: (row) => formatHours(row.avg_hours_to_review),
-    },
-    { key: "eligible", label: "Eligible", render: (row) => row.eligible },
   ];
 }
 
+/** Every figure of one month, for the details drawer. */
+function kpiDetails(row: MonthKpi) {
+  return [
+    {
+      title: "Registrations",
+      items: [
+        { label: "Registrations", value: formatCount(row.registrations) },
+        { label: "Flagged", value: formatCount(row.flagged) },
+        { label: "Flag rate", value: formatRate(row.flag_rate) },
+        { label: "Eligible", value: formatCount(row.eligible) },
+      ],
+    },
+    {
+      title: "Reviews",
+      items: [
+        { label: "Reviewed", value: formatCount(row.reviewed) },
+        { label: "Confirmed real", value: formatCount(row.confirmed_real) },
+        { label: "Confirmed fake", value: formatCount(row.confirmed_fake) },
+        {
+          label: "Confirmed fake rate",
+          value: formatRate(row.confirmed_fake_rate),
+        },
+        {
+          label: "Verification rate",
+          value: formatRate(row.verification_rate),
+        },
+        {
+          label: "Average time to review",
+          value: formatHours(row.avg_hours_to_review),
+        },
+      ],
+    },
+  ];
+}
+
+/**
+ * Twelve months, newest first: a fixed report, so no search or pager.
+ * A row opens every figure of that month.
+ */
 export function KpiTable<Row extends MonthKpi>({
   rows,
   extra = [],
   loading,
   label,
+  extraDetails = () => [],
 }: {
   rows: Row[];
-  extra?: DataColumn<Row>[];
+  extra?: ListColumn<Row>[];
   loading: boolean;
   label: string;
+  extraDetails?: (row: Row) => { label: string; value: string }[];
 }) {
+  const [open, setOpen] = useState<Row | null>(null);
   return (
-    <DataTable
-      columns={[...kpiColumns<Row>(), ...extra]}
-      // Newest month first for reading; charts run oldest to newest.
-      rows={[...rows].reverse()}
-      rowKey={(row) => row.month}
-      loading={loading}
-      emptyLabel={label}
-    />
+    <>
+      <ListTable
+        label="Monthly KPIs"
+        columns={[...kpiColumns<Row>(), ...extra]}
+        // Newest month first for reading; charts run oldest to newest.
+        rows={[...rows].reverse()}
+        rowKey={(row) => row.month}
+        onOpen={setOpen}
+        openKey={open?.month}
+        loading={loading}
+        emptyTitle={label}
+      />
+      <DetailDrawer
+        open={open !== null}
+        onClose={() => setOpen(null)}
+        title={open ? `KPIs for ${open.month}` : ""}
+      >
+        {open &&
+          kpiDetails(open).map((section, index) => (
+            <DetailSection
+              key={section.title}
+              title={section.title}
+              items={
+                index === 0
+                  ? [...section.items, ...extraDetails(open)]
+                  : section.items
+              }
+            />
+          ))}
+      </DetailDrawer>
+    </>
   );
 }

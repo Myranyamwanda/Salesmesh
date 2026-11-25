@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import type {
   Band,
   CustomerStatus,
@@ -6,25 +6,9 @@ import type {
   ReasonSource,
   RegistrationStatus,
 } from "../types/scoring";
-import {
-  Alert,
-  Box,
-  Chip,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Paper,
-  Select,
-  Skeleton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Alert, Chip, Paper, Typography } from "@mui/material";
+import { apiErrorMessage } from "../utils/errors";
+import { BandStatus, StatusBadge, type Tone } from "./table/StatusBadge";
 
 export function PageHeader({
   eyebrow,
@@ -121,54 +105,51 @@ export function ChartCard({
   );
 }
 
-// Badges always show a text label, so meaning never depends on colour alone.
-const bandColors = {
-  "High risk": "error",
-  Watch: "warning",
-  "Low risk": "success",
-  "Insufficient data": "default",
-} as const;
-
+// Badges always show a text label and an icon, so meaning never depends on
+// colour alone. They are the tinted StatusBadge from components/table.
 export function BandBadge({ band }: { band: Band }) {
-  return (
-    <Chip
-      size="small"
-      label={band}
-      color={bandColors[band]}
-      variant={band === "Insufficient data" ? "outlined" : "filled"}
-    />
-  );
+  return <BandStatus band={band} />;
 }
 
-export function SourceChip({ source }: { source: ReasonSource }) {
-  return (
-    <Chip
-      size="small"
-      variant="outlined"
-      color={source === "rule" ? "secondary" : "primary"}
-      label={source === "rule" ? "Rule" : "Model"}
-    />
-  );
-}
-
-const statusLabels = {
-  pending_review: { label: "Pending review", color: "warning" },
-  verified: { label: "Verified", color: "success" },
-  rejected: { label: "Rejected", color: "error" },
+const sourceChips = {
+  model: { label: "Model", color: "primary" },
+  rule: { label: "Rule", color: "secondary" },
+  audit: { label: "Audit", color: "default" },
 } as const;
 
-export function StatusChip({ status }: { status: CustomerStatus }) {
-  const { label, color } = statusLabels[status];
+/** Where a reason came from: a label, not a status, so an outlined chip. */
+export function SourceChip({ source }: { source: ReasonSource }) {
+  const { label, color } = sourceChips[source] ?? sourceChips.model;
   return <Chip size="small" variant="outlined" color={color} label={label} />;
 }
 
-const registrationLabels = {
-  received: { label: "Received", color: "default" },
-  clear: { label: "Clear", color: "success" },
-  under_review: { label: "Under review", color: "warning" },
-  verified: { label: "Verified", color: "success" },
-  rejected: { label: "Rejected", color: "error" },
-} as const;
+/** Admin only: the agent's assisted share is far above the network's. */
+export function AssistedAlertChip() {
+  return (
+    <span className="badge-gap">
+      <StatusBadge tone="warning" label="High assisted share" />
+    </span>
+  );
+}
+
+const statusLabels: Record<CustomerStatus, [Tone, string]> = {
+  pending_review: ["warning", "Pending review"],
+  verified: ["success", "Verified"],
+  rejected: ["error", "Rejected"],
+};
+
+export function StatusChip({ status }: { status: CustomerStatus }) {
+  const [tone, label] = statusLabels[status];
+  return <StatusBadge tone={tone} label={label} />;
+}
+
+const registrationLabels: Record<RegistrationStatus, [Tone, string]> = {
+  received: ["neutral", "Received"],
+  clear: ["success", "Clear"],
+  under_review: ["warning", "Under review"],
+  verified: ["success", "Verified"],
+  rejected: ["error", "Rejected"],
+};
 
 /** Admin only: the registration pipeline status (it reveals the flag). */
 export function RegistrationStatusChip({
@@ -176,134 +157,34 @@ export function RegistrationStatusChip({
 }: {
   status: RegistrationStatus;
 }) {
-  const { label, color } = registrationLabels[status];
-  return <Chip size="small" variant="outlined" color={color} label={label} />;
+  const [tone, label] = registrationLabels[status];
+  return <StatusBadge tone={tone} label={label} />;
 }
 
-const eligibilityLabels = {
-  eligible: { label: "Eligible", color: "success" },
-  pending: { label: "Pending", color: "warning" },
-  not_eligible: { label: "Not eligible", color: "error" },
-} as const;
+const eligibilityLabels: Record<Eligibility, [Tone, string]> = {
+  eligible: ["success", "Eligible"],
+  pending: ["warning", "Pending"],
+  not_eligible: ["error", "Not eligible"],
+};
 
 /** Admin only: commission eligibility of one registration. */
 export function EligibilityChip({ value }: { value: Eligibility }) {
-  const { label, color } = eligibilityLabels[value];
-  return <Chip size="small" variant="outlined" color={color} label={label} />;
+  const [tone, label] = eligibilityLabels[value];
+  return <StatusBadge tone={tone} label={label} />;
 }
 
-export type DataColumn<Row> = {
-  key: string;
-  label: string;
-  render: (row: Row) => ReactNode;
-};
-
-export function DataTable<Row>({
-  columns,
-  rows,
-  rowKey,
-  loading = false,
-  emptyLabel = "No records found.",
+/** What failed, then why and what to do when the cause is known. */
+export function PageError({
+  message,
+  error,
 }: {
-  columns: DataColumn<Row>[];
-  rows: Row[];
-  rowKey: (row: Row, index: number) => string;
-  loading?: boolean;
-  emptyLabel?: string;
+  message: string;
+  error?: unknown;
 }) {
-  if (loading) {
-    return (
-      <Skeleton variant="rectangular" height={180} className="table-skeleton" />
-    );
-  }
+  const reason = apiErrorMessage(error, "Reload the page to try again.");
   return (
-    <TableContainer
-      component={Paper}
-      variant="outlined"
-      square
-      className="data-table-wrap"
-    >
-      <Table size="small" aria-label="Data table">
-        <TableHead>
-          <TableRow>
-            {columns.map((column) => (
-              <TableCell key={column.key}>{column.label}</TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {rows.length ? (
-            rows.map((row, index) => (
-              <TableRow hover key={rowKey(row, index)}>
-                {columns.map((column) => (
-                  <TableCell key={column.key}>{column.render(row)}</TableCell>
-                ))}
-              </TableRow>
-            ))
-          ) : (
-            <TableRow>
-              <TableCell colSpan={Math.max(columns.length, 1)}>
-                <Box className="table-empty">{emptyLabel}</Box>
-              </TableCell>
-            </TableRow>
-          )}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Alert severity="error">
+      {message} {reason}
+    </Alert>
   );
-}
-
-export function PageFilters({
-  search,
-  onSearch,
-  searchLabel = "Search",
-  filterLabel,
-  filterValue,
-  filterOptions = [],
-  onFilter,
-}: {
-  search?: string;
-  onSearch?: (value: string) => void;
-  searchLabel?: string;
-  filterLabel?: string;
-  filterValue?: string;
-  filterOptions?: { value: string; label: string }[];
-  onFilter?: (value: string) => void;
-}) {
-  // Links the visible label to the select, so screen readers announce it.
-  const filterLabelId = useId();
-  return (
-    <div className="page-filters">
-      {onSearch && (
-        <TextField
-          label={searchLabel}
-          value={search ?? ""}
-          onChange={(event) => onSearch(event.target.value)}
-          size="small"
-          type="search"
-        />
-      )}
-      {onFilter && filterLabel && (
-        <FormControl size="small" className="page-filter-select">
-          <InputLabel id={filterLabelId}>{filterLabel}</InputLabel>
-          <Select
-            labelId={filterLabelId}
-            label={filterLabel}
-            value={filterValue ?? ""}
-            onChange={(event) => onFilter(event.target.value)}
-          >
-            {filterOptions.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-      )}
-    </div>
-  );
-}
-
-export function PageError({ message }: { message: string }) {
-  return <Alert severity="error">{message}</Alert>;
 }

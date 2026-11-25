@@ -70,6 +70,9 @@ class Customer(Base):
     current_address_months: Mapped[int] = mapped_column(Integer)
     previous_address_months: Mapped[int | None] = mapped_column(Integer)
     device_id: Mapped[UUID | None] = mapped_column(Uuid, index=True)
+    # Set by the browser once per form. A repeat with the same ID is the same
+    # registration, so a double click or a retry cannot create a second one.
+    submission_id: Mapped[UUID | None] = mapped_column(Uuid, unique=True)
     # HMAC-SHA256 of the request IP; the raw address is never stored.
     ip_address_hash: Mapped[str | None] = mapped_column(String(64))
     assisted: Mapped[bool] = mapped_column(Boolean, server_default="false")

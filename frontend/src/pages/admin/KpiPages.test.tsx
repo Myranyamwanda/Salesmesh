@@ -1,4 +1,5 @@
 import { cleanup, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as adminApi from "../../api/admin";
 import * as scoringApi from "../../api/scoring";
@@ -68,6 +69,7 @@ const detail: AgentDetail = {
   confirmed_fake: 1,
   pending_review: 1,
   assisted_share: 0,
+  assisted_alert: false,
   reputation: 81.9,
   risk_score: 18.1,
   band: "Insufficient data",
@@ -79,21 +81,16 @@ afterEach(cleanup);
 
 beforeEach(() => {
   vi.spyOn(scoringApi, "getAgent").mockResolvedValue(detail);
+  vi.spyOn(scoringApi, "getAgentKpis").mockResolvedValue({
+    agent: { id: "agent-1", display_name: "Amina Otieno" },
+    months: [],
+  });
   vi.spyOn(adminApi, "listClients").mockResolvedValue([]);
-  vi.spyOn(scoringApi, "getModel").mockResolvedValue({
-    status: "ok",
-    error: null,
-    model_version: "v1",
-    sklearn_version: "1.7.2",
-    threshold: 0.035,
-    metrics: {},
-    golden_check: null,
-  } as unknown as Awaited<ReturnType<typeof scoringApi.getModel>>);
   vi.spyOn(scoringApi, "getReviewQueue").mockResolvedValue({
     items: [],
     total: 0,
   });
-  vi.spyOn(scoringApi, "listAgents").mockResolvedValue([]);
+  vi.spyOn(scoringApi, "listAgents").mockResolvedValue({ items: [], total: 0 });
 });
 
 function cells(table: HTMLElement, name: RegExp) {
@@ -122,8 +119,6 @@ describe("agent KPIs", () => {
       "50.0%",
       "25.0%",
       "50.0%",
-      "7.5 days",
-      "3",
       "81.9",
     ]);
     expect(cells(table, /2026-07/)).toEqual([
@@ -133,14 +128,23 @@ describe("agent KPIs", () => {
       "—",
       "—",
       "—",
-      "0",
-      "—",
     ]);
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows[0]).toHaveTextContent("2026-08");
     expect(
       within(section).getByRole("heading", { name: "Reputation at month end" }),
     ).toBeInTheDocument();
+
+    // The other figures of a month are in its drawer.
+    await userEvent.click(
+      within(table).getByRole("button", { name: "2026-08" }),
+    );
+    const drawer = await screen.findByRole("dialog", {
+      name: "KPIs for 2026-08",
+    });
+    expect(drawer).toHaveTextContent("Average time to review7.5 days");
+    expect(drawer).toHaveTextContent("Eligible3");
+    expect(drawer).toHaveTextContent("Reputation at month end81.9");
   });
 
   it("shows an honest empty state before the first registration", async () => {
@@ -177,6 +181,7 @@ describe("network KPIs", () => {
           flag_rate: 0.4545,
           difference: 0.0699,
           enough_data: true,
+          assisted_alert: false,
         },
         {
           agent: { id: "b", display_name: "Brian Mwangi" },
@@ -184,6 +189,7 @@ describe("network KPIs", () => {
           flag_rate: 0.3,
           difference: -0.0846,
           enough_data: true,
+          assisted_alert: false,
         },
         {
           agent: { id: "c", display_name: "Chebet" },
@@ -191,6 +197,7 @@ describe("network KPIs", () => {
           flag_rate: 0,
           difference: -0.3846,
           enough_data: false,
+          assisted_alert: true,
         },
       ],
     });
@@ -211,8 +218,19 @@ describe("network KPIs", () => {
       "40",
       "45.5%",
       "+7.0 pts",
+      "—None",
     ]);
     expect(cells(benchmark, /Brian/)[3]).toBe("-8.5 pts");
     expect(cells(benchmark, /Chebet/)[3]).toBe("Insufficient data");
+    expect(cells(benchmark, /Chebet/)[4]).toBe("High assisted share");
+    // Largest difference first; agents without enough data last.
+    const names = within(benchmark)
+      .getAllByRole("row")
+      .slice(1)
+      .map((row) => within(row).getAllByRole("cell")[0].textContent);
+    expect(names).toEqual(["Amina Otieno", "Brian Mwangi", "Chebet"]);
+    const summary = screen.getByRole("region", { name: "Workspace summary" });
+    expect(within(summary).queryByText("Model")).not.toBeInTheDocument();
+    expect(within(summary).queryByText("Ready")).not.toBeInTheDocument();
   });
 });

@@ -23,8 +23,13 @@ CONFIG = {
     "high_risk_below": 90,
     "watch_below": 92,
     "device_email_rule_min": 3,
+    "assisted_threshold": 0.014058,
+    "audit_share": 0.2,
+    "assisted_alert_multiple": 2.0,
 }
 SECRET_WORDS = (
+    "audit",
+    "alert",
     "reputation",
     "risk",
     "band",
@@ -111,6 +116,7 @@ def test_assessment_detail_shows_everything_to_admins(api):
 
     assert body["probability"] == 0.05
     assert body["features"] == {"source": "INTERNET"}
+    assert body["feature_effects"] == {"source": "unavailable"}
     assert body["customer"]["email"] == customer.email
     assert body["agent"]["id"] == str(users["agent"].id)
     assert body["review"] is None
@@ -243,7 +249,7 @@ def test_agents_ranking_is_sorted_worst_first(api):
         add_scored_customer(session, users["agent"])
     add_scored_customer(session, users["other_agent"], flagged=False, assisted=True)
 
-    body = client.get("/admin/agents", headers=headers["admin"]).json()
+    body = client.get("/admin/agents", headers=headers["admin"]).json()["items"]
 
     assert [row["display_name"] for row in body] == ["Amina Otieno", "Brian Mwangi"]
     worst = body[0]
@@ -365,6 +371,11 @@ def test_scoring_config_read_and_update(api):
         {"high_risk_below": 93},
         {"watch_below": 101},
         {"device_email_rule_min": 2},
+        {"assisted_threshold": 0},
+        {"assisted_threshold": 1},
+        {"audit_share": -0.1},
+        {"audit_share": 1.1},
+        {"assisted_alert_multiple": 1},
     ],
 )
 def test_invalid_scoring_config_is_rejected(api, change):
@@ -568,3 +579,26 @@ def test_audit_log_returns_the_subject(api):
     items = client.get("/admin/audit-logs", headers=headers["admin"]).json()["items"]
     entry = next(item for item in items if item["action"] == "scoring_config_updated")
     assert entry["subject"] == "scoring_config:1"
+
+
+def test_review_queue_rewords_reasons_stored_with_old_wording(api):
+    client, session, users, headers = api
+    _, assessment = add_scored_customer(session, users["agent"])
+    assessment.reasons = [
+        {
+            "source": "model",
+            "code": "cat__device_os_windows",
+            "text": "Registered from a Windows computer",
+            "contribution": 0.3,
+        }
+    ]
+    session.commit()
+
+    queue = client.get("/admin/review-queue", headers=headers["admin"]).json()
+    detail = client.get(
+        f"/admin/assessments/{assessment.id}", headers=headers["admin"]
+    ).json()
+
+    expected = "Device type (Windows computer) was more common in past fraud cases"
+    assert queue["items"][0]["reasons"][0]["text"] == expected
+    assert detail["reasons"][0]["text"] == expected

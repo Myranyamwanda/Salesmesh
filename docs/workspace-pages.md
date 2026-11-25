@@ -10,11 +10,11 @@ remains the authority for every permission.
 | Route | Who | Page |
 | --- | --- | --- |
 | `/join/:code` | Public | Customer registration through an agent's referral link |
-| `/admin` | Admin | Overview: model status, reviews waiting, agent counts, agents needing attention |
+| `/admin` | Admin | Overview: reviews waiting, agent counts, agents needing attention |
 | `/admin/review-queue` | Admin | Flagged registrations with reasons; review dialog |
 | `/admin/agents` | Admin | Agents ranking, sortable and filterable by band |
 | `/admin/agents/:agentId` | Admin | Agent figures, profile and client assignment, customers |
-| `/admin/models` | Admin | Model version, metrics, threshold, golden check, reload |
+| `/admin/models` | Admin | Model version, metrics, threshold, golden check, reload (not in the sidebar; open by URL) |
 | `/admin/settings` | Admin | Reputation and rule settings |
 | `/admin/users`, `/admin/audit-log` | Admin | User management and audit log |
 | `/agent` | Agent | Referral link with share buttons and QR code |
@@ -70,12 +70,16 @@ admin-only (see
 
 ## Admin Area
 
-- **Review queue:** probability, threshold, and the top reasons. Each reason has
-  a **Model** or **Rule** label. The review dialog shows the customer, all
-  reasons, and the raw feature values, and records "Confirm real" or "Confirm
-  fake" with optional notes.
+- **Review queue:** flagged registrations and random audits, with probability,
+  threshold, and the top reasons. Each reason has a **Model**, **Rule**, or
+  **Audit** label. The review dialog shows the customer, the model
+  version and threshold stored at scoring, what the probability means, all
+  reasons, and the raw feature values with each one's effect on the score, and
+  records "Confirm real" or "Confirm fake" with optional notes.
 - **Agents ranking:** customers, flags, confirmed fake, pending, assisted share,
-  reputation, risk score, band, and client, sorted lowest reputation first.
+  reputation, risk score, band, and client, sorted lowest reputation first. A
+  "High assisted share" label marks agents whose assisted share is far above
+  the network's (also in the Overview benchmark and on Agent detail).
 - **Agent detail:** the same figures, the display name, the client assignment,
   a **Reputation at month end** line chart and a **Monthly KPIs** table for
   the last 12 months, and the agent's customers with their reference,
@@ -83,19 +87,19 @@ admin-only (see
 - **Commission eligibility:** eligible, pending, and not-eligible totals, a
   table per registration month (newest first), and a table per agent for all
   time or one month. Agent detail also shows each customer's eligibility.
-- **Model:** status, version, scikit-learn version, threshold, test metrics,
+- **Model** (not in the sidebar; open `/admin/models` directly): status, version, scikit-learn version, threshold, test metrics,
   and the golden check. "Reload model" keeps the current model if the new one
   fails its checks. A **Monitoring** card charts the monthly model flag rate
   and mean probability against p0, with a table of the same figures.
 - **Erase customer data:** in the review dialog, with a typed-email
   confirmation and warnings for confirmed-fake or pending customers (see
   [Reputation and review](reputation-and-review.md#erasure-requests)).
-- **Settings:** the six scoring settings, each with a short explanation and the
+- **Settings:** the nine scoring settings, each with a short explanation and the
   same validation as the backend.
 - **Audit log:** now also shows each entry's subject, such as
   `assessment:<id>`.
 
-- **Overview:** besides the model, review, and attention cards, a **Network
+- **Overview:** besides the review, agent, and attention cards, a **Network
   flag rate** line chart, the network KPIs by month, and the flag-rate
   benchmark of each agent against the network.
 
@@ -119,6 +123,13 @@ Band badges (High risk, Watch, Low risk, Insufficient data), reason sources
 (Model, Rule), and customer statuses always show a text label, so their meaning
 never depends on colour alone. Filter dropdowns are linked to their visible
 label for screen readers.
+
+## Design Tokens
+
+`frontend/src/tokens.ts` is the one source of colours, fonts, radii, and chart
+colours. `theme.ts` passes them to MUI and publishes them as CSS variables, so
+`styles.css` and the charts hold no colours of their own. Text is at least
+12px.
 
 ## Tests
 
