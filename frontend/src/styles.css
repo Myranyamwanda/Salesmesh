@@ -1,5 +1,16 @@
 @import "@fontsource-variable/bricolage-grotesque/opsz.css";
 
+/* A local Arial scaled to Bricolage Grotesque's measured metrics, used until
+   the web font arrives, so the swap does not move text (no layout shift). */
+@font-face {
+  font-family: "Bricolage Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans");
+  size-adjust: 93.11%;
+  ascent-override: 99.88%;
+  descent-override: 29%;
+  line-gap-override: 0%;
+}
+
 :root {
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
@@ -139,7 +150,7 @@ a:hover {
 
 .auth-content {
   width: min(100%, 400px);
-  animation: reveal-in 320ms ease-out both;
+  animation: reveal-in 180ms ease-out both;
 }
 
 .auth-content .form-heading h1 {
@@ -550,7 +561,7 @@ a:hover {
   width: 3px;
   height: 23px;
   background: var(--accent);
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   content: "";
 }
 
@@ -832,14 +843,13 @@ a:hover {
   align-items: center;
 }
 
+/* Entrances are a short, calm fade only (no movement, no stagger). */
 @keyframes reveal-in {
   from {
     opacity: 0;
-    transform: translateY(9px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
@@ -1180,8 +1190,8 @@ a:hover {
   padding: 18px 22px;
   background: #f1f0fd;
   border: 1px solid var(--identity-line);
-  border-radius: 20px;
-  box-shadow: 0 8px 24px rgb(27 23 72 / 5%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-workspace .workspace-page-header::after {
@@ -1215,8 +1225,8 @@ a:hover {
 .identity-workspace .chart-card,
 .identity-workspace .list-card {
   border-color: var(--identity-line) !important;
-  border-radius: 17px !important;
-  box-shadow: 0 8px 24px rgb(27 23 72 / 6%) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: var(--card-shadow) !important;
 }
 
 .identity-workspace .list-card {
@@ -1257,13 +1267,13 @@ a:hover {
 .identity-workspace .table-search,
 .identity-workspace .table-filter {
   background: rgb(255 255 255 / 94%);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .identity-workspace .table-search .MuiOutlinedInput-root,
 .identity-workspace .table-filter .MuiOutlinedInput-root {
   min-height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   background: rgb(255 255 255 / 94%);
 }
 
@@ -1276,7 +1286,7 @@ a:hover {
   background: #eceafe;
   border: 1px solid #e0e7ff;
   border-radius: 999px;
-  box-shadow: 0 3px 10px rgb(79 70 229 / 5%);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-workspace .list-table-scroll {
@@ -1338,8 +1348,8 @@ a:hover {
   padding: 15px 16px;
   background: #fff;
   border: 1px solid #e6e4f7;
-  border-radius: 14px;
-  box-shadow: 0 5px 16px rgb(27 23 72 / 5%);
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
   transition:
     transform 150ms ease,
     box-shadow 150ms ease,
@@ -1348,13 +1358,13 @@ a:hover {
 
 .identity-workspace .list-card-row:hover {
   background: #fbfaff;
-  box-shadow: 0 8px 20px rgb(27 23 72 / 8%);
+  box-shadow: var(--card-shadow);
   transform: translateY(-1px);
 }
 
 .identity-workspace .list-card-row .row-open {
   min-height: 48px;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
 }
 
 .identity-workspace .kpi-card {
@@ -1378,7 +1388,7 @@ a:hover {
 
 .identity-workspace .kpi-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 26px rgb(27 23 72 / 10%) !important;
+  box-shadow: var(--card-shadow) !important;
 }
 
 .identity-workspace .chart-card-heading h2 {
@@ -1387,8 +1397,8 @@ a:hover {
 }
 
 .identity-workspace .detail-drawer .MuiDrawer-paper {
-  border-radius: 22px 0 0 22px;
-  box-shadow: -12px 0 36px rgb(27 23 72 / 14%);
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-workspace .detail-drawer-head {
@@ -1400,7 +1410,7 @@ a:hover {
   padding: 14px 16px;
   background: #fff;
   border: 1px solid var(--identity-line);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-workspace .detail-section-title {
@@ -1443,22 +1453,22 @@ a:hover {
   padding: 10px;
   background: var(--night);
   border: 1px solid rgb(79 70 229 / 15%);
-  border-radius: 24px;
-  box-shadow: 0 14px 34px rgb(27 23 72 / 13%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-status .MuiButton-root {
   min-height: 48px;
   padding: 0 18px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-weight: 750;
 }
 
 .identity-workspace .profile-summary {
   overflow: hidden;
   border-color: var(--identity-line);
-  border-radius: 20px;
-  box-shadow: 0 8px 24px rgb(27 23 72 / 6%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-workspace .profile-summary > .profile-identity {
@@ -1484,7 +1494,7 @@ a:hover {
 
 .identity-workspace .MuiButton-contained {
   min-height: 44px;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
   font-weight: 750;
 }
 
@@ -1510,7 +1520,7 @@ a:hover {
   padding: 18px;
   overflow: hidden;
   border-color: var(--identity-line) !important;
-  border-radius: 18px !important;
+  border-radius: var(--radius-lg) !important;
   box-shadow: var(--card-shadow) !important;
   transition:
     transform 180ms ease,
@@ -1518,8 +1528,7 @@ a:hover {
 }
 
 .identity-kpi-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgb(27 23 72 / 9%) !important;
+  border-color: var(--field-border) !important;
 }
 
 .identity-kpi-heading {
@@ -1536,7 +1545,7 @@ a:hover {
   place-items: center;
   color: var(--identity-blue-deep);
   background: #eceafe;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
 }
 
 .identity-kpi-icon svg {
@@ -1617,8 +1626,8 @@ a:hover {
   color: #fff;
   background: #3730a3;
   border: 1px solid rgb(255 255 255 / 14%);
-  border-radius: 22px;
-  box-shadow: 0 12px 30px rgb(27 23 72 / 15%);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-attention-heading {
@@ -1659,7 +1668,7 @@ a:hover {
   padding: 0 15px;
   color: #1b1748;
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 800;
   white-space: nowrap;
@@ -1695,7 +1704,7 @@ a:hover {
   padding: 0 6px;
   color: #1b1748;
   background: #bef264;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
@@ -1710,7 +1719,7 @@ a:hover {
   padding: 15px;
   color: var(--identity-ink);
   background: #fff;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-signal-heading {
@@ -1764,7 +1773,7 @@ a:hover {
 .identity-overview .list-card,
 .identity-overview .chart-card,
 .identity-agents .list-card {
-  border-radius: 16px !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 .identity-overview .identity-attention .list-card {
@@ -1786,7 +1795,7 @@ a:hover {
   padding: 6px;
   background: #f1f0fd;
   border: 1px solid var(--identity-line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-probability {
@@ -1832,7 +1841,7 @@ a:hover {
   height: 36px;
   flex: 0 0 auto;
   place-items: center;
-  border-radius: 13px;
+  border-radius: var(--radius-md);
   font-size: 11px;
   font-weight: 850;
   letter-spacing: 0.02em;
@@ -1841,7 +1850,7 @@ a:hover {
 .identity-avatar-large {
   width: 52px;
   height: 52px;
-  border-radius: 17px;
+  border-radius: var(--radius-lg);
   font-size: 15px;
 }
 
@@ -1977,7 +1986,7 @@ a:hover {
 
 .identity-agents .list-card-row,
 .identity-overview .identity-attention .list-card-row {
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .identity-agents .tone-error,
@@ -2007,7 +2016,7 @@ a:hover {
 
 .identity-agent-drawer .MuiDrawer-paper {
   width: min(480px, 100vw);
-  border-radius: 22px 0 0 22px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
 }
 
 .identity-agent-drawer .detail-drawer-head {
@@ -2034,7 +2043,7 @@ a:hover {
   padding: 16px;
   background: #f3f2fe;
   border: 1px solid #e6e4f7;
-  border-radius: 17px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-section-label {
@@ -2072,8 +2081,8 @@ a:hover {
     padding: 28px 32px;
     background: rgb(255 255 255 / 96%);
     border: 1px solid #e6e4f7;
-    border-radius: 24px;
-    box-shadow: 0 18px 50px rgb(27 23 72 / 10%);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--card-shadow);
   }
 
   .identity-join-brand {
@@ -2131,7 +2140,7 @@ a:hover {
   padding: 14px;
   background: #f1f0fd;
   border: 1px solid #e6e4f7;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-join-organisation {
@@ -2191,7 +2200,7 @@ a:hover {
   padding: 15px;
   background: #ecfeff;
   border: 1px solid #a5f3fc;
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-trust-mark {
@@ -2202,7 +2211,7 @@ a:hover {
   flex: 0 0 auto;
   place-items: center;
   background: #cffafe;
-  border-radius: 11px;
+  border-radius: var(--radius-md);
 }
 
 .identity-trust-mark::before,
@@ -2284,7 +2293,7 @@ a:hover {
 .identity-progress-track span {
   height: 5px;
   background: #e6e4f7;
-  border-radius: 99px;
+  border-radius: 999px;
 }
 
 .identity-progress-track .identity-progress-active {
@@ -2338,7 +2347,7 @@ a:hover {
 
 .identity-join-form .MuiInputBase-root {
   min-height: 50px;
-  border-radius: 13px;
+  border-radius: var(--radius-md);
 }
 
 .identity-join-form .MuiInputLabel-root {
@@ -2354,14 +2363,14 @@ a:hover {
 
 .identity-join-form .MuiButton-root {
   min-height: 48px;
-  border-radius: 13px;
+  border-radius: var(--radius-md);
   font-weight: 750;
 }
 
 .identity-join-form .MuiButton-contained {
   color: #fff;
   background: #4f46e5;
-  box-shadow: 0 5px 12px rgb(79 70 229 / 18%);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-join-form .MuiButton-contained:hover {
@@ -2369,7 +2378,7 @@ a:hover {
 }
 
 .identity-join-step {
-  animation: identity-step-in 220ms ease-out both;
+  animation: identity-step-in 180ms ease-out both;
 }
 
 .identity-join-step-heading {
@@ -2420,7 +2429,7 @@ a:hover {
   margin: 0;
   padding: 12px;
   border: 1px solid #8b89a8;
-  border-radius: 13px;
+  border-radius: var(--radius-md);
 }
 
 .identity-duration legend {
@@ -2451,7 +2460,7 @@ a:hover {
   color: var(--identity-ink);
   background: #fff;
   border: 1px solid #8b89a8;
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
   font: inherit;
 }
 
@@ -2472,7 +2481,7 @@ a:hover {
   overflow: hidden;
   background: #f7f6fe;
   border: 1px solid #e6e4f7;
-  border-radius: 15px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-review-card > div {
@@ -2505,7 +2514,7 @@ a:hover {
   padding: 8px 10px;
   background: #f7f6fe;
   border: 1px solid #ede9fe;
-  border-radius: 13px;
+  border-radius: var(--radius-md);
 }
 
 .identity-assisted-toggle .MuiCheckbox-root {
@@ -2524,7 +2533,7 @@ a:hover {
 .identity-consent {
   padding: 12px;
   border-color: #8b89a8;
-  border-radius: 14px;
+  border-radius: var(--radius-md);
 }
 
 .identity-consent .MuiCheckbox-root {
@@ -2594,7 +2603,7 @@ a:hover {
   padding: 18px;
   background: #f1f0fd;
   border: 1px solid #e6e4f7;
-  border-radius: 17px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-reference-card > p:first-child {
@@ -2612,7 +2621,7 @@ a:hover {
 
 .identity-reference-card .MuiButton-root {
   min-height: 48px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .identity-copy-message {
@@ -2628,7 +2637,7 @@ a:hover {
   text-align: left;
   background: #fff;
   border: 1px solid #e6e4f7;
-  border-radius: 15px;
+  border-radius: var(--radius-lg);
 }
 
 .identity-next-steps h2 {
@@ -2654,19 +2663,17 @@ a:hover {
 }
 
 .identity-join-step-heading h2:focus-visible {
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   outline: 3px solid #4f46e5;
   outline-offset: 4px;
 }
 
 @keyframes identity-step-in {
   from {
-    opacity: 0.4;
-    transform: translateX(8px);
+    opacity: 0;
   }
   to {
     opacity: 1;
-    transform: translateX(0);
   }
 }
 
@@ -2703,7 +2710,7 @@ a:hover {
   .identity-kpi-card {
     min-height: 145px;
     padding: 13px;
-    border-radius: 15px !important;
+    border-radius: var(--radius-lg) !important;
   }
 
   .identity-kpi-value {
@@ -2718,7 +2725,7 @@ a:hover {
 
   .identity-attention {
     padding: 16px;
-    border-radius: 18px;
+    border-radius: var(--radius-lg);
   }
 
   .identity-attention-heading {
@@ -2744,7 +2751,7 @@ a:hover {
 
   .identity-agent-drawer .MuiDrawer-paper {
     width: 100vw;
-    border-radius: 18px 18px 0 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
   }
 
   .identity-agent-drawer .detail-drawer-head,
@@ -3496,7 +3503,7 @@ a:hover {
   color: var(--on-navy);
   background: var(--gradient-hero);
   border: 0;
-  box-shadow: 0 16px 40px rgb(49 46 129 / 22%);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-overview .workspace-page-header::after {
@@ -3562,7 +3569,7 @@ a:hover {
   height: 40px;
   color: var(--kpi-ink);
   background: var(--kpi-tint);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .identity-kpi-icon svg {
@@ -3682,7 +3689,7 @@ a:hover {
 
 .list-pager .MuiTablePagination-actions .MuiIconButton-root {
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--radius-sm);
 }
 
 .list-pager .MuiTablePagination-actions .MuiIconButton-root:not(.Mui-disabled) {
@@ -3714,7 +3721,7 @@ a:hover {
   background: var(--gradient-hero);
   border: 0;
   border-radius: var(--radius-lg);
-  box-shadow: 0 14px 34px rgb(49 46 129 / 22%);
+  box-shadow: var(--card-shadow);
 }
 
 .identity-join-organisation > span {
@@ -3791,7 +3798,7 @@ a:hover {
 .identity-join-form .MuiButton-contained {
   min-height: 48px;
   background: var(--primary);
-  border-radius: 12px;
+  border-radius: var(--radius-md);
   box-shadow: none;
 }
 
@@ -3814,7 +3821,7 @@ a:hover {
   .identity-public:has(.identity-join) .identity-join,
   .identity-public:has(.identity-join-success) .identity-join-success {
     border-color: var(--line);
-    box-shadow: 0 18px 50px rgb(27 23 72 / 10%);
+    box-shadow: var(--card-shadow);
   }
 }
 
@@ -3927,6 +3934,202 @@ a:hover {
   .identity-join-brand {
     margin: 0 0 28px;
     padding: 22px 24px;
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+/* ==========================================================================
+   Final polish (v1.4.0)
+   ========================================================================== */
+
+/* Sign-in: the form column is centred in the white side. */
+.auth-main {
+  justify-content: center;
+}
+
+/* Chrome autofill paints only the <input>; paint it the field colour so the
+   whole field (including the show-password button area) looks the same. */
+.MuiInputBase-input:-webkit-autofill,
+.MuiInputBase-input:-webkit-autofill:hover,
+.MuiInputBase-input:-webkit-autofill:focus {
+  border-radius: inherit;
+  caret-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 100px var(--paper) inset;
+  -webkit-text-fill-color: var(--ink);
+  transition: background-color 600000s 0s;
+}
+
+/* Kenya mesh: one calm node colour; only the flagged node turns red once.
+   A clearer outline, fainter inner links. */
+.kenya-mesh line {
+  stroke: #37336f;
+  stroke-width: 1;
+}
+
+.kenya-mesh .kenya-mesh-border {
+  stroke: #a9a6ea;
+  stroke-width: 2;
+}
+
+.kenya-mesh-edge-node,
+.kenya-mesh-node,
+.kenya-mesh-node-cyan {
+  fill: #c7c9f5;
+}
+
+@keyframes mesh-flag {
+  0% {
+    fill: #c7c9f5;
+  }
+
+  12%,
+  72% {
+    fill: #f43f5e;
+  }
+
+  100% {
+    fill: #c7c9f5;
+  }
+}
+
+/* Larger, and anchored to the panel's bottom-right corner; its height is
+   capped by the space left under the text, so it never reaches the text. */
+@media (min-width: 1001px) {
+  .brand-mesh {
+    width: min(
+      calc(100% + clamp(32px, 4.5vw, 64px)),
+      540px,
+      calc((100vh - 380px) * 0.83)
+    );
+    margin: auto calc(-1 * clamp(32px, 4.5vw, 64px)) -48px auto;
+    padding: 24px 0 0;
+  }
+}
+
+/* Only "Sign in" uses indigo; the Google button is neutral. */
+.google-button.MuiButton-outlined {
+  color: var(--ink);
+  border-color: #8a8f98;
+}
+
+.google-button.MuiButton-outlined:hover {
+  background: #f4f4f6;
+  border-color: #5f636b;
+}
+
+.google-button.MuiButton-outlined:active {
+  background: #e9e9ed;
+}
+
+/* A spinner in a fixed slot: the button keeps its size while busy. */
+.button-spinner {
+  position: absolute;
+  top: 50%;
+  right: 16px;
+  margin-top: -8px;
+}
+
+/* Consistent interaction states: hover, pressed, and focus-visible (the
+   focus ring itself comes from theme.ts). */
+.MuiButtonBase-root,
+.MuiOutlinedInput-notchedOutline,
+.list-row > td,
+.workspace-nav-item,
+.MuiTab-root {
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.MuiButton-contained:active {
+  background: #312e81;
+}
+
+.MuiButton-outlined:not(.google-button):hover,
+.MuiButton-text:hover {
+  background: var(--primary-tint);
+}
+
+.MuiButton-outlined:not(.google-button):active,
+.MuiButton-text:active {
+  background: #e0ddfb;
+}
+
+.MuiOutlinedInput-root:hover:not(.Mui-focused, .Mui-error, .Mui-disabled)
+  .MuiOutlinedInput-notchedOutline {
+  border-color: var(--muted);
+}
+
+.list-row:focus-within > td {
+  background: var(--tint);
+}
+
+.list-row:active > td {
+  background: var(--primary-tint);
+}
+
+.MuiTab-root:hover {
+  color: var(--primary);
+  background: var(--tint);
+}
+
+.MuiTab-root:active {
+  background: var(--primary-tint);
+}
+
+.workspace-nav-item:hover {
+  background: rgb(255 255 255 / 6%);
+}
+
+.workspace-nav-item:active {
+  background: rgb(255 255 255 / 14%) !important;
+}
+
+/* Route changes and the first page after sign-in: a calm 180 ms fade. */
+.route-fade {
+  animation: reveal-in 180ms ease-out both;
+}
+
+/* Page skeleton while a page's code loads. */
+.page-skeleton {
+  display: grid;
+  width: 100%;
+  place-items: stretch;
+  min-height: 0;
+  align-content: start;
+  gap: 16px;
+  padding: 8px 0;
+}
+
+.page-skeleton-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.identity-kpi-value-skeleton {
+  margin-top: 2px;
+}
+
+@media (max-width: 680px) {
+  .page-skeleton-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-fade,
+  .auth-content,
+  .identity-join-step {
+    animation: none;
+  }
+
+  .MuiButtonBase-root,
+  .MuiOutlinedInput-notchedOutline,
+  .list-row > td,
+  .workspace-nav-item,
+  .MuiTab-root {
+    transition: none;
   }
 }
