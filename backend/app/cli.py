@@ -16,6 +16,7 @@ from app.demo import (
     clear_demo_data,
     client_email,
     reset_demo,
+    seed_agent_customers,
     seed_demo,
 )
 from app.ml.model_service import ModelService
@@ -209,6 +210,44 @@ def run_seed_demo() -> None:
         print(f"  otpauth URI {summary.admin_otpauth_uri}")
 
 
+def run_seed_agent_customers(args: argparse.Namespace) -> None:
+    """Synthetic customers for one real agent; database only, never Firebase."""
+    settings = get_settings()
+    model_service = ModelService()
+    state = model_service.load(settings)
+    if state.status != "ok":
+        raise RuntimeError(f"The model is not ready: {state.error}")
+    with Session(get_engine()) as session:
+        summary = seed_agent_customers(
+            session,
+            model_service,
+            args.agent_email,
+            args.count,
+            profile=args.profile,
+            months=args.months,
+        )
+    print(
+        f"Created {summary.customers} synthetic customers for {args.agent_email} "
+        f"({args.profile} profile, spread over the last {args.months} months)."
+    )
+    print(
+        f"Flagged: {summary.flagged} | random audits: {summary.audited} | "
+        f"reviewed automatically: {summary.reviewed['confirmed_fake']} confirmed "
+        f"fake, {summary.reviewed['confirmed_real']} confirmed real | "
+        f"pending review: {summary.pending}"
+    )
+    if not summary.reviewer:
+        print("No demo admin exists, so older flags were left pending review.")
+    print(
+        f"Agent reputation now: {summary.reputation:.1f} ({summary.band}), "
+        f"from {summary.n_users} customers."
+    )
+    print(
+        "These customers are demo data (@demo.example.com addresses): "
+        "clear-demo-data removes them. Firebase was not changed."
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="SalesMesh authentication administration"
@@ -230,6 +269,17 @@ def main() -> None:
         "seed-demo", help="Create demo users and scored customers (safe to rerun)"
     )
     commands.add_parser("reset-demo", help="Delete only the demo data")
+    synthetic = commands.add_parser(
+        "seed-agent-customers",
+        help="Add synthetic, scored customers to one existing agent (demo data, "
+        "removed by clear-demo-data; Firebase is not touched)",
+    )
+    synthetic.add_argument("--agent-email", required=True)
+    synthetic.add_argument("--count", type=int, required=True)
+    synthetic.add_argument(
+        "--profile", choices=("honest", "fraudulent"), default="honest"
+    )
+    synthetic.add_argument("--months", type=int, default=6)
     commands.add_parser(
         "clear-demo-data",
         help="Delete only the demo data in this database; keep the Firebase "
@@ -247,6 +297,9 @@ def main() -> None:
             return
         if args.command == "seed-demo":
             run_seed_demo()
+            return
+        if args.command == "seed-agent-customers":
+            run_seed_agent_customers(args)
             return
         if args.command == "reset-demo":
             firebase = demo_firebase(get_settings())

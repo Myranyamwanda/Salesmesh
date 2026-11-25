@@ -367,6 +367,24 @@ create your own production admin first. If anything goes wrong, restore the
 backup (see [Restore a backup](#restore-a-backup)); the demo Firebase users are
 unchanged either way.
 
+### Synthetic customers for one real agent
+
+To demonstrate scoring on a real agent's account (for example your own test
+agent), add synthetic customers to that agent only. The agent must be
+approved, active, and assigned to an active client.
+
+```bash
+$C exec backend python manage.py seed-agent-customers   --agent-email agent@example.org --count 60 --profile honest --months 6
+```
+
+`--profile fraudulent` gives about 40% fraud rows, like the fraudulent demo
+agents. The customers come from the same sample and generator as
+`seed-demo`, are scored by the loaded model, and get audits and automatic
+reviews (by the demo admin, for flags older than 60 days; without a demo
+admin they stay pending). The command prints the counts and the agent's new
+reputation and band. They use `@demo.example.com` addresses, so
+`clear-demo-data` removes them; other agents and Firebase are never touched.
+
 ## Rolling back to the previous tag
 
 If the new version applied no migration (same `m00xx` in the backup name
