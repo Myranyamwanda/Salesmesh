@@ -10,6 +10,7 @@ from sqlalchemy.orm import aliased
 
 from app.api.listing import Direction, Limit, Offset, Search, contains
 from app.auth import Database, require_roles
+from app.ml.explain import with_current_texts
 from app.ml.feature_effects import feature_effects
 from app.ml.model_service import ModelService, get_model_service
 from app.models import (
@@ -116,7 +117,7 @@ def review_queue(
             probability=assessment.probability,
             threshold=assessment.threshold,
             audit=assessment.audit_selected and not assessment.flagged,
-            reasons=assessment.reasons[:3],
+            reasons=with_current_texts(assessment.reasons[:3]),
             customer_name=customer.full_name,
             agent=AgentSummary(id=profile.user_id, display_name=profile.display_name),
         )
@@ -146,7 +147,7 @@ def read_assessment(
         threshold_kind=assessment.threshold_kind,
         flagged=assessment.flagged,
         audit_selected=assessment.audit_selected,
-        reasons=assessment.reasons,
+        reasons=with_current_texts(assessment.reasons),
         features=assessment.features,
         feature_effects=feature_effects(
             model_service.state,

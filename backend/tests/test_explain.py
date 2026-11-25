@@ -4,7 +4,7 @@ import pytest
 from model_fixtures import CONTRACT, tiny_model
 from test_model_service import REAL_MODEL_DIR
 
-from app.ml.explain import REASON_TEXTS, contributions, explain
+from app.ml.explain import REASON_TEXTS, contributions, explain, with_current_texts
 from app.ml.model_service import feature_frame, load_folder
 
 FEATURES = {
@@ -95,3 +95,50 @@ def test_real_model_reasons():
     reasons = explain(state.model, state.metadata, flagged["features"])
     assert reasons
     assert all(reason["text"] for reason in reasons)
+
+
+DEVICE_AND_SESSION_CODES = [
+    "num__session_length_in_minutes",
+    "num__device_distinct_emails_8w",
+    "cat__device_os_linux",
+    "cat__device_os_macintosh",
+    "cat__device_os_other",
+    "cat__device_os_windows",
+    "cat__device_os_x11",
+]
+
+
+@pytest.mark.parametrize("code", DEVICE_AND_SESSION_CODES)
+def test_device_and_session_reasons_describe_a_training_pattern(code):
+    text = REASON_TEXTS[code]
+    assert text.endswith("more common in past fraud cases")
+    assert not text.startswith("Registered from")
+
+
+def test_windows_reason_wording():
+    assert REASON_TEXTS["cat__device_os_windows"] == (
+        "Device type (Windows computer) was more common in past fraud cases"
+    )
+
+
+def test_stored_model_reasons_are_shown_with_current_wording():
+    stored = [
+        {"source": "rule", "code": "rule__device_distinct_emails_8w", "text": "Rule"},
+        {
+            "source": "model",
+            "code": "cat__device_os_windows",
+            "text": "Registered from a Windows computer",
+            "contribution": 0.4,
+        },
+        {"source": "audit", "code": "audit__random", "text": "Random audit"},
+        {"source": "model", "code": "num__unknown", "text": "Kept as stored"},
+    ]
+
+    shown = with_current_texts(stored)
+
+    assert shown[0] == stored[0]
+    assert shown[1] == {**stored[1], "text": REASON_TEXTS["cat__device_os_windows"]}
+    assert shown[2] == stored[2]
+    assert shown[3] == stored[3]
+    # The stored snapshot itself is not changed.
+    assert stored[1]["text"] == "Registered from a Windows computer"

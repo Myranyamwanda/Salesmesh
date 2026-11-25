@@ -579,3 +579,26 @@ def test_audit_log_returns_the_subject(api):
     items = client.get("/admin/audit-logs", headers=headers["admin"]).json()["items"]
     entry = next(item for item in items if item["action"] == "scoring_config_updated")
     assert entry["subject"] == "scoring_config:1"
+
+
+def test_review_queue_rewords_reasons_stored_with_old_wording(api):
+    client, session, users, headers = api
+    _, assessment = add_scored_customer(session, users["agent"])
+    assessment.reasons = [
+        {
+            "source": "model",
+            "code": "cat__device_os_windows",
+            "text": "Registered from a Windows computer",
+            "contribution": 0.3,
+        }
+    ]
+    session.commit()
+
+    queue = client.get("/admin/review-queue", headers=headers["admin"]).json()
+    detail = client.get(
+        f"/admin/assessments/{assessment.id}", headers=headers["admin"]
+    ).json()
+
+    expected = "Device type (Windows computer) was more common in past fraud cases"
+    assert queue["items"][0]["reasons"][0]["text"] == expected
+    assert detail["reasons"][0]["text"] == expected
