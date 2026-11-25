@@ -233,7 +233,6 @@ export function LoginPage() {
     return (
       <>
         <PageHeading
-          eyebrow="NO ACCOUNT YET"
           title="This email has no SalesMesh account"
           description={`${step.email} is not registered. Agents can request access now. Admin and client accounts are created by an administrator.`}
         />
@@ -253,7 +252,6 @@ export function LoginPage() {
   return (
     <>
       <PageHeading
-        eyebrow="WELCOME BACK"
         title="Sign in"
         description="Enter your account details to continue."
       />
@@ -406,7 +404,6 @@ export function RegistrationPage() {
     return (
       <>
         <PageHeading
-          eyebrow="AGENT ACCESS"
           title="One last step"
           description={`Signed in as ${user.email}. Choose the name customers will see on your registration link.`}
         />
@@ -452,7 +449,6 @@ export function RegistrationPage() {
   return (
     <>
       <PageHeading
-        eyebrow="AGENT ACCESS"
         title="Create your account"
         description="Register as an agent to request access to the workspace. An administrator approves new agents."
       />
@@ -516,7 +512,6 @@ export function RegistrationPendingPage() {
         <TaskAlt />
       </div>
       <PageHeading
-        eyebrow="REQUEST RECEIVED"
         title="You’re in the review queue"
         description="Your agent account is waiting for administrator approval. You can sign in as soon as it is approved."
       />
@@ -554,7 +549,6 @@ export function ForgotPasswordPage() {
   return (
     <>
       <PageHeading
-        eyebrow="ACCOUNT RECOVERY"
         title="Reset your password"
         description="Enter your account email and we’ll send a link to choose a new password. Accounts that sign in with Google do not need one."
       />
@@ -617,7 +611,6 @@ export function ChangePasswordPage() {
   return (
     <>
       <PageHeading
-        eyebrow="ACCOUNT SECURITY"
         title="Change password"
         description="Confirm your current password, then choose a new one. You will be signed out everywhere."
       />
