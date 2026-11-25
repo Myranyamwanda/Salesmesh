@@ -1,4 +1,4 @@
-import { Paper, Typography } from "@mui/material";
+import { Paper, Skeleton, Typography } from "@mui/material";
 import FactCheck from "@mui/icons-material/FactCheck";
 import Groups from "@mui/icons-material/Groups";
 import PersonAddAlt1 from "@mui/icons-material/PersonAddAlt1";
@@ -261,6 +261,7 @@ function OverviewMetricCard({
   icon,
   label,
   value,
+  loading,
   detail,
   trend,
 }: {
@@ -268,6 +269,7 @@ function OverviewMetricCard({
   icon: ReactNode;
   label: string;
   value: number | null;
+  loading: boolean;
   detail: string;
   trend?: {
     kind: "area" | "bar";
@@ -293,9 +295,18 @@ function OverviewMetricCard({
         </Typography>
       </div>
       <div className="identity-kpi-value-row">
-        <Typography className="identity-kpi-value">
-          {value === null ? "—" : formatCount(value)}
-        </Typography>
+        {loading ? (
+          <Skeleton
+            className="identity-kpi-value-skeleton"
+            variant="rounded"
+            width={88}
+            height={34}
+          />
+        ) : (
+          <Typography className="identity-kpi-value">
+            {value === null ? "—" : formatCount(value)}
+          </Typography>
+        )}
         {trend && (
           <TrendDelta
             current={trend.current}
@@ -443,6 +454,7 @@ export function OverviewPage() {
           icon={<PersonAddAlt1 />}
           label="Registrations"
           value={latestMonth?.registrations ?? null}
+          loading={kpiQuery.isPending}
           detail={monthlyDetail}
           trend={
             kpiQuery.data
@@ -462,6 +474,7 @@ export function OverviewPage() {
           icon={<ReportProblem />}
           label="Confirmed fake"
           value={latestMonth?.confirmed_fake ?? null}
+          loading={kpiQuery.isPending}
           detail={
             latestMonth && kpiQuery.data
               ? `Human-confirmed · ${latestMonth.month}`
@@ -485,6 +498,7 @@ export function OverviewPage() {
           icon={<FactCheck />}
           label="Reviews waiting"
           value={queueQuery.data?.total ?? null}
+          loading={queueQuery.isPending}
           detail={
             queueQuery.isError
               ? "Review count unavailable"
@@ -498,6 +512,7 @@ export function OverviewPage() {
           icon={<Groups />}
           label="Agents"
           value={allQuery.data?.total ?? null}
+          loading={allQuery.isPending}
           detail={
             allQuery.isError
               ? "Agent count unavailable"

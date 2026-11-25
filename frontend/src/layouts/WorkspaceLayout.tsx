@@ -39,6 +39,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { PageLoading } from "../components/PageLoading";
+import { RouteFade } from "../components/RouteFade";
 import { InitialsAvatar, LogoMark } from "../components/VisualIdentity";
 import { useAuth } from "../hooks/useAuth";
 import type { UserRole } from "../types/auth";
@@ -299,7 +300,9 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
         <Toolbar className="workspace-topbar-spacer" />
         <div className="workspace-content">
           <Suspense fallback={<PageLoading />}>
-            <Outlet />
+            <RouteFade>
+              <Outlet />
+            </RouteFade>
           </Suspense>
         </div>
         <footer className="workspace-footer">

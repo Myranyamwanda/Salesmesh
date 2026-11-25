@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import { PageLoading } from "../components/PageLoading";
+import { RouteFade } from "../components/RouteFade";
 import { LogoMark } from "../components/VisualIdentity";
 
 /** A single, mobile-first column for pages customers open without signing in. */
@@ -13,7 +14,9 @@ export function PublicLayout() {
       </header>
       <main className="public-main">
         <Suspense fallback={<PageLoading />}>
-          <Outlet />
+          <RouteFade>
+            <Outlet />
+          </RouteFade>
         </Suspense>
       </main>
       <footer className="public-footer">

@@ -114,6 +114,7 @@ function GoogleButton({
     <>
       <Divider className="or-divider">or</Divider>
       <Button
+        className="google-button"
         variant="outlined"
         startIcon={<Google />}
         disabled={disabled}
@@ -288,14 +289,18 @@ export function LoginPage() {
             variant="contained"
             size="large"
             disabled={busy}
-            endIcon={
-              busy ? (
-                <CircularProgress size={16} color="inherit" aria-hidden />
-              ) : undefined
-            }
             fullWidth
           >
             {busy ? "Signing in…" : "Sign in"}
+            {/* In a fixed slot, so the button keeps its size while busy. */}
+            {busy && (
+              <CircularProgress
+                className="button-spinner"
+                size={16}
+                color="inherit"
+                aria-hidden
+              />
+            )}
           </Button>
           <GoogleButton
             label="Sign in with Google"
