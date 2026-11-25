@@ -221,6 +221,15 @@ export function ReviewDialog({
               <Typography component="h3" variant="subtitle1" gutterBottom>
                 Reasons
               </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                className="reason-help"
+                gutterBottom
+              >
+                Reasons are statistical signals from training data, not proof.
+                Check the details before deciding.
+              </Typography>
               <ReasonList
                 reasons={assessment.reasons}
                 assisted={assessment.customer.assisted}
