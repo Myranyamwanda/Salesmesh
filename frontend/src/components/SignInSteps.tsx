@@ -34,7 +34,7 @@ export function StepHeading({
 }: {
   eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
 }) {
   return (
     <header className="form-heading">
@@ -42,7 +42,9 @@ export function StepHeading({
       <Typography component="h1" variant="h4">
         {title}
       </Typography>
-      <Typography className="form-description">{description}</Typography>
+      {description && (
+        <Typography className="form-description">{description}</Typography>
+      )}
     </header>
   );
 }

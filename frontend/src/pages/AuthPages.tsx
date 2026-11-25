@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Alert, Button, CircularProgress, Divider } from "@mui/material";
-import ArrowForward from "@mui/icons-material/ArrowForward";
 import Google from "@mui/icons-material/Google";
 import TaskAlt from "@mui/icons-material/TaskAlt";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,7 +26,6 @@ import {
   StackedField,
   StackedPasswordField,
 } from "../components/form/StackedField";
-import { FormTextField } from "../components/FormTextField";
 import { PasswordField } from "../components/PasswordField";
 import {
   MfaStep,
@@ -251,10 +249,7 @@ export function LoginPage() {
   }
   return (
     <>
-      <PageHeading
-        title="Sign in"
-        description="Enter your account details to continue."
-      />
+      <PageHeading title="Sign in" />
       {/* Proposal layout (Phase 0): labels above the fields, the server
           error first, one field group and one action group. */}
       <form
@@ -296,9 +291,7 @@ export function LoginPage() {
             endIcon={
               busy ? (
                 <CircularProgress size={16} color="inherit" aria-hidden />
-              ) : (
-                <ArrowForward />
-              )
+              ) : undefined
             }
             fullWidth
           >
@@ -408,7 +401,7 @@ export function RegistrationPage() {
           description={`Signed in as ${user.email}. Choose the name customers will see on your registration link.`}
         />
         <form className="auth-form" onSubmit={handleSubmit(finish)} noValidate>
-          <FormTextField
+          <StackedField
             label="Display name"
             autoComplete="name"
             registration={register("displayName")}
@@ -427,7 +420,6 @@ export function RegistrationPage() {
             type="submit"
             variant="contained"
             disabled={isSubmitting}
-            endIcon={<ArrowForward />}
             fullWidth
           >
             {isSubmitting ? "Sending request…" : "Request agent access"}
@@ -461,7 +453,7 @@ export function RegistrationPage() {
         )}
         noValidate
       >
-        <FormTextField
+        <StackedField
           label="Email address"
           type="email"
           autoComplete="email"
@@ -469,27 +461,21 @@ export function RegistrationPage() {
           error={errors.email?.message}
           autoFocus
         />
-        <PasswordField
+        <StackedPasswordField
           label="Password"
           autoComplete="new-password"
           registration={register("password")}
           error={errors.password?.message}
           hint={PASSWORD_HINT}
         />
-        <PasswordField
+        <StackedPasswordField
           label="Confirm password"
           autoComplete="new-password"
           registration={register("confirmPassword")}
           error={errors.confirmPassword?.message}
         />
         <AuthFeedback error={serverError} />
-        <Button
-          type="submit"
-          variant="contained"
-          disabled={busy}
-          endIcon={<ArrowForward />}
-          fullWidth
-        >
+        <Button type="submit" variant="contained" disabled={busy} fullWidth>
           {busy ? "Creating account…" : "Create account"}
         </Button>
         <GoogleButton
@@ -553,7 +539,7 @@ export function ForgotPasswordPage() {
         description="Enter your account email and we’ll send a link to choose a new password. Accounts that sign in with Google do not need one."
       />
       <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
-        <FormTextField
+        <StackedField
           label="Email address"
           type="email"
           autoComplete="email"
