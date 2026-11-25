@@ -68,6 +68,26 @@ password-reset, and `/join` header screens.
 - **Removed:** the stylised dashboard preview, the two-tone wordmark, the
   `/join` background arcs, and the floating header card on `/join`.
 
+### Final polish (Step 5)
+
+- Sign-in form centred in the white side; Chrome autofill painted the field
+  colour so the whole field (including the show-password button) matches.
+- Kenya mesh: one node colour, a clearer outline and fainter inner links,
+  larger and anchored to the panel's bottom-right; only the flagged node
+  turns red, once.
+- Google button neutral grey; only "Sign in" is indigo.
+- Font: the Latin file is preloaded and a local Arial scaled to Bricolage's
+  measured metrics (`size-adjust` 93.11%, ascent 99.88%, descent 29%) is the
+  fallback; measured layout shift on sign-in with a delayed font: 0.0025.
+- One set of hover, pressed, and focus-visible states for buttons, inputs,
+  table rows, tabs, and navigation items.
+- A 180 ms fade on route changes and after sign-in (`RouteFade`), no
+  movement; off with `prefers-reduced-motion`.
+- Skeletons while a page loads and for the Overview KPI values; the sign-in
+  spinner sits in a fixed slot so the button keeps its size.
+- Three corner radii (8, 12, 20 px, plus full rounding for circles and pills)
+  and one shadow (`--card-shadow`, also every MUI elevation).
+
 ## Phase 1b Identity Proposal (Step 1)
 
 This proposal applies the new visual identity only to Sign in, admin Overview,
