@@ -21,6 +21,10 @@ It is built after the first 40 agents, from rows they did not use, with its own
 seeded generators, so the first 40 agents' data does not change.
 Random audits use another seeded generator for the same reason.
 
+seed_agent_customers() adds synthetic customers for one existing, real agent
+(for a demonstration in production). They are generated the same way, use
+@demo.example.com addresses, and are therefore removed by clear-demo-data.
+
 Every demo user also gets a Firebase account (verified, DEMO_PASSWORD), and the
 demo admin gets an authenticator secret. Firebase calls never use the seeded
 random generator, so the customers, scores, and reviews do not change. Only
@@ -34,10 +38,11 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import pyotp
 from faker import Faker
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import ROOT_DIR, Settings
@@ -60,6 +65,15 @@ from app.services.scoring import score_customer
 DEMO_DOMAIN = "demo.example.com"
 DEMO_SAMPLE = ROOT_DIR / "ml" / "model_contract" / "v2" / "demo_sample.csv"
 REVIEW_NOTE = "Demo review based on dataset label"
+SYNTHETIC_REVIEW_NOTE = "Synthetic review based on dataset label"
+# Share of fraud rows per profile: the fraudulent share matches seed-demo's
+# fraudulent agents; honest agents get genuine rows only.
+SYNTHETIC_FRAUD_SHARE = {"honest": 0.0, "fraudulent": 0.40}
+SYNTHETIC_MAX_CUSTOMERS = 1000
+SYNTHETIC_MAX_MONTHS = 24
+# The device rule fires at 3 or more emails on one device; honest synthetic
+# customers stay below it (the sample's maximum is 2 anyway).
+HONEST_MAX_DEVICE_EMAILS = 2.0
 DEMO_LOCK = 71024
 CATEGORICAL = ("source", "device_os")
 
@@ -444,7 +458,10 @@ def delete_demo_firebase_users(
 
 
 def delete_demo_rows(session: Session) -> dict[str, int]:
-    """Delete demo users and the customers of demo agents. The caller commits.
+    """Delete demo users and demo customers. The caller commits.
+
+    Demo customers are the customers of demo agents and every customer with a
+    @demo.example.com address (synthetic customers of real agents).
 
     Assessments and reviews go with their customers (ON DELETE CASCADE), and
     agent and client profiles with their users. Audit entries stay, with their
@@ -452,15 +469,18 @@ def delete_demo_rows(session: Session) -> dict[str, int]:
     for a demo client is unassigned.
     """
     demo_users = select(User.id).where(User.email.like(f"%@{DEMO_DOMAIN}"))
+    # Customers of demo agents, and synthetic customers that
+    # seed-agent-customers added to real agents (both use demo addresses).
+    demo_customers = or_(
+        Customer.agent_id.in_(demo_users), Customer.email.like(f"%@{DEMO_DOMAIN}")
+    )
     customers = session.scalar(
-        select(func.count())
-        .select_from(Customer)
-        .where(Customer.agent_id.in_(demo_users))
+        select(func.count()).select_from(Customer).where(demo_customers)
     )
     users = session.scalar(
         select(func.count()).select_from(User).where(User.id.in_(demo_users))
     )
-    session.execute(delete(Customer).where(Customer.agent_id.in_(demo_users)))
+    session.execute(delete(Customer).where(demo_customers))
     session.execute(delete(AgentProfile).where(AgentProfile.user_id.in_(demo_users)))
     session.execute(delete(User).where(User.id.in_(demo_users)))
     return {"customers": customers, "users": users}
@@ -500,3 +520,145 @@ def clear_demo_data(session: Session) -> dict[str, int]:
     removed = delete_demo_rows(session)
     session.commit()
     return removed
+
+
+@dataclass
+class SyntheticSummary:
+    customers: int = 0
+    flagged: int = 0
+    audited: int = 0
+    reviewed: Counter = field(default_factory=Counter)
+    pending: int = 0
+    reputation: float = 0.0
+    band: str = ""
+    n_users: int = 0
+    # False when there is no demo admin to record automatic reviews.
+    reviewer: bool = True
+
+
+def eligible_agent(session: Session, email: str) -> tuple[User, AgentProfile]:
+    """The agent to add synthetic customers to, or a clear refusal."""
+    user = session.scalar(select(User).where(User.email == email.strip().lower()))
+    if user is None or user.role != "agent":
+        raise ValueError(f"No agent account found for {email}.")
+    if user.status != "approved" or not user.is_active:
+        raise ValueError(f"{email} is not an approved, active agent.")
+    profile = session.get(AgentProfile, user.id)
+    if profile is None or profile.client_id is None:
+        raise ValueError(f"{email} is not assigned to a client.")
+    client = session.get(User, profile.client_id)
+    if client is None or client.role != "client" or not client.is_active:
+        raise ValueError(f"The client of {email} is not active.")
+    return user, profile
+
+
+def seed_agent_customers(
+    session: Session,
+    model_service: ModelService,
+    email: str,
+    count: int,
+    profile: str = "honest",
+    months: int = 6,
+    rows: list[DemoRow] | None = None,
+    now: datetime | None = None,
+    rng: random.Random | None = None,
+) -> SyntheticSummary:
+    """Add `count` synthetic, scored customers to one existing agent.
+
+    Same sample, generator, scoring, audits, and automatic reviews as
+    seed-demo, spread over the last `months` months. Other agents and
+    Firebase are never touched. Runs in one transaction.
+    """
+    if profile not in SYNTHETIC_FRAUD_SHARE:
+        raise ValueError("--profile must be honest or fraudulent.")
+    if not 1 <= count <= SYNTHETIC_MAX_CUSTOMERS:
+        raise ValueError(f"--count must be from 1 to {SYNTHETIC_MAX_CUSTOMERS}.")
+    if not 1 <= months <= SYNTHETIC_MAX_MONTHS:
+        raise ValueError(f"--months must be from 1 to {SYNTHETIC_MAX_MONTHS}.")
+    model_service.ready_state()  # Refuse to seed without a working model.
+    session.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": DEMO_LOCK})
+    try:
+        agent, agent_profile = eligible_agent(session, email)
+    except ValueError:
+        session.rollback()
+        raise
+
+    now = now or datetime.now(UTC)
+    rng = rng or random.Random()
+    fake = Faker("en_KE")
+    fake.seed_instance(rng.random())
+    # Automatic reviews are recorded by the demo admin, never a real one.
+    reviewer = session.scalar(
+        select(User).where(User.email == ADMIN_EMAIL, User.is_active.is_(True))
+    )
+    summary = SyntheticSummary(reviewer=reviewer is not None)
+
+    sample = rows or read_sample()
+    fraud = [row for row in sample if row.fraud_bool == 1]
+    legit = [row for row in sample if row.fraud_bool == 0]
+    fraud_count = round(count * SYNTHETIC_FRAUD_SHARE[profile])
+    chosen = [rng.choice(fraud) for _ in range(fraud_count)]
+    chosen += [rng.choice(legit) for _ in range(count - fraud_count)]
+    rng.shuffle(chosen)
+
+    run = uuid4().hex[:8]
+    plan = DemoPlan()
+    for number, row in enumerate(chosen, start=1):
+        created_at = now - timedelta(seconds=rng.uniform(0, months * 30 * 86400))
+        assisted = rng.random() < plan.assisted_share
+        features = dict(row.features)
+        if assisted:
+            features.update(dict.fromkeys(ASSISTED_UNKNOWN))
+        elif profile == "honest" and features["device_distinct_emails_8w"]:
+            features["device_distinct_emails_8w"] = min(
+                features["device_distinct_emails_8w"], HONEST_MAX_DEVICE_EMAILS
+            )
+        current = features["current_address_months_count"]
+        previous = features["prev_address_months_count"]
+        customer = Customer(
+            agent_id=agent.id,
+            client_id=agent_profile.client_id,
+            reference=unique_reference(session),
+            full_name=fake.name(),
+            email=demo_email(f"synthetic-{run}-{number:04d}"),
+            mobile_phone=fake.numerify("07## ### ###"),
+            date_of_birth=fake.date_of_birth(minimum_age=18, maximum_age=75),
+            country="KE",
+            current_address_months=int(current or 0),
+            previous_address_months=None if previous is None else int(previous),
+            # Each own-device registration comes from its own device.
+            device_id=None if assisted else uuid4(),
+            assisted=assisted,
+            consent_at=created_at,
+            consent_version=CONSENT_VERSION,
+            created_at=created_at,
+        )
+        session.add(customer)
+        session.flush()
+        assessment = score_customer(
+            session, model_service, customer, features, rng.random
+        )
+        assessment.created_at = created_at
+        session.flush()
+        summary.customers += 1
+        summary.flagged += assessment.flagged
+        summary.audited += assessment.audit_selected
+        if not (assessment.flagged or assessment.audit_selected):
+            continue
+        if reviewer is not None and created_at < now - plan.auto_review_after:
+            decision = "confirmed_fake" if row.fraud_bool else "confirmed_real"
+            apply_review(
+                session, None, reviewer, assessment, decision, SYNTHETIC_REVIEW_NOTE
+            )
+            summary.reviewed[decision] += 1
+        else:
+            summary.pending += 1
+
+    session.flush()
+    config = session.get(ScoringConfig, 1)
+    stats = agent_reputations(session, config, [agent.id])[agent.id]
+    summary.reputation = stats.reputation
+    summary.band = stats.band
+    summary.n_users = stats.n_users
+    session.commit()
+    return summary
