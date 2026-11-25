@@ -1,9 +1,11 @@
 import { Button, Typography } from "@mui/material";
 import { Link } from "react-router-dom";
+import { MeshMark } from "../components/VisualIdentity";
 
 export function ForbiddenPage() {
   return (
-    <main className="status-page">
+    <main className="status-page identity-status">
+      <MeshMark className="identity-status-illustration" />
       <p className="eyebrow">403 · ACCESS RESTRICTED</p>
       <Typography variant="h4" component="h1">
         This space is for another role.
@@ -20,7 +22,8 @@ export function ForbiddenPage() {
 
 export function NotFoundPage() {
   return (
-    <main className="status-page">
+    <main className="status-page identity-status">
+      <MeshMark className="identity-status-illustration" />
       <p className="eyebrow">404 · PAGE NOT FOUND</p>
       <Typography variant="h4" component="h1">
         We couldn’t find that page.
@@ -37,7 +40,8 @@ export function NotFoundPage() {
 
 export function ErrorPage() {
   return (
-    <main className="status-page" role="alert">
+    <main className="status-page identity-status" role="alert">
+      <MeshMark className="identity-status-illustration" />
       <p className="eyebrow">SOMETHING WENT WRONG</p>
       <Typography variant="h4" component="h1">
         This page couldn’t load.

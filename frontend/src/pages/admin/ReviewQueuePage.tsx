@@ -10,13 +10,14 @@ import {
 import { ReviewDialog } from "../../components/ReviewDialog";
 import { ListTable, type ListColumn } from "../../components/table/ListTable";
 import { TableToolbar } from "../../components/table/TableToolbar";
+import { ProbabilityMeter } from "../../components/VisualIdentity";
 import {
   pageOffset,
   useClampPage,
   useListParams,
 } from "../../components/table/useListParams";
 import type { QueueItem } from "../../types/scoring";
-import { formatCount, formatDateTime, formatPercent } from "../../utils/format";
+import { formatCount, formatDateTime } from "../../utils/format";
 
 const kindOptions = [
   { value: "all", label: "Flags and audits" },
@@ -66,7 +67,7 @@ const columns: ListColumn<QueueItem>[] = [
     label: "Probability",
     numeric: true,
     card: "stat",
-    render: (row) => formatPercent(row.probability),
+    render: (row) => <ProbabilityMeter value={row.probability} />,
   },
   {
     key: "source",

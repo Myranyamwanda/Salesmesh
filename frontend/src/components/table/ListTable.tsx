@@ -14,8 +14,7 @@ import {
   Typography,
   useMediaQuery,
 } from "@mui/material";
-import SearchOff from "@mui/icons-material/SearchOff";
-import Inbox from "@mui/icons-material/Inbox";
+import { MeshMark } from "../VisualIdentity";
 import { formatCount } from "../../utils/format";
 import { PAGE_SIZES, type SortDirection } from "./useListParams";
 
@@ -50,6 +49,8 @@ type Props<Row> = {
   rowKey: (row: Row) => string;
   /** Opens the row's details. Without it, rows are plain (no drawer). */
   onOpen?: (row: Row) => void;
+  /** Adds a state class to each row/card without changing its content. */
+  rowClassName?: (row: Row) => string | undefined;
   /**
    * A page for the row (e.g. agent detail). The title becomes a link: a
    * plain click or Enter opens the details, and Ctrl/Cmd/Shift-click or a
@@ -186,6 +187,7 @@ export function ListTable<Row>(props: Props<Row>) {
               columns={props.columns}
               onOpen={onOpen}
               href={href}
+              className={props.rowClassName?.(row)}
             />
           </li>
         ))}
@@ -211,7 +213,11 @@ export function ListTable<Row>(props: Props<Row>) {
                   key={key}
                   hover={Boolean(onOpen)}
                   selected={openKey === key}
-                  className={onOpen ? "list-row" : undefined}
+                  className={
+                    [onOpen && "list-row", props.rowClassName?.(row)]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
                   onClick={(event) => {
                     if (onOpen && !isControl(event)) onOpen(row);
                   }}
@@ -304,11 +310,13 @@ function ListCard<Row>({
   columns,
   onOpen,
   href,
+  className,
 }: {
   row: Row;
   columns: ListColumn<Row>[];
   onOpen?: (row: Row) => void;
   href?: (row: Row) => string;
+  className?: string;
 }) {
   const of = (place: ListColumn<Row>["card"]) =>
     columns.filter((column) => column.card === place);
@@ -316,7 +324,12 @@ function ListCard<Row>({
   // else on the card opens it too, and links inside stay separate controls.
   return (
     <div
-      className={onOpen ? "list-card-row" : "list-card-row list-card-static"}
+      className={[
+        onOpen ? "list-card-row" : "list-card-row list-card-static",
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
       onClick={(event) => {
         if (onOpen && !isControl(event)) onOpen(row);
       }}
@@ -402,12 +415,9 @@ function EmptyRows<Row>({
   emptyTitle,
   emptyDescription,
 }: Props<Row>) {
-  const Icon = filtered ? SearchOff : Inbox;
   return (
     <div className="list-empty">
-      <span className="list-empty-icon" aria-hidden="true">
-        <Icon />
-      </span>
+      <MeshMark className="identity-empty-illustration" />
       <Typography component="h2" className="list-empty-title">
         {filtered ? "No results match your search or filters" : emptyTitle}
       </Typography>

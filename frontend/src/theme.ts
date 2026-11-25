@@ -1,9 +1,14 @@
-import { createTheme } from "@mui/material/styles";
-import { colors, cssVariables, fonts, radius } from "./tokens";
+import { createTheme, type Shadows } from "@mui/material/styles";
+import { cardShadow, colors, cssVariables, fonts, radius } from "./tokens";
+
+// One shadow style everywhere: every MUI elevation (menus, dialogs, drawers)
+// uses the card shadow.
+const shadows = ["none", ...Array(24).fill(cardShadow)] as Shadows;
 
 const heading = { fontFamily: fonts.heading, fontWeight: 700 };
 
 export const theme = createTheme({
+  shadows,
   palette: {
     mode: "light",
     primary: {

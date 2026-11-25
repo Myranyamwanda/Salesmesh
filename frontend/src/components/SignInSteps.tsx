@@ -32,17 +32,19 @@ export function StepHeading({
   title,
   description,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
 }) {
   return (
     <header className="form-heading">
-      <p className="eyebrow">{eyebrow}</p>
+      {eyebrow && <p className="eyebrow">{eyebrow}</p>}
       <Typography component="h1" variant="h4">
         {title}
       </Typography>
-      <Typography className="form-description">{description}</Typography>
+      {description && (
+        <Typography className="form-description">{description}</Typography>
+      )}
     </header>
   );
 }
@@ -82,7 +84,6 @@ export function VerifyEmailStep({
         <MarkEmailRead />
       </div>
       <StepHeading
-        eyebrow="EMAIL VERIFICATION"
         title="Check your inbox"
         description={`We sent a verification link to ${user.email}. Open it, then come back and continue. It may be in your spam folder.`}
       />
@@ -215,7 +216,6 @@ function MfaVerify({ challenge, onSignedIn, onRestart }: MfaProps) {
   return (
     <>
       <StepHeading
-        eyebrow="ADMIN SECURITY"
         title="Enter your code"
         description="Open your authenticator app and enter the 6-digit code for SalesMesh. Lost your phone? Enter one of your recovery codes instead."
       />
@@ -275,7 +275,6 @@ function MfaSetup({ challenge, onSignedIn, onRestart }: MfaProps) {
   return (
     <>
       <StepHeading
-        eyebrow="ADMIN SECURITY"
         title="Set up your authenticator"
         description="Admins confirm each sign-in with a code from an authenticator app such as Google Authenticator or Microsoft Authenticator. Scan this QR code with the app, then enter the 6-digit code it shows."
       />
@@ -345,7 +344,6 @@ function RecoveryCodes({
   return (
     <>
       <StepHeading
-        eyebrow="ADMIN SECURITY"
         title="Save your recovery codes"
         description="If you lose your phone, each code lets you sign in once instead of an authenticator code. This is the only time they are shown. Keep them somewhere safe, away from your phone."
       />

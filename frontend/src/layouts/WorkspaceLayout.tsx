@@ -1,7 +1,6 @@
 import { Suspense, useState } from "react";
 import {
   AppBar,
-  Avatar,
   Box,
   Chip,
   Divider,
@@ -40,8 +39,11 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { PageLoading } from "../components/PageLoading";
+import { RouteFade } from "../components/RouteFade";
+import { InitialsAvatar, LogoMark } from "../components/VisualIdentity";
 import { useAuth } from "../hooks/useAuth";
 import type { UserRole } from "../types/auth";
+import { getInitials } from "../utils/identity";
 import { roleHome } from "../utils/roleHome";
 
 const drawerWidth = 252;
@@ -112,9 +114,7 @@ function SideNavigation({
         className="workspace-brand"
         onClick={onNavigate}
       >
-        <span className="brand-mark" aria-hidden="true">
-          S
-        </span>
+        <LogoMark size={32} />
         <span className="workspace-brand-copy">
           <strong>SalesMesh</strong>
           <small>ONBOARDING WORKSPACE</small>
@@ -204,7 +204,8 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const navigate = useNavigate();
-  const initials = user?.email.slice(0, 1).toUpperCase() ?? "U";
+  const avatarName =
+    user?.email.split("@")[0].replace(/[._-]+/g, " ") ?? "User";
 
   async function signOut() {
     setMenuAnchor(null);
@@ -213,7 +214,7 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
   }
 
   return (
-    <Box className="workspace-app">
+    <Box className="workspace-app identity-workspace">
       {/* First on the page, so keyboard users can jump past the menus. */}
       <a className="skip-link" href="#main">
         Skip to main content
@@ -243,9 +244,12 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
           <Tooltip title="Account menu">
             <IconButton
               onClick={(event) => setMenuAnchor(event.currentTarget)}
-              aria-label="Open account menu"
+              aria-label={`Open account menu ${getInitials(avatarName)}`}
             >
-              <Avatar className="topbar-avatar">{initials}</Avatar>
+              <InitialsAvatar
+                name={avatarName}
+                seed={user?.id ?? user?.email}
+              />
             </IconButton>
           </Tooltip>
           <Menu
@@ -296,7 +300,9 @@ export function WorkspaceLayout({ role }: { role: UserRole }) {
         <Toolbar className="workspace-topbar-spacer" />
         <div className="workspace-content">
           <Suspense fallback={<PageLoading />}>
-            <Outlet />
+            <RouteFade>
+              <Outlet />
+            </RouteFade>
           </Suspense>
         </div>
         <footer className="workspace-footer">

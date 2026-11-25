@@ -47,6 +47,31 @@ for (const [role, path] of pages) {
   });
 }
 
+const identityPagesAt360: [UserRole | null, string][] = [
+  [null, "/register"],
+  [null, "/forgot-password"],
+  [null, "/join/AGT-7K3Q2MNP"],
+  [null, "/403"],
+  [null, "/404"],
+  ["admin", "/profile"],
+  ["admin", "/admin/settings"],
+  ["agent", "/agent/activity"],
+  ["client", "/client"],
+];
+
+for (const [role, path] of identityPagesAt360) {
+  test(`${role ?? "public"} ${path} at 360px`, async ({ page, isMobile }) => {
+    test.skip(isMobile, "The 360px check runs in the desktop browser");
+    const unexpected = await mockApi(page, role);
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto(path);
+    await waitForPage(page);
+    await expectNoAxeViolations(page);
+    await expectNoSidewaysScroll(page);
+    expect(unexpected, "API calls without a mock").toEqual([]);
+  });
+}
+
 test("admin review dialog", async ({ page }) => {
   const unexpected = await mockApi(page, "admin");
   await page.goto("/admin/review-queue");
@@ -71,6 +96,28 @@ test("admin agent details drawer", async ({ page }) => {
   const drawer = page.getByRole("dialog", { name: "Chebet Kiprono" });
   await expect(drawer.getByText("Risk score")).toBeVisible();
   await expectNoAxeViolations(page, '[role="dialog"]');
+  await expectNoSidewaysScroll(page);
+  expect(unexpected, "API calls without a mock").toEqual([]);
+});
+
+test("admin agents empty state is illustrated and accessible at 360px", async ({
+  page,
+}) => {
+  const unexpected = await mockApi(page, "admin");
+  await page.setViewportSize({ width: 360, height: 740 });
+  await page.goto("/admin/agents");
+  await waitForPage(page);
+  await page.getByLabel("Search agents").fill("no matches");
+
+  await expect(
+    page.getByText("No results match your search or filters"),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("img", {
+      name: "Connected nodes represent the SalesMesh network",
+    }),
+  ).toBeVisible();
+  await expectNoAxeViolations(page);
   await expectNoSidewaysScroll(page);
   expect(unexpected, "API calls without a mock").toEqual([]);
 });
